@@ -9,13 +9,8 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 15px;
-            /* Degradado base celeste */
-            background-color: #80deea;
-            background-image: linear-gradient(135deg, #e0f7fa 0%, #80deea 100%), 
-                              /* Patrón sutil de dientecitos de fondo */
-                              url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Ctext y='50' font-size='30' opacity='0.08'%3E🦷%3C/text%3E%3C/svg%3E");
-            background-repeat: repeat; /* Para que el diente se repita por toda la pantalla */
-            background-blend-mode: overlay; /* Mezcla suave */
+            /* DEGRADADO FUERTE: Este se verá en todos los celulares */
+            background: linear-gradient(180deg, #00acc1 0%, #e0f7fa 100%);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -25,16 +20,17 @@
         .card {
             background: #ffffff;
             width: 100%;
-            max-width: 380px; /* Tamaño perfecto para móvil y PC */
+            max-width: 380px;
             padding: 25px;
-            border-radius: 25px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+            border-radius: 30px; /* Bordes más redondeados y modernos */
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
             text-align: center;
-            border: 2px solid #00acc1;
+            border: 3px solid #ffffff; /* Borde blanco para que resalte del fondo azul */
         }
 
         .diente-principal {
-            font-size: 50px;
+            font-size: 60px;
+            margin-bottom: 10px;
             display: inline-block;
             animation: bounce 2s infinite ease-in-out;
         }
@@ -44,16 +40,17 @@
             50% { transform: translateY(-15px); }
         }
 
-        h2 { color: #00796b; margin: 15px 0 5px 0; font-size: 22px; }
+        h2 { color: #00796b; margin: 10px 0; font-size: 24px; font-weight: bold; }
 
         input {
             width: 100%;
             padding: 14px;
             margin-top: 12px;
             border: 2px solid #b2dfdb;
-            border-radius: 12px;
+            border-radius: 15px;
             box-sizing: border-box;
             font-size: 16px;
+            background-color: #f9f9f9;
         }
 
         .btn-vender {
@@ -61,29 +58,25 @@
             background: linear-gradient(45deg, #ffc107, #ff9800);
             color: white;
             border: none;
-            padding: 16px;
+            padding: 18px;
             border-radius: 15px;
             font-size: 18px;
             font-weight: bold;
             margin-top: 20px;
             cursor: pointer;
-            box-shadow: 0 5px 15px rgba(255, 152, 0, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+            box-shadow: 0 5px 15px rgba(255, 152, 0, 0.4);
         }
 
         .seccion-pagos {
             margin-top: 25px;
-            border-top: 2px dashed #eee;
+            border-top: 2px dashed #00acc1;
             padding-top: 20px;
         }
 
         .btn-pago {
             width: 100%;
-            padding: 12px;
-            margin-bottom: 10px;
+            padding: 14px;
+            margin-bottom: 12px;
             border-radius: 12px;
             border: none;
             color: white;
@@ -95,19 +88,16 @@
             gap: 12px;
         }
 
-        /* --- LOS COLORES Y SÍMBOLOS PEDIDOS --- */
+        /* COLORES PEDIDOS POR ALBERTO */
         .plin { background-color: #00a8e1; } /* Celeste Plin */
         .yape { background-color: #6a1b9a; } /* Morado Yape */
         .efectivo { background-color: #2e7d32; } /* Verde Efectivo */
 
-        .bola { font-size: 20px; }
-
         .firma {
-            font-size: 12px;
+            font-size: 13px;
             color: #00796b;
             margin-top: 25px;
-            font-style: italic;
-            border-top: 1px solid #f0f0f0;
+            font-weight: bold;
             padding-top: 15px;
         }
     </style>
@@ -117,34 +107,32 @@
 <div class="card">
     <div class="diente-principal">🦷</div>
     <h2>Inventario Dental</h2>
-    <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Gestión Alberto Ballarta</p>
+    <p style="color: #666; font-size: 15px; margin-top: -5px;">Gestión de Alberto Ballarta</p>
 
-    <input type="text" placeholder="Código del producto">
-    <input type="text" placeholder="Nombre del material">
-    <input type="number" placeholder="Cantidad">
+    <input type="text" placeholder="Código: Ej: RES-A2">
+    <input type="text" placeholder="Nombre: Ej: Resina 3M">
+    <input type="number" placeholder="Cantidad a vender">
 
-    <button class="btn-vender">
-        <span>🛒</span> REGISTRAR VENTA
-    </button>
+    <button class="btn-vender">🛒 REGISTRAR VENTA</button>
 
     <div class="seccion-pagos">
-        <p style="font-weight: bold; color: #444; margin-bottom: 15px;">Métodos de Pago Rápidos</p>
+        <p style="font-weight: bold; color: #00796b; margin-bottom: 15px;">MÉTODOS DE PAGO</p>
         
         <button class="btn-pago plin">
-            <span class="bola">🔵</span> Cobrar con PLIN
+            <span>🔵</span> Cobrar con PLIN
         </button>
 
         <button class="btn-pago yape">
-            <span class="bola">🟣</span> Cobrar con YAPE
+            <span>🟣</span> Cobrar con YAPE
         </button>
 
         <button class="btn-pago efectivo">
-            <span class="bola">💵</span> EFECTIVO
+            <span>💵</span> Cobrar en EFECTIVO
         </button>
     </div>
 
     <div class="firma">
-        Creado por Alberto Ballarta - Soluciones Digitales
+        Creado por Alberto Ballarta - 2026
     </div>
 </div>
 
