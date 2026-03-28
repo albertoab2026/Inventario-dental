@@ -1,10 +1,14 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
 
 st.set_page_config(page_title="Inventario Dental Pro", layout="wide")
 st.title("🦷 Demo Inventario de Mi Tío")
 
-# Leer los datos del archivo csv que creaste antes
+# Inicializar la memoria de ventas si no existe
+if 'historial_ventas' not in st.session_state:
+    st.session_state.historial_ventas = []
+
 df = pd.read_csv('inventario.csv')
 
 st.subheader("📋 Inventario General")
@@ -20,12 +24,27 @@ with col2:
     cantidad = st.number_input("Cantidad:", min_value=1, value=1)
 
 if st.button("✅ Registrar Venta"):
+    # Guardar en la memoria temporal
+    precio_unitario = df.loc[df['Producto'] == prod_seleccionado, 'Precio_Venta'].values[0]
+    venta = {
+        "Hora": datetime.now().strftime("%H:%M:%S"),
+        "Producto": prod_seleccionado,
+        "Cant": cantidad,
+        "Subtotal": cantidad * precio_unitario
+    }
+    st.session_state.historial_ventas.append(venta)
     st.success(f"Venta registrada: {cantidad} de {prod_seleccionado}")
-    st.info("Nota: En este demo, el stock vuelve a su estado original al recargar.")
 
 st.divider()
-if st.button("🔴 CERRAR CAJA Y VER GANANCIAS"):
-    st.header(f"💰 Resumen de Hoy")
-    st.metric("Total Vendido Hoy", "S/ 350.00")
-    st.write("¡Felicidades por las ventas de hoy!")
-    st.balloons()
+if st.button("🔴 CERRAR CAJA Y VER RESUMEN"):
+    if st.session_state.historial_ventas:
+        st.header(f"💰 Resumen de Ventas")
+        # Convertir la memoria en una tablita para mostrar
+        df_ventas = pd.DataFrame(st.session_state.historial_ventas)
+        st.table(df_ventas)
+        
+        total_plata = df_ventas['Subtotal'].sum()
+        st.metric("GANANCIA TOTAL", f"S/ {total_plata:,.2f}")
+        st.balloons()
+    else:
+        st.warning("Aún no has registrado ninguna venta hoy.")
