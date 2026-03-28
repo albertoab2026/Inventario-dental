@@ -59,20 +59,24 @@ with c2:
     cant_sel = st.number_input("Cantidad:", min_value=1, key="cant_input")
 
 if st.button("➕ Agregar al Carrito", type="primary"):
-    # REGLA DE ORO: No dejar agregar al carrito más de lo que hay en stock actual
     idx = st.session_state.df_memoria[st.session_state.df_memoria['Producto'] == prod_sel].index[0]
-    stock_disponible = st.session_state.df_memoria.at[idx, 'Stock_Actual']
+    stock_en_estante = st.session_state.df_memoria.at[idx, 'Stock_Actual']
     
-    if cant_sel <= stock_disponible:
+    # CALCULAR CUÁNTO YA HAY EN EL CARRITO DE ESTE PRODUCTO
+    cant_en_carrito = sum(item['Cant'] for item in st.session_state.carrito if item['Producto'] == prod_sel)
+    stock_real_disponible = stock_en_estante - cant_en_carrito
+    
+    if cant_sel <= stock_real_disponible:
         precio_v = st.session_state.df_memoria.at[idx, 'Precio_Venta']
         st.session_state.carrito.append({
             "Producto": prod_sel,
             "Cant": cant_sel,
             "Subtotal": cant_sel * precio_v
         })
+        st.toast(f"✅ Añadido: {prod_sel}")
         st.rerun()
     else:
-        st.error(f"❌ No puedes agregar {cant_sel}. Solo quedan {stock_disponible} en stock.")
+        st.error(f"❌ No puedes añadir {cant_sel}. Ya tienes {cant_en_carrito} en el carrito y solo quedan {stock_en_estante} en total.")
 
 # --- GESTIÓN DEL CARRITO ---
 if st.session_state.carrito:
@@ -97,7 +101,6 @@ if st.session_state.carrito:
             st.rerun()
 
     if st.button("🚀 REGISTRAR VENTA FINAL", type="primary", use_container_width=True):
-        # Doble verificación antes de descontar
         for item in st.session_state.carrito:
             idx = st.session_state.df_memoria[st.session_state.df_memoria['Producto'] == item['Producto']].index[0]
             st.session_state.df_memoria.at[idx, 'Stock_Actual'] -= item['Cant']
@@ -123,11 +126,8 @@ if st.button("🔴 VER RECAUDACIÓN DEL DÍA", use_container_width=True):
         st.header("💰 Resumen de Caja")
         df_final = pd.DataFrame(st.session_state.historial_ventas)
         st.dataframe(df_final, use_container_width=True, hide_index=True)
-        
         resumen_pago = df_final.groupby('Pago')['Total'].sum().reset_index()
-        st.write("### Por tipo de pago:")
         st.dataframe(resumen_pago, use_container_width=True, hide_index=True)
-        
         st.metric("TOTAL GENERAL", f"S/ {df_final['Total'].sum():,.2f}")
     else:
         st.warning("No hay ventas aún.")
