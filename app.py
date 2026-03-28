@@ -1,11 +1,15 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import pytz
+
+# 1. Configurar la hora de Perú (Esto es lo que faltaba arriba)
+zona_horaria = pytz.timezone('America/Lima')
 
 st.set_page_config(page_title="Inventario Dental Pro", layout="wide")
 st.title("🦷 Demo Inventario de Mi Tío")
 
-# Inicializar la memoria de ventas si no existe
+# Inicializar la memoria de ventas
 if 'historial_ventas' not in st.session_state:
     st.session_state.historial_ventas = []
 
@@ -24,27 +28,28 @@ with col2:
     cantidad = st.number_input("Cantidad:", min_value=1, value=1)
 
 if st.button("✅ Registrar Venta"):
-    # Guardar en la memoria temporal
+    # Buscar el precio del producto elegido
     precio_unitario = df.loc[df['Producto'] == prod_seleccionado, 'Precio_Venta'].values[0]
-    venta = {
-        "Hora": datetime.now().strftime("%H:%M:%S"),
+    
+    # Guardar la venta con la hora de LIMA
+    nueva_venta = {
+        "Hora": datetime.now(zona_horaria).strftime("%H:%M:%S"),
         "Producto": prod_seleccionado,
         "Cant": cantidad,
-        "Subtotal": cantidad * precio_unitario
+        "Total": cantidad * precio_unitario
     }
-    st.session_state.historial_ventas.append(venta)
-    st.success(f"Venta registrada: {cantidad} de {prod_seleccionado}")
+    st.session_state.historial_ventas.append(nueva_venta)
+    st.success(f"¡Venta registrada con éxito a las {nueva_venta['Hora']}!")
 
 st.divider()
 if st.button("🔴 CERRAR CAJA Y VER RESUMEN"):
     if st.session_state.historial_ventas:
-        st.header(f"💰 Resumen de Ventas")
-        # Convertir la memoria en una tablita para mostrar
+        st.header(f"💰 Resumen de Ventas Hoy")
         df_ventas = pd.DataFrame(st.session_state.historial_ventas)
         st.table(df_ventas)
         
-        total_plata = df_ventas['Subtotal'].sum()
-        st.metric("GANANCIA TOTAL", f"S/ {total_plata:,.2f}")
+        suma_total = df_ventas['Total'].sum()
+        st.metric("GANANCIA TOTAL", f"S/ {suma_total:,.2f}")
         st.balloons()
     else:
-        st.warning("Aún no has registrado ninguna venta hoy.")
+        st.warning("Todavía no hay ventas registradas.")
