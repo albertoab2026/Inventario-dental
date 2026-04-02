@@ -2,13 +2,10 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-# 1. Configuración y Estilo
+# 1. Configuración de la página
 st.set_page_config(page_title="Inventario Dental Pro", layout="wide")
 
-st.markdown("""
-    <h1 style='text-align: center; color: #00acc1;'>🦷 SISTEMA DENTAL - CONTROL DE VENTAS</h1>
-    <p style='text-align: center; color: #666;'>Gestión Profesional Alberto Ballarta</p>
-""", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #00acc1;'>🦷 SISTEMA DENTAL - ALBERTO BALLARTA</h1>", unsafe_allow_html=True)
 
 # 2. Inicializar Memorias
 if 'df_memoria' not in st.session_state:
@@ -30,7 +27,7 @@ st.dataframe(st.session_state.df_memoria, use_container_width=True, hide_index=T
 
 st.divider()
 
-# 4. Sección de Ventas (CON RESET DE CANTIDAD Y ERROR SIMPLIFICADO)
+# 4. Sección de Ventas (CON RESET SEGURO)
 st.subheader("🛒 Armar Pedido")
 col1, col2 = st.columns(2)
 
@@ -38,16 +35,18 @@ with col1:
     prod_sel = st.selectbox("Selecciona producto:", st.session_state.df_memoria["Producto"])
 
 with col2:
-    # Usamos una clave (key) para poder resetear este número después
-    cant_sel = st.number_input("Cantidad:", min_value=1, value=1, key="input_cantidad")
+    # Definimos el valor inicial de la cantidad
+    if 'cant_input' not in st.session_state:
+        st.session_state.cant_input = 1
+    
+    cant_sel = st.number_input("Cantidad:", min_value=1, value=st.session_state.cant_input, key="v_cantidad")
 
 if st.button("➕ Agregar al Carrito", type="primary"):
     idx = st.session_state.df_memoria[st.session_state.df_memoria['Producto'] == prod_sel].index[0]
-    stock_disponible = st.session_state.df_memoria.at[idx, 'Stock_Actual']
+    stock_real = st.session_state.df_memoria.at[idx, 'Stock_Actual']
     
-    if cant_sel > stock_disponible:
-        # MENSAJE DE ERROR MÁS FÁCIL Y DIRECTO
-        st.error(f"⚠️ No hay stock suficiente. Solo quedan {stock_disponible} unidades de {prod_sel}.")
+    if cant_sel > stock_real:
+        st.error(f"⚠️ ¡Error! No hay stock suficiente. Solo quedan {stock_real} unidades.")
     else:
         precio = st.session_state.df_memoria.at[idx, 'Precio_Venta']
         st.session_state.carrito.append({
@@ -55,20 +54,20 @@ if st.button("➕ Agregar al Carrito", type="primary"):
             "Cant": cant_sel, 
             "Subtotal": cant_sel * precio
         })
-        st.success(f"✅ {prod_sel} añadido.")
-        
-        # EL TRUCO PARA QUE EL NÚMERO VUELVA A 1
-        st.session_state.input_cantidad = 1 
+        st.success(f"✅ {prod_sel} añadido al carrito.")
+        # Aquí reseteamos la cantidad de forma segura
+        st.session_state.cant_input = 1
         st.rerun()
 
-# 5. Gestión del Carrito
+# 5. Carrito y Métodos de Pago
 if st.session_state.carrito:
+    st.divider()
     st.subheader("📝 Artículos en el Carrito")
     df_car = pd.DataFrame(st.session_state.carrito)
     st.table(df_car)
     
     total = df_car['Subtotal'].sum()
-    st.write(f"### Total a Cobrar: S/ {total}")
+    st.write(f"## Total: S/ {total}")
     
     metodo = st.selectbox("Método de Pago:", ["Efectivo", "Yape", "Plin", "Transferencia"])
     
@@ -77,25 +76,17 @@ if st.session_state.carrito:
             idx = st.session_state.df_memoria[st.session_state.df_memoria['Producto'] == item['Producto']].index[0]
             st.session_state.df_memoria.at[idx, 'Stock_Actual'] -= item['Cant']
         
-        st.session_state.ventas_dia.append({"Total": total, "Metodo": metodo, "Fecha": datetime.now().strftime("%H:%M")})
+        st.session_state.ventas_dia.append({"Total": total, "Metodo": metodo})
         st.session_state.carrito = [] 
         st.balloons()
         st.rerun()
 
+# 6. Recaudación y Firma 💪
 st.divider()
-
-# 6. Recaudación y Firma
-st.subheader("💰 Recaudación del Día")
 if st.session_state.ventas_dia:
-    df_ventas = pd.DataFrame(st.session_state.ventas_dia)
-    total_dia = df_ventas['Total'].sum()
-    st.metric("GANANCIA TOTAL", f"S/ {total_dia}")
-    st.table(df_ventas)
+    st.subheader("💰 Recaudación del Día")
+    df_v = pd.DataFrame(st.session_state.ventas_dia)
+    st.metric("GANANCIA TOTAL", f"S/ {df_v['Total'].sum()}")
+    st.dataframe(df_v, use_container_width=True)
 
-st.markdown(f"""
-    <div style='text-align: center; color: #00796b;'>
-        <p>💪 Desarrollado con esfuerzo por</p>
-        <h3>Alberto Ballarta</h3>
-        <p>Soluciones Cloud para Negocios Locales | 2026</p>
-    </div>
-""", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #00796b;'>💪 Desarrollado por Alberto Ballarta | Cloud 2026</p>", unsafe_allow_html=True)
