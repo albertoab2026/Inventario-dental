@@ -9,7 +9,6 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 15px;
-            /* DEGRADADO FUERTE: Este se verá en todos los celulares */
             background: linear-gradient(180deg, #00acc1 0%, #e0f7fa 100%);
             display: flex;
             justify-content: center;
@@ -22,10 +21,10 @@
             width: 100%;
             max-width: 380px;
             padding: 25px;
-            border-radius: 30px; /* Bordes más redondeados y modernos */
+            border-radius: 30px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.2);
             text-align: center;
-            border: 3px solid #ffffff; /* Borde blanco para que resalte del fondo azul */
+            border: 3px solid #ffffff;
         }
 
         .diente-principal {
@@ -41,15 +40,16 @@
         }
 
         h2 { color: #00796b; margin: 10px 0; font-size: 24px; font-weight: bold; }
+        h4 { color: #00acc1; margin: 15px 0 5px 0; font-size: 16px; border-top: 1px solid #eee; padding-top: 10px; }
 
         input {
             width: 100%;
-            padding: 14px;
-            margin-top: 12px;
+            padding: 12px;
+            margin-top: 8px;
             border: 2px solid #b2dfdb;
-            border-radius: 15px;
+            border-radius: 12px;
             box-sizing: border-box;
-            font-size: 16px;
+            font-size: 14px;
             background-color: #f9f9f9;
         }
 
@@ -58,47 +58,58 @@
             background: linear-gradient(45deg, #ffc107, #ff9800);
             color: white;
             border: none;
-            padding: 18px;
+            padding: 15px;
             border-radius: 15px;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
-            margin-top: 20px;
+            margin-top: 15px;
             cursor: pointer;
             box-shadow: 0 5px 15px rgba(255, 152, 0, 0.4);
         }
 
+        .btn-ingreso {
+            width: 100%;
+            background: linear-gradient(45deg, #00acc1, #00796b);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
         .seccion-pagos {
-            margin-top: 25px;
+            margin-top: 20px;
             border-top: 2px dashed #00acc1;
-            padding-top: 20px;
+            padding-top: 15px;
         }
 
         .btn-pago {
             width: 100%;
-            padding: 14px;
-            margin-bottom: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
             border-radius: 12px;
             border: none;
             color: white;
             font-weight: bold;
-            font-size: 16px;
+            font-size: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 12px;
         }
 
-        /* COLORES PEDIDOS POR ALBERTO */
-        .plin { background-color: #00a8e1; } /* Celeste Plin */
-        .yape { background-color: #6a1b9a; } /* Morado Yape */
-        .efectivo { background-color: #2e7d32; } /* Verde Efectivo */
+        .plin { background-color: #00a8e1; }
+        .yape { background-color: #6a1b9a; }
+        .efectivo { background-color: #2e7d32; }
 
         .firma {
-            font-size: 13px;
+            font-size: 12px;
             color: #00796b;
-            margin-top: 25px;
+            margin-top: 20px;
             font-weight: bold;
-            padding-top: 15px;
         }
     </style>
 </head>
@@ -107,34 +118,43 @@
 <div class="card">
     <div class="diente-principal">🦷</div>
     <h2>Inventario Dental</h2>
-    <p style="color: #666; font-size: 15px; margin-top: -5px;">Gestión de Alberto Ballarta</p>
+    <p style="color: #666; font-size: 14px; margin-top: -5px;">Gestión de Alberto Ballarta</p>
 
-    <input type="text" placeholder="Código: Ej: RES-A2">
-    <input type="text" placeholder="Nombre: Ej: Resina 3M">
-    <input type="number" placeholder="Cantidad a vender">
+    <h4>🛒 REGISTRAR VENTA</h4>
+    <input type="text" id="v_codigo" placeholder="Código del producto">
+    <input type="number" id="v_cantidad" placeholder="Cantidad a vender">
+    <button class="btn-vender" onclick="vender()">REGISTRAR VENTA</button>
 
-    <button class="btn-vender">🛒 REGISTRAR VENTA</button>
+    <h4>📦 INGRESO DE MERCADERÍA</h4>
+    <input type="text" id="i_nombre" placeholder="Nombre: Ej: Resina 3M">
+    <input type="number" id="i_stock" placeholder="Cantidad que llega">
+    <input type="number" id="i_precio" placeholder="Precio de Costo S/">
+    <button class="btn-ingreso" onclick="guardarNuevo()">GUARDAR EN NUBE</button>
 
     <div class="seccion-pagos">
-        <p style="font-weight: bold; color: #00796b; margin-bottom: 15px;">MÉTODOS DE PAGO</p>
-        
-        <button class="btn-pago plin">
-            <span>🔵</span> Cobrar con PLIN
-        </button>
-
-        <button class="btn-pago yape">
-            <span>🟣</span> Cobrar con YAPE
-        </button>
-
-        <button class="btn-pago efectivo">
-            <span>💵</span> Cobrar en EFECTIVO
-        </button>
+        <p style="font-weight: bold; color: #00796b; margin-bottom: 10px;">MÉTODOS DE PAGO</p>
+        <button class="btn-pago plin"><span>🔵</span> Cobrar con PLIN</button>
+        <button class="btn-pago yape"><span>🟣</span> Cobrar con YAPE</button>
+        <button class="btn-pago efectivo"><span>💵</span> Cobrar en EFECTIVO</button>
     </div>
 
-    <div class="firma">
-        Creado por Alberto Ballarta - 2026
-    </div>
+    <div class="firma">Creado por Alberto Ballarta - 2026</div>
 </div>
+
+<script>
+    function vender() {
+        alert("Procesando venta... Conectando a AWS");
+    }
+
+    function guardarNuevo() {
+        const nombre = document.getElementById('i_nombre').value;
+        if(nombre === "") {
+            alert("Escribe el nombre del producto");
+            return;
+        }
+        alert("Guardando " + nombre + " en el inventario de AWS...");
+    }
+</script>
 
 </body>
 </html>
