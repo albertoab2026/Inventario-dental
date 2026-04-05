@@ -15,7 +15,7 @@ try:
 except Exception as e:
     st.error(f"Error de conexión con AWS: {e}")
 
-# --- 2. CONFIGURACIÓN VISUAL (MODO CLARO/OSCURO) ---
+# --- 2. CONFIGURACIÓN VISUAL ---
 st.set_page_config(page_title="Inventario Dental Pro", layout="wide")
 
 st.markdown("""
@@ -114,4 +114,43 @@ if st.session_state.carrito:
                 st.session_state.confirmar_proceso = False
                 st.rerun()
 
-    with col
+    with col_v2:
+        st.write("")
+        st.write("")
+        if st.button("⬅️ BORRAR ÚLTIMO", use_container_width=True):
+            if st.session_state.carrito:
+                st.session_state.carrito.pop()
+            st.rerun()
+    with col_v3:
+        st.write("")
+        st.write("")
+        if st.button("🗑️ VACIAR TODO", use_container_width=True):
+            st.session_state.carrito = []
+            st.rerun()
+
+# --- 6. PANEL DE ADMINISTRADOR ---
+st.divider()
+with st.expander("🔐 PANEL DE ADMINISTRADOR"):
+    if not st.session_state.admin_autenticado:
+        clave_input = st.text_input("Contraseña de Seguridad:", type="password")
+        if clave_input == "admin123":
+            st.session_state.admin_autenticado = True
+            st.rerun()
+        elif clave_input != "":
+            st.error("Clave incorrecta")
+    else:
+        st.success("✅ Sesión de Administrador Activa")
+        if st.session_state.ventas_dia:
+            df_recaudacion = pd.DataFrame(st.session_state.ventas_dia)
+            st.write(f"### 💰 CAJA DEL DÍA: S/ {df_recaudacion['Total'].sum():,.2f}")
+            st.table(df_recaudacion)
+            if st.button("🗑️ LIMPIAR CAJA Y CERRAR SESIÓN"):
+                st.session_state.ventas_dia = []
+                st.session_state.admin_autenticado = False
+                st.rerun()
+        else:
+            st.info("No hay ventas registradas.")
+        
+        if st.button("Cerrar Sesión"):
+            st.session_state.admin_autenticado = False
+            st.rerun()
