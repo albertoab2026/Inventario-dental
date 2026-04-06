@@ -45,7 +45,7 @@ def cargar_datos_aws():
 if 'df_memoria' not in st.session_state: st.session_state.df_memoria = cargar_datos_aws()
 if 'carrito' not in st.session_state: st.session_state.carrito = []
 if 'ventas_dia' not in st.session_state: st.session_state.ventas_dia = []
-if 'lista_despacho' not in st.session_state: st.session_state.lista_despacho = []
+if 'lista_vendidos' not in st.session_state: st.session_state.lista_vendidos = []
 if 'admin_autenticado' not in st.session_state: st.session_state.admin_autenticado = False
 
 # --- 3. TABLA DE STOCK ---
@@ -104,14 +104,16 @@ if st.session_state.carrito:
             st.warning("⚠️ ¿CONFIRMAR VENTA?")
             if st.button("✅ SÍ, FINALIZAR", use_container_width=True):
                 hora_actual = obtener_hora_peru()
-                # Procesar cada item del carrito
                 for item in st.session_state.carrito:
-                    # Descontar stock en memoria
+                    # Descontar stock
                     st.session_state.df_memoria.loc[st.session_state.df_memoria['Producto'] == item['Producto'], 'Stock_Actual'] -= item['Cant']
-                    # Guardar en la lista de productos vendidos hoy
-                    st.session_state.lista_despacho.append({"Producto": item['Producto'], "Cantidad": item['Cant']})
+                    # Guardar en la lista de vendidos con la hora
+                    st.session_state.lista_vendidos.append({
+                        "Hora": hora_actual, 
+                        "Producto": item['Producto'], 
+                        "Cantidad": item['Cant']
+                    })
                 
-                # Registrar la venta general
                 st.session_state.ventas_dia.append({"Hora": hora_actual, "Total": total_venta, "Pago": metodo_pago})
                 st.session_state.carrito = []
                 st.session_state.confirmar_proceso = False
@@ -154,30 +156,18 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
 
             st.markdown("---")
             
-            # --- NUEVA TABLA DE PRODUCTOS VENDIDOS AL DETALLE ---
-            st.write("### 📦 Detalle de Productos Despachados")
-            if st.session_state.lista_despacho:
-                df_despacho = pd.DataFrame(st.session_state.lista_despacho)
-                # Agrupamos para sumar si se vendió el mismo producto varias veces
-                resumen_venta = df_despacho.groupby('Producto')['Cantidad'].sum().reset_index()
-                st.table(resumen_venta)
+            # --- TABLA DE PRODUCTOS VENDIDOS CON HORA ---
+            st.write("### 📦 Detalle de Productos Vendidos")
+            if st.session_state.lista_vendidos:
+                df_vendidos = pd.DataFrame(st.session_state.lista_vendidos)
+                # Reordenamos columnas para que la hora sea lo primero
+                st.table(df_vendidos[['Hora', 'Producto', 'Cantidad']])
             
             st.markdown("---")
-            
-            # Gráficos Visuales
-            st.write("### 📊 Gráficos de Rendimiento")
-            g1, g2 = st.columns(2)
-            with g1:
-                st.write("**Ventas por Hora (S/)**")
-                st.line_chart(df_caja.set_index('Hora')['Total'])
-            with g2:
-                st.write("**Top Productos (Unidades)**")
-                if st.session_state.lista_despacho:
-                    st.bar_chart(data=resumen_venta, x='Producto', y='Cantidad')
 
             if st.button("🗑️ LIMPIAR TODO Y CERRAR DÍA"):
                 st.session_state.ventas_dia = []
-                st.session_state.lista_despacho = []
+                st.session_state.lista_vendidos = []
                 st.session_state.admin_autenticado = False
                 st.rerun()
         else:
