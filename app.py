@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import boto3
+import time
 from datetime import datetime, timedelta
 
 # --- 1. CONEXIÓN CON AMAZON DYNAMODB ---
@@ -94,99 +95,4 @@ if st.session_state.carrito:
     st.metric(label="TOTAL NETO A COBRAR", value=f"S/ {total_venta:,.2f}")
 
     df_c_vista = df_c.copy()
-    df_c_vista['Subtotal'] = df_c_vista['Subtotal'].map('S/ {:,.2f}'.format)
-    st.dataframe(df_c_vista, use_container_width=True, hide_index=True)
-    
-    col_v1, col_v2, col_v3 = st.columns(3)
-    with col_v1:
-        metodo_pago = st.radio("Medio de Pago:", ["Efectivo", "Yape", "Plin"], horizontal=True)
-        if st.button("🚀 FINALIZAR VENTA", type="primary", use_container_width=True):
-            st.session_state.confirmar_proceso = True
-
-        if st.session_state.get('confirmar_proceso', False):
-            st.warning("⚠️ ¿CONFIRMAR VENTA?")
-            if st.button("✅ SÍ, FINALIZAR", use_container_width=True):
-                fecha_hoy, hora_actual = obtener_tiempo_peru() 
-                
-                for item in st.session_state.carrito:
-                    # Descontar stock en memoria
-                    st.session_state.df_memoria.loc[st.session_state.df_memoria['Producto'] == item['Producto'], 'Stock_Actual'] -= item['Cant']
-                    
-                    # Guardar en la lista de vendidos detallada
-                    st.session_state.lista_vendidos.append({
-                        "Fecha": fecha_hoy,
-                        "Hora": hora_actual, 
-                        "Producto": item['Producto'], 
-                        "Cantidad": item['Cant']
-                    })
-                
-                # Guardar en el reporte de caja (Dinero)
-                st.session_state.ventas_dia.append({
-                    "Fecha": fecha_hoy, 
-                    "Hora": hora_actual, 
-                    "Total": total_venta, 
-                    "Pago": metodo_pago
-                })
-                
-                # Limpieza de sesión y aviso visual
-                st.session_state.carrito = []
-                st.session_state.confirmar_proceso = False
-                st.balloons()
-                st.rerun()
-            
-            if st.button("❌ Cancelar", use_container_width=True):
-                st.session_state.confirmar_proceso = False
-                st.rerun()
-
-    with col_v2:
-        if st.button("⬅️ BORRAR ÚLTIMO", use_container_width=True):
-            if st.session_state.carrito: st.session_state.carrito.pop()
-            st.rerun()
-    with col_v3:
-        if st.button("🗑️ VACIAR TODO", use_container_width=True):
-            st.session_state.carrito = []
-            st.rerun()
-
-# --- 6. PANEL DE ADMINISTRADOR ---
-st.divider()
-with st.expander("🔐 PANEL DE ADMINISTRADOR"):
-    if not st.session_state.admin_autenticado:
-        clave_input = st.text_input("Contraseña:", type="password")
-        if clave_input == "admin123":
-            st.session_state.admin_autenticado = True
-            st.rerun()
-    else:
-        st.success("✅ Sesión de Administrador Activa")
-        
-        # Reporte de Dinero
-        if st.session_state.ventas_dia:
-            df_caja = pd.DataFrame(st.session_state.ventas_dia)
-            total_caja = df_caja['Total'].sum()
-            st.write(f"### 💰 CAJA DEL DÍA: S/ {total_caja:,.2f}")
-            
-            df_caja_vis = df_caja.copy()
-            df_caja_vis['Total'] = df_caja_vis['Total'].map('S/ {:,.2f}'.format)
-            st.table(df_caja_vis)
-
-            st.markdown("---")
-            
-            # --- TABLA DE PRODUCTOS VENDIDOS CON HORA ---
-            st.write("### 📦 Detalle de Productos Vendidos")
-            if st.session_state.lista_vendidos:
-                df_vendidos = pd.DataFrame(st.session_state.lista_vendidos)
-                # Reordenamos columnas para que la hora sea lo primero
-                st.table(df_vendidos[['Fecha', 'Hora', 'Producto', 'Cantidad']])
-            
-            st.markdown("---")
-
-            if st.button("🗑️ LIMPIAR TODO Y CERRAR DÍA"):
-                st.session_state.ventas_dia = []
-                st.session_state.lista_vendidos = []
-                st.session_state.admin_autenticado = False
-                st.rerun()
-        else:
-            st.info("No hay ventas registradas todavía.")
-        
-        if st.button("Cerrar Sesión"):
-            st.session_state.admin_autenticado = False
-            st.rerun()
+    df_c_
