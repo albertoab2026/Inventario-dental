@@ -27,8 +27,11 @@ st.markdown("""
 
 st.markdown("<h1 style='text-align: center; color: #00acc1;'>🦷 SISTEMA DENTAL - ALBERTO BALLARTA</h1>", unsafe_allow_html=True)
 
-def obtener_hora_peru():
-    return (datetime.utcnow() - timedelta(hours=5)).strftime("%H:%M:%S")
+def obtener_tiempo_peru():
+    ahora = datetime.utcnow() - timedelta(hours=5)
+    fecha = ahora.strftime("%d/%m/%Y")
+    hora = ahora.strftime("%H:%M:%S")
+    return fecha, hora
 
 def cargar_datos_aws():
     try:
@@ -103,18 +106,29 @@ if st.session_state.carrito:
         if st.session_state.get('confirmar_proceso', False):
             st.warning("⚠️ ¿CONFIRMAR VENTA?")
             if st.button("✅ SÍ, FINALIZAR", use_container_width=True):
-                hora_actual = obtener_hora_peru()
+                fecha_hoy, hora_actual = obtener_tiempo_peru() 
+                
                 for item in st.session_state.carrito:
-                    # Descontar stock
+                    # Descontar stock en memoria
                     st.session_state.df_memoria.loc[st.session_state.df_memoria['Producto'] == item['Producto'], 'Stock_Actual'] -= item['Cant']
-                    # Guardar en la lista de vendidos con la hora
+                    
+                    # Guardar en la lista de vendidos detallada
                     st.session_state.lista_vendidos.append({
+                        "Fecha": fecha_hoy,
                         "Hora": hora_actual, 
                         "Producto": item['Producto'], 
                         "Cantidad": item['Cant']
                     })
                 
-                st.session_state.ventas_dia.append({"Hora": hora_actual, "Total": total_venta, "Pago": metodo_pago})
+                # Guardar en el reporte de caja (Dinero)
+                st.session_state.ventas_dia.append({
+                    "Fecha": fecha_hoy, 
+                    "Hora": hora_actual, 
+                    "Total": total_venta, 
+                    "Pago": metodo_pago
+                })
+                
+                # Limpieza de sesión y aviso visual
                 st.session_state.carrito = []
                 st.session_state.confirmar_proceso = False
                 st.balloons()
@@ -161,7 +175,7 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
             if st.session_state.lista_vendidos:
                 df_vendidos = pd.DataFrame(st.session_state.lista_vendidos)
                 # Reordenamos columnas para que la hora sea lo primero
-                st.table(df_vendidos[['Hora', 'Producto', 'Cantidad']])
+                st.table(df_vendidos[['Fecha', 'Hora', 'Producto', 'Cantidad']])
             
             st.markdown("---")
 
