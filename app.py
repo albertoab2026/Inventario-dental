@@ -19,18 +19,10 @@ try:
 except Exception as e:
     st.error(f"Error AWS: {e}")
 
-# --- 2. CONFIGURACIÓN VISUAL ---
+# --- 2. CONFIGURACIÓN ---
 st.set_page_config(page_title="Inventario Dental Pro", layout="wide")
-st.markdown("""
-    <style>
-    .titulo-seccion { font-size:28px !important; font-weight: bold; color: #00acc1; margin-top: 20px; }
-    .stButton>button { border-radius: 8px; }
-    </style>
-    """, unsafe_allow_html=True)
-
 st.markdown("<h1 style='text-align: center; color: #00acc1;'>🦷 CONTROL DE VENTAS - DYNAMODB</h1>", unsafe_allow_html=True)
 
-# --- 3. FUNCIONES AUXILIARES ---
 def obtener_tiempo_peru():
     ahora = datetime.utcnow() - timedelta(hours=5)
     return ahora.strftime("%d/%m/%Y"), ahora.strftime("%H:%M:%S")
@@ -40,90 +32,77 @@ def cargar_datos():
         data = tabla_inventario.scan()["Items"]
         df = pd.DataFrame(data)
         if not df.empty:
-            df["Stock_Actual"] = pd.to_numeric(df["Stock_Actual"], errors='coerce').fillna(0).astype(int)
-            df["Precio_Venta"] = pd.to_numeric(df["Precio_Venta"], errors='coerce').fillna(0)
+            df["Stock_Actual"] = pd.to_numeric(df["Stock_Actual"]).astype(int)
+            df["Precio_Venta"] = pd.to_numeric(df["Precio_Venta"])
             return df.sort_values(by="ID_Producto").reset_index(drop=True)
         return pd.DataFrame()
-    except:
-        return pd.DataFrame()
+    except: return pd.DataFrame()
 
-# --- 4. ESTADO DE SESIÓN ---
 if "df" not in st.session_state: st.session_state.df = cargar_datos()
 if "carrito" not in st.session_state: st.session_state.carrito = []
 if "admin_logueado" not in st.session_state: st.session_state.admin_logueado = False
 
-# --- 5. MOSTRAR INVENTARIO (LO QUE HABÍA DESAPARECIDO) ---
-st.markdown("<p class='titulo-seccion'>📋 Inventario Actual</p>", unsafe_allow_html=True)
+# --- 3. INVENTARIO ---
 df = st.session_state.df
-
 if not df.empty:
-    def resaltar_stock(row):
-        return ['color: #ff1744; font-weight: bold' if row.Stock_Actual <= 5 else '' for _ in row]
+    st.markdown("### 📋 Stock Actual")
+    st.dataframe(df[['ID_Producto', 'Producto', 'Stock_Actual', 'Precio_Venta']], use_container_width=True, hide_index=True)
 
-    df_view = df.copy()
-    df_view["Precio_Venta"] = df_view["Precio_Venta"].map("S/ {:.2f}".format)
-    st.dataframe(df_view[['ID_Producto', 'Producto', 'Stock_Actual', 'Precio_Venta']].style.apply(resaltar_stock, axis=1), 
-                 use_container_width=True, hide_index=True)
-    
-    if (df["Stock_Actual"] <= 5).any():
-        st.warning("⚠️ Reponer productos resaltados en rojo.")
-
-# --- 6. REGISTRO DE VENTA ---
+# --- 4. SELECCIÓN ---
 st.divider()
-st.markdown("<p class='titulo-seccion'>🛒 Nueva Venta</p>", unsafe_allow_html=True)
-
 if not df.empty:
-    c_sel, c_cant = st.columns([2, 1])
-    with c_sel:
-        prod_sel = st.selectbox("Elegir Producto:", sorted(df["Producto"].tolist()))
-    with c_cant:
-        fila = df[df["Producto"] == prod_sel].iloc[0]
-        disp = int(fila["Stock_Actual"]) - sum(i["cantidad"] for i in st.session_state.carrito if i["nombre"] == prod_sel)
-        cant = st.number_input(f"Cant. (Disp: {disp})", min_value=1, max_value=max(1, disp), value=1)
-
+    c1, c2 = st.columns([2,1])
+    prod_sel = c1.selectbox("Elegir Producto:", df["Producto"].tolist())
+    fila = df[df["Producto"] == prod_sel].iloc[0]
+    cant = c2.number_input("Cantidad:", min_value=1, max_value=int(fila["Stock_Actual"]), value=1)
+    
     if st.button("➕ AGREGAR AL CARRITO", use_container_width=True):
-        if disp >= cant:
-            st.session_state.carrito.append({
-                "id": fila["ID_Producto"], "nombre": prod_sel, 
-                "cantidad": int(cant), "precio": Decimal(str(fila["Precio_Venta"]))
-            })
-            st.rerun()
+        st.session_state.carrito.append({
+            "id": fila["ID_Producto"], "nombre": prod_sel, 
+            "cantidad": int(cant), "precio": Decimal(str(fila["Precio_Venta"]))
+        })
+        st.rerun()
 
-# --- 7. CARRITO Y GUARDADO EN NUBE ---
+# --- 5. CARRITO Y VACIAR (RESTAURADO) ---
 if st.session_state.carrito:
     st.divider()
+    st.markdown("### 🛒 Tu Pedido")
     df_c = pd.DataFrame(st.session_state.carrito)
     total_v = sum(df_c["cantidad"] * df_c["precio"])
     st.table(df_c[["nombre", "cantidad"]])
-    st.metric("TOTAL A COBRAR", f"S/ {float(total_v):.2f}")
+    st.metric("TOTAL", f"S/ {float(total_v):.2f}")
     
-    metodo = st.radio("Método de Pago:", ["Efectivo", "Yape", "Plin"], horizontal=True)
+    metodo = st.radio("Pago:", ["Efectivo", "Yape", "Plin"], horizontal=True)
 
-    if st.button("✅ FINALIZAR Y GUARDAR EN NUBE", type="primary", use_container_width=True):
+    col_vaciar, col_pagar = st.columns(2)
+    
+    # Botón para limpiar si hubo error de selección
+    if col_vaciar.button("🗑️ VACIAR CARRITO", use_container_width=True):
+        st.session_state.carrito = []
+        st.rerun()
+
+    if col_pagar.button("✅ FINALIZAR Y GUARDAR", type="primary", use_container_width=True):
         f, h = obtener_tiempo_peru()
-        with st.spinner("Guardando en DynamoDB..."):
-            try:
-                # 1. Grabar Venta
-                tabla_ventas.put_item(Item={
-                    "ID_Venta": f"V-{int(time.time())}", "Fecha": f, "Hora": h, 
-                    "Total": Decimal(str(total_v)), "Metodo": metodo, "Productos": st.session_state.carrito
-                })
-                # 2. Descontar Stock
-                for item in st.session_state.carrito:
-                    tabla_inventario.update_item(
-                        Key={"ID_Producto": item["id"]},
-                        UpdateExpression="SET Stock_Actual = Stock_Actual - :q",
-                        ExpressionAttributeValues={":q": item["cantidad"]}
-                    )
-                st.success("✨ ¡Venta registrada exitosamente!")
-                st.session_state.carrito = []
-                st.session_state.df = cargar_datos()
-                time.sleep(2)
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error al guardar: {e}")
+        try:
+            tabla_ventas.put_item(Item={
+                "ID_Venta": f"V-{int(time.time())}", "Fecha": f, "Hora": h, 
+                "Total": Decimal(str(total_v)), "Metodo": metodo, "Productos": st.session_state.carrito
+            })
+            for item in st.session_state.carrito:
+                tabla_inventario.update_item(
+                    Key={"ID_Producto": item["id"]},
+                    UpdateExpression="SET Stock_Actual = Stock_Actual - :q",
+                    ExpressionAttributeValues={":q": item["cantidad"]}
+                )
+            st.success("✨ ¡VENTA REGISTRADA!")
+            st.session_state.carrito = []
+            st.session_state.df = cargar_datos()
+            time.sleep(1.5)
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error de red: {e}")
 
-# --- 8. PANEL DE CONTROL (PARA ABASTECER Y EXCEL) ---
+# --- 6. PANEL ADMIN Y EXCEL (RESTAURADO) ---
 st.divider()
 with st.expander("🔐 PANEL DE ADMINISTRADOR"):
     if not st.session_state.admin_logueado:
@@ -137,9 +116,9 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
             st.rerun()
             
         st.markdown("### 📦 Abastecer Stock")
-        p_repo = st.selectbox("Producto:", df["Producto"].tolist())
+        p_repo = st.selectbox("Producto:", df["Producto"].tolist(), key="repo")
         c_repo = st.number_input("Cantidad nueva:", min_value=1, value=10)
-        if st.button("Cargar Inventario"):
+        if st.button("Actualizar Inventario"):
             id_p = df[df["Producto"] == p_repo].iloc[0]["ID_Producto"]
             tabla_inventario.update_item(Key={"ID_Producto": id_p}, UpdateExpression="SET Stock_Actual = Stock_Actual + :q", ExpressionAttributeValues={":q": int(c_repo)})
             st.session_state.df = cargar_datos()
@@ -148,4 +127,24 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
 
         st.divider()
         st.markdown("### 📊 Reportes Excel")
-        # Aquí puedes poner el código del Excel Pro que te pasé antes
+        try:
+            # Traemos las ventas de la nube para el reporte
+            ventas_nube = tabla_ventas.scan().get("Items", [])
+            if ventas_nube:
+                df_excel = pd.DataFrame(ventas_nube)
+                # Formatear el Excel en memoria
+                buffer = io.BytesIO()
+                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                    df_excel.to_excel(writer, index=False, sheet_name='Ventas')
+                
+                st.download_button(
+                    label="📥 DESCARGAR REPORTE EXCEL",
+                    data=buffer.getvalue(),
+                    file_name=f"Reporte_Ventas_{datetime.now().strftime('%d_%m')}.xlsx",
+                    mime="application/vnd.ms-excel",
+                    use_container_width=True
+                )
+            else:
+                st.info("Aún no hay ventas en la nube para descargar.")
+        except Exception as e:
+            st.error("Instala 'xlsxwriter' en requirements.txt para descargar el reporte.")
