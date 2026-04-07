@@ -3,8 +3,9 @@ import pandas as pd
 import boto3
 import time
 from datetime import datetime, timedelta
+from decimal import Decimal
 
-# --- 1. CONEXIÓN CON AMAZON DYNAMODB ---
+# --- CONEXIÓN AWS ---
 try:
     session = boto3.Session(
         aws_access_key_id=st.secrets["aws"]["aws_access_key_id"],
@@ -15,92 +16,85 @@ try:
     tabla = dynamodb.Table('Inventariodentaltio')
     tabla_ventas = dynamodb.Table('VentasDentaltio')
 except Exception as e:
-    st.error(f"Error de conexión con AWS: {e}")
+    st.error(f"Error AWS: {e}")
 
-# --- 2. CONFIGURACIÓN VISUAL ---
+# --- UI ---
 st.set_page_config(page_title="Inventario Dental Pro", layout="wide")
 
-st.markdown("""
-<style>
-.titulo-seccion { font-size:30px !important; font-weight: bold; color: #00acc1; margin-bottom: 20px; }
-[data-testid="stMetricValue"] { color: #00acc1 !important; font-size: 45px !important; font-weight: bold; }
-</style>
-""", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;color:#00acc1;'>🦷 SISTEMA DENTAL</h1>", unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align: center; color: #00acc1;'>🦷 SISTEMA DENTAL - ALBERTO BALLARTA</h1>", unsafe_allow_html=True)
-
+# --- FUNCIONES ---
 def obtener_tiempo_peru():
     ahora = datetime.utcnow() - timedelta(hours=5)
     return ahora.strftime("%d/%m/%Y"), ahora.strftime("%H:%M:%S")
 
-def cargar_datos_aws():
+def cargar_datos():
     try:
-        respuesta = tabla.scan()
-        items = respuesta.get('Items', [])
-        if not items:
-            return pd.DataFrame()
-        df = pd.DataFrame(items)
+        data = tabla.scan()["Items"]
+        df = pd.DataFrame(data)
         df["Stock_Actual"] = pd.to_numeric(df["Stock_Actual"])
         df["Precio_Venta"] = pd.to_numeric(df["Precio_Venta"])
-        return df.sort_values(by="ID_Producto").reset_index(drop=True)
+        return df
     except:
         return pd.DataFrame()
 
-# --- ESTADOS ---
-if 'df_memoria' not in st.session_state:
-    st.session_state.df_memoria = cargar_datos_aws()
-if 'carrito' not in st.session_state:
+# --- ESTADO ---
+if "df" not in st.session_state:
+    st.session_state.df = cargar_datos()
+
+if "carrito" not in st.session_state:
     st.session_state.carrito = []
 
 # --- INVENTARIO ---
-st.markdown("### 📋 Inventario en Tiempo Real")
-df_vis = st.session_state.df_memoria.copy()
+st.write("## 📦 Inventario")
 
-if not df_vis.empty:
-    df_vis['Stock_Actual'] = df_vis['Stock_Actual'].astype(int)
-    df_vis['Precio_Venta'] = df_vis['Precio_Venta'].map('S/ {:,.2f}'.format)
-    st.table(df_vis[['ID_Producto', 'Producto', 'Stock_Actual', 'Precio_Venta']])
+df = st.session_state.df
+if not df.empty:
+    df_view = df.copy()
+    df_view["Precio_Venta"] = df_view["Precio_Venta"].map("S/ {:.2f}".format)
+    st.dataframe(df_view)
 
-# --- VENTA ---
-st.markdown("### 🛒 Venta")
+# --- SELECCIÓN PRODUCTO ---
+st.write("## 🛒 Venta")
 
-lista_prods = st.session_state.df_memoria["Producto"].tolist()
-prod_sel = st.selectbox("Producto", lista_prods)
+producto = st.selectbox("Producto", df["Producto"])
 
-fila_prod = st.session_state.df_memoria[st.session_state.df_memoria['Producto'] == prod_sel].iloc[0]
+fila = df[df["Producto"] == producto].iloc[0]
 
-stock_real = int(fila_prod['Stock_Actual'])
-en_carrito = sum(item['cantidad'] for item in st.session_state.carrito if item['nombre'] == prod_sel)
+stock = int(fila["Stock_Actual"])
+en_carrito = sum(i["cantidad"] for i in st.session_state.carrito if i["nombre"] == producto)
 
-cant_sel = st.number_input(f"Cantidad (Disponible: {stock_real - en_carrito})", min_value=1, value=1)
+cantidad = st.number_input(f"Cantidad (Disponible: {stock - en_carrito})", 1)
 
 if st.button("➕ Agregar"):
-    if cant_sel > (stock_real - en_carrito):
-        st.warning("Sin stock suficiente")
+    if cantidad > (stock - en_carrito):
+        st.warning("Sin stock")
     else:
         st.session_state.carrito.append({
-            "id": fila_prod["ID_Producto"],
-            "nombre": prod_sel,
-            "cantidad": cant_sel,
-            "precio": float(fila_prod['Precio_Venta'])
+            "id": fila["ID_Producto"],
+            "nombre": producto,
+            "cantidad": int(cantidad),
+            "precio": Decimal(str(fila["Precio_Venta"]))
         })
         st.rerun()
 
 # --- CARRITO ---
 if st.session_state.carrito:
-    df_c = pd.DataFrame(st.session_state.carrito)
-    df_c["Subtotal"] = df_c["cantidad"] * df_c["precio"]
 
-    total = df_c["Subtotal"].sum()
+    st.write("## 🛒 Carrito de Compras")
 
-    st.write("### 🧾 Carrito")
-    st.dataframe(df_c)
+    dfc = pd.DataFrame(st.session_state.carrito)
+    dfc["Subtotal"] = dfc["cantidad"] * dfc["precio"]
 
-    st.metric("Total", f"S/ {total:.2f}")
+    total = dfc["Subtotal"].sum()
+
+    st.dataframe(dfc)
+    st.metric("Total", f"S/ {float(total):.2f}")
 
     metodo = st.radio("Pago", ["Efectivo", "Yape", "Plin"])
 
     if st.button("🚀 FINALIZAR VENTA"):
+
         fecha, hora = obtener_tiempo_peru()
 
         try:
@@ -109,7 +103,7 @@ if st.session_state.carrito:
                 "ID_Venta": str(time.time()),
                 "Fecha": fecha,
                 "Hora": hora,
-                "Total": float(total),
+                "Total": Decimal(str(total)),
                 "Metodo": metodo,
                 "Productos": st.session_state.carrito
             })
@@ -117,15 +111,15 @@ if st.session_state.carrito:
             # Descontar stock
             for item in st.session_state.carrito:
                 tabla.update_item(
-                    Key={'ID_Producto': item['id']},
+                    Key={"ID_Producto": item["id"]},
                     UpdateExpression="SET Stock_Actual = Stock_Actual - :c",
-                    ExpressionAttributeValues={":c": item['cantidad']}
+                    ExpressionAttributeValues={":c": item["cantidad"]}
                 )
 
-            st.success("✅ Venta guardada")
+            st.success("✅ Venta guardada correctamente")
 
             st.session_state.carrito = []
-            st.session_state.df_memoria = cargar_datos_aws()
+            st.session_state.df = cargar_datos()
 
             st.balloons()
             st.rerun()
