@@ -35,6 +35,7 @@ def cargar_datos():
         return pd.DataFrame()
     except: return pd.DataFrame()
 
+# Inicialización
 if "df" not in st.session_state: st.session_state.df = cargar_datos()
 if "carrito" not in st.session_state: st.session_state.carrito = []
 if "admin_auth" not in st.session_state: st.session_state.admin_auth = False
@@ -50,13 +51,14 @@ if not df.empty:
     st.dataframe(df[['Producto', 'Stock_Actual', 'Precio_Venta']].style.map(color_critico, subset=['Stock_Actual']), 
                  use_container_width=True, hide_index=True)
 
-# Venta
+# Sección Venta
 st.divider()
 if not df.empty:
     c1, c2 = st.columns([2,1])
-    p_sel = c1.selectbox("Producto:", df["Producto"].tolist())
+    # LLAVE ÚNICA: key="sel_venta"
+    p_sel = c1.selectbox("Producto:", df["Producto"].tolist(), key="sel_venta")
     fila_p = df[df["Producto"] == p_sel].iloc[0]
-    cant = c2.number_input("Cantidad:", min_value=1, max_value=int(fila_p["Stock_Actual"]), value=1)
+    cant = c2.number_input("Cantidad:", min_value=1, max_value=int(fila_p["Stock_Actual"]), value=1, key="cant_venta")
     
     if st.button("➕ AGREGAR AL CARRITO", use_container_width=True):
         st.session_state.carrito.append({
@@ -72,7 +74,6 @@ if st.session_state.carrito:
     total_v = sum(df_c["cantidad"] * df_c["precio"])
     st.table(df_c[["nombre", "cantidad"]])
     
-    # RESTAURADO: Métodos de Pago
     metodo_pago = st.radio("Forma de Pago:", ["Efectivo", "Yape", "Plin"], horizontal=True)
     st.metric("TOTAL", f"S/ {float(total_v):.2f}")
     
@@ -97,15 +98,14 @@ if st.session_state.carrito:
             st.success(f"✅ Venta en {metodo_pago} guardada.")
             st.session_state.carrito = []
             st.session_state.df = cargar_datos()
-            time.sleep(1.5)
+            time.sleep(1.2)
             st.rerun()
         except: st.error("Error AWS")
 
-# --- 5. PANEL ADMIN CON CIERRE DE SESIÓN ---
+# --- 5. PANEL ADMIN ---
 st.divider()
 with st.expander("🔐 PANEL DE ADMINISTRADOR"):
     if not st.session_state.admin_auth:
-        # Usamos un formulario para que la clave se limpie al enviar
         with st.form("login_admin"):
             input_clave = st.text_input("Contraseña Maestra:", type="password")
             if st.form_submit_button("Entrar"):
@@ -115,18 +115,23 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
                 else:
                     st.error("Clave Incorrecta")
     else:
-        # BOTÓN DE CERRAR SESIÓN (RESTAURADO)
         if st.button("🔒 CERRAR SESIÓN ADMIN", use_container_width=True):
             st.session_state.admin_auth = False
             st.rerun()
 
         st.subheader("📦 Abastecer Stock")
-        p_abast = st.selectbox("Producto:", df["Producto"].tolist())
-        c_abast = st.number_input("Añadir cantidad:", min_value=1, value=5)
+        # LLAVE ÚNICA: key="sel_admin" (ESTO EVITA EL ERROR DE LA IMAGEN)
+        p_abast = st.selectbox("Producto a recargar:", df["Producto"].tolist(), key="sel_admin")
+        c_abast = st.number_input("Añadir cantidad:", min_value=1, value=5, key="cant_admin")
+        
         if st.button("Actualizar Stock"):
             id_a = df[df["Producto"] == p_abast].iloc[0]["ID_Producto"]
-            tabla_inventario.update_item(Key={"ID_Producto": id_a}, UpdateExpression="SET Stock_Actual = Stock_Actual + :q", ExpressionAttributeValues={":q": int(c_abast)})
-            st.success("Stock cargado.")
+            tabla_inventario.update_item(
+                Key={"ID_Producto": id_a}, 
+                UpdateExpression="SET Stock_Actual = Stock_Actual + :q", 
+                ExpressionAttributeValues={":q": int(c_abast)}
+            )
+            st.success("Stock actualizado.")
             st.session_state.df = cargar_datos()
             time.sleep(1)
             st.rerun()
