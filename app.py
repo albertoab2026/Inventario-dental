@@ -45,8 +45,7 @@ def cargar_datos():
             df["Precio_Venta"] = pd.to_numeric(df["Precio_Venta"], errors='coerce').fillna(0)
             return df.sort_values(by="ID_Producto").reset_index(drop=True)
         return pd.DataFrame()
-    except Exception as e:
-        st.error(f"Error cargando inventario: {e}")
+    except:
         return pd.DataFrame()
 
 # --- 4. ESTADO DE SESIÓN ---
@@ -61,7 +60,6 @@ df = st.session_state.df
 if not df.empty:
     df_view = df.copy()
     df_view["Precio_Venta"] = df_view["Precio_Venta"].map("S/ {:.2f}".format)
-    # Mostramos el stock como texto limpio para asegurar que no salgan decimales
     df_view["Stock_Actual"] = df_view["Stock_Actual"].astype(str)
     st.table(df_view[['ID_Producto', 'Producto', 'Stock_Actual', 'Precio_Venta']])
 
@@ -90,7 +88,7 @@ if not df.empty:
             })
             st.rerun()
 
-# --- 7. RESUMEN Y COBRO ---
+# --- 7. CARRITO Y COBRO ---
 if st.session_state.carrito:
     st.divider()
     st.markdown("<p class='titulo-seccion'>📝 Resumen de la Venta</p>", unsafe_allow_html=True)
@@ -102,7 +100,7 @@ if st.session_state.carrito:
     st.table(df_c[['nombre', 'cantidad', 'Subtotal']])
     st.metric("TOTAL A PAGAR", f"S/ {float(total_neto):.2f}")
 
-    metodo = st.radio("Medio de Pago:", ["Efectivo", "Yape", "Plin"], horizontal=True)
+    metodo = st.radio("Pago:", ["Efectivo", "Yape", "Plin"], horizontal=True)
 
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
@@ -115,10 +113,10 @@ if st.session_state.carrito:
             st.session_state.confirmar_final = True
 
     if st.session_state.confirmar_final:
-        st.warning("⚠️ ¿CONFIRMAS EL REGISTRO DE ESTA VENTA?")
+        st.warning("⚠️ ¿ESTÁS SEGURO DE PROCESAR ESTA VENTA?")
         c_si, c_no = st.columns(2)
         with c_si:
-            if st.button("✅ SÍ, PROCESAR", use_container_width=True):
+            if st.button("✅ SÍ, CONFIRMAR", use_container_width=True):
                 f_v, h_v = obtener_tiempo_peru()
                 try:
                     tabla_ventas.put_item(Item={
@@ -135,7 +133,7 @@ if st.session_state.carrito:
                             ExpressionAttributeValues={":qty": item["cantidad"]}
                         )
                     st.balloons()
-                    st.success(f"✅ Venta guardada con éxito")
+                    st.success("✅ Venta guardada.")
                     st.session_state.carrito = []
                     st.session_state.confirmar_final = False
                     st.session_state.df = cargar_datos()
@@ -148,11 +146,11 @@ if st.session_state.carrito:
                 st.session_state.confirmar_final = False
                 st.rerun()
 
-# --- 8. PANEL ADMIN (HISTORIAL Y EXCEL ORDENADO) ---
+# --- 8. PANEL ADMIN (CON EXCEL AGRUPADO POR COLORES) ---
 st.divider()
 with st.expander("🔐 PANEL DE ADMINISTRADOR"):
     if not st.session_state.admin_autenticado:
-        pass_in = st.text_input("Ingresa Clave Admin:", type="password")
+        pass_in = st.text_input("Clave:", type="password")
         if pass_in == "admin123":
             st.session_state.admin_autenticado = True
             st.rerun()
@@ -164,7 +162,6 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
                 df_h = pd.DataFrame(ventas_data)
                 df_h["Total"] = pd.to_numeric(df_h["Total"], errors='coerce').fillna(0)
                 
-                # Ordenar por fecha/hora (más reciente arriba)
                 if 'Fecha' in df_h.columns and 'Hora' in df_h.columns:
                     df_h['Temp_Sort'] = pd.to_datetime(df_h['Fecha'] + ' ' + df_h['Hora'], dayfirst=True)
                     df_h = df_h.sort_values(by='Temp_Sort', ascending=False)
@@ -172,45 +169,67 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
                 st.write(f"### 💰 Caja Total: S/ {df_h['Total'].sum():,.2f}")
                 st.dataframe(df_h[['Fecha', 'Hora', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
                 
-                # --- PROCESO PARA EXCEL DETALLADO ---
+                # --- LÓGICA DE EXCEL PROFESIONAL ---
                 filas_excel = []
                 for _, venta in df_h.iterrows():
-                    for p in venta['Productos']:
+                    productos_lista = venta['Productos']
+                    es_primero = True
+                    for p in productos_lista:
                         filas_excel.append({
+                            "ID_Venta": venta['ID_Venta'],
                             "Fecha": venta['Fecha'],
                             "Hora": venta['Hora'],
                             "Producto": p['nombre'],
                             "Cantidad": int(p['cantidad']),
                             "Precio Unit.": float(p['precio']),
                             "Subtotal": int(p['cantidad']) * float(p['precio']),
-                            "Total Venta": float(venta['Total']),
+                            "TOTAL VENTA": float(venta['Total']) if es_primero else "",
                             "Metodo": venta['Metodo']
                         })
+                        es_primero = False
                 
-                df_excel_final = pd.DataFrame(filas_excel)
+                df_ex = pd.DataFrame(filas_excel)
 
                 buf = io.BytesIO()
                 with pd.ExcelWriter(buf, engine='xlsxwriter') as wr:
-                    df_excel_final.to_excel(wr, index=False, sheet_name='Ventas_Detalladas')
-                    # Ajuste de diseño en Excel
+                    df_ex.to_excel(wr, index=False, sheet_name='Reporte')
                     workbook = wr.book
-                    worksheet = wr.sheets['Ventas_Detalladas']
-                    header_format = workbook.add_format({'bold': True, 'bg_color': '#00ACC1', 'font_color': 'white'})
-                    for i, col in enumerate(df_excel_final.columns):
+                    worksheet = wr.sheets['Reporte']
+                    
+                    # Formatos
+                    header_fmt = workbook.add_format({'bold': True, 'bg_color': '#00acc1', 'font_color': 'white', 'border': 1})
+                    money_fmt = workbook.add_format({'num_format': '"S/" #,##0.00', 'border': 1})
+                    total_fmt = workbook.add_format({'bold': True, 'bg_color': '#E0F7FA', 'border': 1, 'num_format': '"S/" #,##0.00'})
+                    
+                    for i, col in enumerate(df_ex.columns):
+                        worksheet.write(0, i, col, header_fmt)
                         worksheet.set_column(i, i, 18)
-                
-                st.download_button(
-                    label="📥 DESCARGAR REPORTE EXCEL DETALLADO",
-                    data=buf.getvalue(),
-                    file_name=f"Reporte_Dental_{datetime.now().strftime('%d_%m')}.xlsx",
-                    mime="application/vnd.ms-excel",
-                    use_container_width=True
-                )
+
+                    color_toggle = True
+                    last_id = ""
+                    for row in range(1, len(df_ex) + 1):
+                        current_id = df_ex.iloc[row-1]['ID_Venta']
+                        if current_id != last_id:
+                            color_toggle = not color_toggle
+                            last_id = current_id
+                        
+                        fmt = workbook.add_format({'border': 1, 'bg_color': '#F9F9F9' if color_toggle else '#FFFFFF'})
+                        
+                        for col in range(len(df_ex.columns)):
+                            val = df_ex.iloc[row-1, col]
+                            if col == 7 and val != "": # Columna TOTAL VENTA
+                                worksheet.write(row, col, val, total_fmt)
+                            elif col in [5, 6]: # Precios y Subtotales
+                                worksheet.write(row, col, val, money_fmt)
+                            else:
+                                worksheet.write(row, col, val, fmt)
+
+                st.download_button("📥 DESCARGAR EXCEL DETALLADO", buf.getvalue(), f"Ventas_{datetime.now().strftime('%d_%m')}.xlsx", "application/vnd.ms-excel", use_container_width=True)
             else:
-                st.info("Sin ventas registradas.")
+                st.info("Sin ventas.")
         except Exception as e:
-            st.error(f"Error en historial: {e}")
+            st.error(f"Error: {e}")
             
-        if st.button("Cerrar Sesión Admin", use_container_width=True):
+        if st.button("Cerrar Sesión"):
             st.session_state.admin_autenticado = False
             st.rerun()
