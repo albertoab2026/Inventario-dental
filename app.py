@@ -40,7 +40,8 @@ def cargar_datos():
         data = tabla_inventario.scan()["Items"]
         df = pd.DataFrame(data)
         if not df.empty:
-            df["Stock_Actual"] = pd.to_numeric(df["Stock_Actual"])
+            # LIMPIEZA DE STOCK: Convertimos a entero para quitar los .0000
+            df["Stock_Actual"] = pd.to_numeric(df["Stock_Actual"]).astype(int)
             df["Precio_Venta"] = pd.to_numeric(df["Precio_Venta"])
             return df.sort_values(by="ID_Producto").reset_index(drop=True)
         return pd.DataFrame()
@@ -59,6 +60,8 @@ df = st.session_state.df
 if not df.empty:
     df_view = df.copy()
     df_view["Precio_Venta"] = df_view["Precio_Venta"].map("S/ {:.2f}".format)
+    # Mostramos el stock limpio sin decimales
+    df_view["Stock_Actual"] = df_view["Stock_Actual"].astype(str)
     st.table(df_view[['ID_Producto', 'Producto', 'Stock_Actual', 'Precio_Venta']])
 
 # --- 6. REGISTRO DE VENTA ---
@@ -95,11 +98,11 @@ if st.session_state.carrito:
     df_c["Subtotal"] = df_c["cantidad"] * df_c["precio"]
     total_neto = df_c["Subtotal"].sum()
 
-    # AQUÍ CORREGIMOS: Solo mostramos Cantidad y Subtotal (precio unitario ya se asume)
+    # Solo mostramos lo necesario para no repetir datos
     st.table(df_c[['nombre', 'cantidad', 'Subtotal']])
     st.metric("TOTAL A PAGAR", f"S/ {float(total_neto):.2f}")
 
-    metodo = st.radio("Pago:", ["Efectivo", "Yape", "Plin"], horizontal=True)
+    metodo = st.radio("Medio de Pago:", ["Efectivo", "Yape", "Plin"], horizontal=True)
 
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
@@ -111,14 +114,15 @@ if st.session_state.carrito:
         if st.button("🚀 FINALIZAR COMPRA", type="primary", use_container_width=True):
             st.session_state.confirmar_final = True
 
-    # --- BLOQUE DE CONFIRMACIÓN ---
+    # --- BLOQUE DE CONFIRMACIÓN DE SEGURIDAD ---
     if st.session_state.confirmar_final:
-        st.warning("⚠️ ¿ESTÁS SEGURO DE PROCESAR ESTA VENTA?")
+        st.warning("⚠️ ¿CONFIRMAS EL REGISTRO DE ESTA VENTA?")
         c_si, c_no = st.columns(2)
         with c_si:
-            if st.button("✅ SÍ, CONFIRMAR", use_container_width=True):
+            if st.button("✅ SÍ, PROCESAR", use_container_width=True):
                 f_v, h_v = obtener_tiempo_peru()
                 try:
+                    # 1. Guardar en AWS Ventas
                     tabla_ventas.put_item(Item={
                         "ID_Venta": f"V-{int(time.time())}",
                         "Fecha": f_v, "Hora": h_v,
@@ -126,6 +130,7 @@ if st.session_state.carrito:
                         "Metodo": metodo,
                         "Productos": st.session_state.carrito
                     })
+                    # 2. Descontar en AWS Inventario
                     for item in st.session_state.carrito:
                         tabla_inventario.update_item(
                             Key={"ID_Producto": item["id"]},
@@ -133,24 +138,24 @@ if st.session_state.carrito:
                             ExpressionAttributeValues={":qty": item["cantidad"]}
                         )
                     st.balloons()
-                    st.success("✅ Venta guardada en la nube.")
+                    st.success(f"✅ Venta guardada con éxito ({h_v})")
                     st.session_state.carrito = []
                     st.session_state.confirmar_final = False
-                    st.session_state.df = cargar_datos()
+                    st.session_state.df = cargar_datos() # Refresca stock real
                     time.sleep(2)
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Error al guardar en la nube: {e}")
         with c_no:
             if st.button("❌ CANCELAR", use_container_width=True):
                 st.session_state.confirmar_final = False
                 st.rerun()
 
-# --- 8. PANEL ADMIN ---
+# --- 8. PANEL ADMIN (HISTORIAL Y EXCEL) ---
 st.divider()
 with st.expander("🔐 PANEL DE ADMINISTRADOR"):
     if not st.session_state.admin_autenticado:
-        pass_in = st.text_input("Clave:", type="password")
+        pass_in = st.text_input("Ingresa Clave Admin:", type="password")
         if pass_in == "admin123":
             st.session_state.admin_autenticado = True
             st.rerun()
@@ -160,18 +165,26 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
             ventas_data = res.get("Items", [])
             if ventas_data:
                 df_h = pd.DataFrame(ventas_data)
-                df_h["Total"] = df_h["Total"].apply(float)
-                st.write(f"**Caja Total:** S/ {df_h['Total'].sum():.2f}")
-                st.dataframe(df_h[['Fecha', 'Hora', 'Total', 'Metodo']], use_container_width=True)
+                df_h["Total"] = pd.to_numeric(df_h["Total"], errors='coerce').fillna(0)
                 
+                # ORDENAR: Lo más nuevo arriba
+                if 'Fecha' in df_h.columns and 'Hora' in df_h.columns:
+                    df_h['Temp_Sort'] = pd.to_datetime(df_h['Fecha'] + ' ' + df_h['Hora'], dayfirst=True)
+                    df_h = df_h.sort_values(by='Temp_Sort', ascending=False)
+
+                st.write(f"### 💰 Caja Total: S/ {df_h['Total'].sum():,.2f}")
+                st.dataframe(df_h[['Fecha', 'Hora', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
+                
+                # Reporte Excel
                 buf = io.BytesIO()
                 with pd.ExcelWriter(buf, engine='xlsxwriter') as wr:
-                    df_h.to_excel(wr, index=False)
-                st.download_button("📥 Descargar Excel", buf.getvalue(), "Reporte.xlsx", "application/vnd.ms-excel")
-            else: st.write("Sin ventas.")
+                    df_h[['Fecha', 'Hora', 'Total', 'Metodo']].to_excel(wr, index=False)
+                st.download_button("📥 DESCARGAR REPORTE EXCEL", buf.getvalue(), f"Ventas_Dental_{datetime.now().strftime('%d_%m')}.xlsx", "application/vnd.ms-excel", use_container_width=True)
+            else:
+                st.info("No hay historial de ventas en la nube.")
         except Exception as e:
-            st.info("No se pudo cargar el historial completo aún.") # Mensaje más amigable
+            st.error(f"Error al leer historial: {e}")
             
-        if st.button("Cerrar Sesión"):
+        if st.button("Cerrar Sesión Admin", use_container_width=True):
             st.session_state.admin_autenticado = False
             st.rerun()
