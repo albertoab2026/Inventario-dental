@@ -64,35 +64,4 @@ if not df_vis.empty:
 
 # --- 4. REGISTRAR VENTA ---
 st.divider()
-st.markdown("<p class='titulo-seccion'>🛒 Armar Pedido</p>", unsafe_allow_html=True)
-c1, c2 = st.columns(2)
-
-with c1:
-    lista_prods = sorted(st.session_state.df_memoria["Producto"].tolist())
-    prod_sel = st.selectbox("Selecciona Producto:", lista_prods)
-
-with c2:
-    fila_prod = st.session_state.df_memoria[st.session_state.df_memoria['Producto'] == prod_sel].iloc[0]
-    stock_real = int(fila_prod['Stock_Actual'])
-    en_carrito = sum(item['Cant'] for item in st.session_state.carrito if item['Producto'] == prod_sel)
-    disponible_ahora = stock_real - en_carrito
-    cant_sel = st.number_input(f"Cantidad (Disponible: {disponible_ahora}):", min_value=1, value=1)
-
-if st.button("➕ AGREGAR AL CARRITO", use_container_width=True):
-    if cant_sel > disponible_ahora:
-        st.warning(f"⚠️ No hay stock suficiente.")
-    else:
-        precio = float(fila_prod['Precio_Venta'])
-        st.session_state.carrito.append({"Producto": prod_sel, "Cant": cant_sel, "Subtotal": cant_sel * precio})
-        st.rerun()
-
-# --- 5. CARRITO Y COBRO ---
-if st.session_state.carrito:
-    st.divider()
-    st.markdown("<p class='titulo-seccion'>📝 Resumen de Cobro</p>", unsafe_allow_html=True)
-    df_c = pd.DataFrame(st.session_state.carrito)
-    total_venta = df_c['Subtotal'].sum()
-    st.metric(label="TOTAL NETO A COBRAR", value=f"S/ {total_venta:,.2f}")
-
-    df_c_vista = df_c.copy()
-    df_c_
+st.markdown("<p class='titulo-seccion'>🛒 Armar Pedido</p>", unsafe_allow_html=True
