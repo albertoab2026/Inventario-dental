@@ -21,7 +21,6 @@ except Exception as e:
 
 # --- 2. CONFIGURACIÓN ---
 st.set_page_config(page_title="Inventario Dental Pro", layout="wide")
-st.markdown("<h1 style='text-align: center; color: #00acc1;'>🦷 CONTROL DE VENTAS - DYNAMODB</h1>", unsafe_allow_html=True)
 
 def obtener_tiempo_peru():
     ahora = datetime.utcnow() - timedelta(hours=5)
@@ -42,27 +41,19 @@ if "df" not in st.session_state: st.session_state.df = cargar_datos()
 if "carrito" not in st.session_state: st.session_state.carrito = []
 if "admin_logueado" not in st.session_state: st.session_state.admin_logueado = False
 
-# --- 3. INVENTARIO CON ALERTA SUTIL (TEXTO ROJO) ---
-st.markdown("### 📋 Stock Actual")
+# --- 3. INTERFAZ DE VENTAS ---
+st.markdown("<h1 style='text-align: center; color: #00acc1;'>🦷 SISTEMA DENTAL - ALBERTO</h1>", unsafe_allow_html=True)
+
 df = st.session_state.df
-
 if not df.empty:
-    # Solo resalta el texto de la celda Stock_Actual si es bajo
-    def color_stock(val):
+    # Alerta de Stock sutil
+    def resaltar_stock(val):
         color = 'red' if val <= 5 else 'white'
-        weight = 'bold' if val <= 5 else 'normal'
-        return f'color: {color}; font-weight: {weight}'
+        return f'color: {color}; font-weight: bold' if val <= 5 else ''
 
-    st.dataframe(
-        df[['ID_Producto', 'Producto', 'Stock_Actual', 'Precio_Venta']].style.map(color_stock, subset=['Stock_Actual']),
-        use_container_width=True, hide_index=True
-    )
-    
-    # Aviso de texto si hay stock bajo
-    if (df["Stock_Actual"] <= 5).any():
-        st.warning("⚠️ Hay productos con stock crítico (5 o menos).")
+    st.dataframe(df[['Producto', 'Stock_Actual', 'Precio_Venta']].style.applymap(resaltar_stock, subset=['Stock_Actual']), use_container_width=True, hide_index=True)
 
-# --- 4. SELECCIÓN Y VENTA ---
+# Lógica del Carrito (Selección)
 st.divider()
 if not df.empty:
     c1, c2 = st.columns([2,1])
@@ -70,90 +61,87 @@ if not df.empty:
     fila = df[df["Producto"] == prod_sel].iloc[0]
     cant = c2.number_input("Cantidad:", min_value=1, max_value=int(fila["Stock_Actual"]), value=1)
     
-    if st.button("➕ AGREGAR AL CARRITO", use_container_width=True):
+    if st.button("➕ AGREGAR AL PEDIDO", use_container_width=True):
         st.session_state.carrito.append({
             "id": fila["ID_Producto"], "nombre": prod_sel, 
             "cantidad": int(cant), "precio": Decimal(str(fila["Precio_Venta"]))
         })
         st.rerun()
 
+# Procesar Venta
 if st.session_state.carrito:
-    st.markdown("### 🛒 Tu Pedido")
+    st.markdown("### 🛒 Detalle de Venta")
     df_c = pd.DataFrame(st.session_state.carrito)
     total_v = sum(df_c["cantidad"] * df_c["precio"])
     st.table(df_c[["nombre", "cantidad"]])
-    st.metric("TOTAL", f"S/ {float(total_v):.2f}")
+    st.metric("TOTAL A COBRAR", f"S/ {float(total_v):.2f}")
     
     col_v, col_f = st.columns(2)
-    if col_v.button("🗑️ VACIAR TODO", use_container_width=True):
+    if col_v.button("🗑️ VACIAR", use_container_width=True):
         st.session_state.carrito = []
         st.rerun()
 
-    if col_f.button("✅ FINALIZAR Y GUARDAR", type="primary", use_container_width=True):
+    if col_f.button("🚀 FINALIZAR VENTA", type="primary", use_container_width=True):
         f, h = obtener_tiempo_peru()
         try:
+            # GUARDAR EN NUBE
             tabla_ventas.put_item(Item={
                 "ID_Venta": f"V-{int(time.time())}", "Fecha": f, "Hora": h, 
-                "Total": Decimal(str(total_v)), "Metodo": "Efectivo", "Productos": st.session_state.carrito
+                "Total": Decimal(str(total_v)), "Productos": st.session_state.carrito
             })
+            # DESCONTAR STOCK
             for item in st.session_state.carrito:
                 tabla_inventario.update_item(
                     Key={"ID_Producto": item["id"]},
                     UpdateExpression="SET Stock_Actual = Stock_Actual - :q",
                     ExpressionAttributeValues={":q": item["cantidad"]}
                 )
-            st.success("✨ Venta guardada correctamente.")
+            st.success("✅ ¡VENTA GUARDADA EN DYNAMODB!")
             st.session_state.carrito = []
             st.session_state.df = cargar_datos()
-            time.sleep(1.5)
-            st.rerun()
-        except: st.error("Error al conectar con la nube.")
+            time.sleep(2)
+            st.rerun() # Esto limpia los mensajes viejos automáticamente
+        except Exception as e:
+            st.error(f"❌ Error de conexión: {e}")
 
-# --- 5. PANEL ADMIN Y EXCEL ORDENADO ---
+# --- 4. EXCEL DETALLADO (PARA EL TÍO) ---
 st.divider()
 with st.expander("🔐 PANEL DE ADMINISTRADOR"):
-    if not st.session_state.admin_logueado:
-        clave = st.text_input("Ingresa la clave maestra:", type="password")
-        if st.button("Desbloquear"):
-            if clave == "admin123":
-                st.session_state.admin_logueado = True
-                st.rerun()
+    clave = st.text_input("Clave:", type="password")
+    if clave == "admin123":
+        st.markdown("### 📊 Descargar Reporte")
+        if st.button("GENERAR EXCEL DE VENTAS"):
+            res = tabla_ventas.scan()
+            items = res.get("Items", [])
+            if items:
+                # AQUÍ ESTÁ EL TRUCO: Separamos cada producto en una fila nueva
+                datos_para_excel = []
+                for v in items:
+                    for p in v.get('Productos', []):
+                        datos_para_excel.append({
+                            "Fecha": v['Fecha'],
+                            "Hora": v['Hora'],
+                            "Producto": p['nombre'],
+                            "Cantidad": int(p['cantidad']),
+                            "Precio Unit": float(p['precio']),
+                            "Subtotal": int(p['cantidad']) * float(p['precio']),
+                            "TOTAL BOLETA": float(v['Total'])
+                        })
+                
+                df_excel = pd.DataFrame(datos_para_excel)
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    df_excel.to_excel(writer, index=False, sheet_name='Ventas')
+                    # Auto-ajuste de columnas
+                    worksheet = writer.sheets['Ventas']
+                    for i, col in enumerate(df_excel.columns):
+                        worksheet.set_column(i, i, 15)
+                
+                st.download_button(
+                    label="📥 DESCARGAR EXCEL DETALLADO",
+                    data=output.getvalue(),
+                    file_name=f"Reporte_Ventas_{datetime.now().strftime('%d_%m')}.xlsx",
+                    mime="application/vnd.ms-excel"
+                )
             else:
-                st.error("Clave incorrecta")
-    else:
-        if st.button("Cerrar Sesión Admin"):
-            st.session_state.admin_logueado = False
-            st.rerun()
-            
-        st.markdown("### 📊 Reportes Excel")
-        res = tabla_ventas.scan()
-        ventas = res.get("Items", [])
-        if ventas:
-            # Reorganizamos los datos para que el Excel no esté "pegado"
-            filas_reporte = []
-            for v in ventas:
-                for p in v.get('Productos', []):
-                    filas_reporte.append({
-                        "Fecha": v['Fecha'], "Hora": v['Hora'],
-                        "Producto": p['nombre'], "Cantidad": int(p['cantidad']),
-                        "Precio Unit": float(p['precio']), "Subtotal": int(p['cantidad']) * float(p['precio']),
-                        "TOTAL VENTA": float(v['Total'])
-                    })
-            
-            df_excel = pd.DataFrame(filas_reporte)
-            buf = io.BytesIO()
-            with pd.ExcelWriter(buf, engine='xlsxwriter') as writer:
-                df_excel.to_excel(writer, index=False, sheet_name='Reporte')
-                # Ajuste de ancho de columnas automático
-                worksheet = writer.sheets['Reporte']
-                for i, col in enumerate(df_excel.columns):
-                    column_len = max(df_excel[col].astype(str).map(len).max(), len(col)) + 2
-                    worksheet.set_column(i, i, column_len)
-            
-            st.download_button(
-                label="📥 DESCARGAR REPORTE PARA EL TÍO",
-                data=buf.getvalue(),
-                file_name=f"Ventas_Dental_{datetime.now().strftime('%d_%m')}.xlsx",
-                mime="application/vnd.ms-excel",
-                use_container_width=True
-            )
+                st.info("No hay ventas registradas aún.")
