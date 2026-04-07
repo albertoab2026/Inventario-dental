@@ -16,6 +16,7 @@ try:
     dynamodb = session.resource('dynamodb')
     tabla_inventario = dynamodb.Table('Inventariodentaltio')
     tabla_ventas = dynamodb.Table('VentasDentaltio')
+    # Tabla para el historial de ingresos de stock
     tabla_ingresos = dynamodb.Table('EntradasInventario') 
 except Exception as e:
     st.error(f"Error de conexión con AWS: {e}")
@@ -47,7 +48,7 @@ st.markdown("<h1 style='text-align: center; color: #00acc1;'>🦷 CONTROL DENTAL
 
 df = st.session_state.df
 if not df.empty:
-    st.subheader("📋 Inventario Actual")
+    st.subheader("📋 Inventario Disponible")
     st.dataframe(df[['Producto', 'Stock_Actual', 'Precio_Venta']].style.format({"Precio_Venta": "{:.2f}"}), 
                  use_container_width=True, hide_index=True)
 
@@ -65,7 +66,7 @@ if not df.empty:
         })
         st.rerun()
 
-# --- 4. CARRITO Y FINALIZACIÓN ---
+# --- 4. CARRITO Y PROCESAR VENTA ---
 if st.session_state.carrito:
     st.markdown("### 🛒 Detalle del Pedido")
     df_c = pd.DataFrame(st.session_state.carrito)
@@ -75,10 +76,8 @@ if st.session_state.carrito:
     metodo_pago = st.radio("Forma de Pago:", ["Efectivo", "Yape", "Plin"], horizontal=True)
     st.metric("TOTAL A COBRAR", f"S/ {float(total_v):.2f}")
     
-    # BOTONES DE ACCIÓN DEL CARRITO
     col_v1, col_v2 = st.columns(2)
     
-    # RESTAURADO: Botón para vaciar el carrito
     if col_v1.button("🗑️ VACIAR CARRITO", use_container_width=True):
         st.session_state.carrito = []
         st.rerun()
@@ -97,7 +96,7 @@ if st.session_state.carrito:
             )
         
         st.balloons()
-        st.success(f"Venta guardada exitosamente ({metodo_pago}).")
+        st.success(f"Venta guardada ({metodo_pago}).")
         st.session_state.carrito = []
         st.session_state.df = cargar_datos()
         time.sleep(1.5)
@@ -108,7 +107,7 @@ st.divider()
 with st.expander("🔐 PANEL DE ADMINISTRADOR"):
     if not st.session_state.admin_auth:
         with st.form("login"):
-            clave = st.text_input("Contraseña:", type="password")
+            clave = st.text_input("Contraseña de Admin:", type="password")
             if st.form_submit_button("Ingresar"):
                 if clave == "admin123": 
                     st.session_state.admin_auth = True
@@ -120,48 +119,60 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
             st.rerun()
 
         # ABASTECIMIENTO
-        st.subheader("📦 Abastecimiento")
+        st.subheader("📦 Abastecimiento de Mercadería")
         c_adm1, c_adm2 = st.columns(2)
         
         with c_adm1:
-            p_abast = st.selectbox("Producto que ingresa:", df["Producto"].tolist(), key="sel_admin")
-            c_abast = st.number_input("Cantidad:", min_value=1, value=10, key="cant_admin")
+            p_abast = st.selectbox("Elegir producto:", df["Producto"].tolist(), key="sel_admin")
+            c_abast = st.number_input("Cantidad que ingresa:", min_value=1, value=10, key="cant_admin")
             
-            if st.button("Registrar Entrada", use_container_width=True):
-                id_a = df[df["Producto"] == p_abast].iloc[0]["ID_Producto"]
-                f_ing, h_ing = obtener_tiempo_peru()
-                tabla_inventario.update_item(Key={"ID_Producto": id_a}, UpdateExpression="SET Stock_Actual = Stock_Actual + :q", ExpressionAttributeValues={":q": int(c_abast)})
-                tabla_ingresos.put_item(Item={
-                    "ID_Ingreso": f"IN-{int(time.time())}", "Fecha": f_ing, "Hora": h_ing,
-                    "Producto": p_abast, "Cantidad": int(c_abast)
-                })
-                st.success("Stock actualizado.")
-                st.session_state.df = cargar_datos()
-                time.sleep(1)
-                st.rerun()
+            if st.button("Registrar Entrada de Stock", use_container_width=True):
+                try:
+                    id_a = df[df["Producto"] == p_abast].iloc[0]["ID_Producto"]
+                    f_ing, h_ing = obtener_tiempo_peru()
+                    
+                    # 1. Actualizar Stock
+                    tabla_inventario.update_item(Key={"ID_Producto": id_a}, UpdateExpression="SET Stock_Actual = Stock_Actual + :q", ExpressionAttributeValues={":q": int(c_abast)})
+                    
+                    # 2. Guardar Historial
+                    tabla_ingresos.put_item(Item={
+                        "ID_Ingreso": f"IN-{int(time.time())}",
+                        "Fecha": f_ing, "Hora": h_ing,
+                        "Producto": p_abast, "Cantidad": int(c_abast)
+                    })
+                    
+                    st.success(f"¡Stock actualizado!")
+                    st.session_state.df = cargar_datos()
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error("Error: Verifica que la tabla 'EntradasInventario' exista en AWS.")
 
         with c_adm2:
             st.subheader("📜 Historial de Ingresos")
-            if st.button("Ver Entradas"):
-                ingresos = tabla_ingresos.scan().get("Items", [])
-                if ingresos:
-                    df_ingresos = pd.DataFrame(ingresos).sort_values(by=["Fecha", "Hora"], ascending=False)
-                    st.dataframe(df_ingresos[["Fecha", "Hora", "Producto", "Cantidad"]], use_container_width=True, hide_index=True)
+            if st.button("Cargar Entradas de Stock"):
+                try:
+                    ingresos = tabla_ingresos.scan().get("Items", [])
+                    if ingresos:
+                        df_ingresos = pd.DataFrame(ingresos).sort_values(by=["Fecha", "Hora"], ascending=False)
+                        st.dataframe(df_ingresos[["Fecha", "Hora", "Producto", "Cantidad"]], use_container_width=True, hide_index=True)
+                except:
+                    st.info("Aún no hay registros o la tabla no existe.")
 
         st.divider()
         
-        # CIERRE DE CAJA COMPACTO
+        # CIERRE DE CAJA DIARIO
         st.subheader("💰 Cierre de Caja del Día")
         fecha_hoy, _ = obtener_tiempo_peru()
         
-        if st.button("Ver Resumen de Hoy"):
+        if st.button("Ver Ventas de Hoy"):
             ventas_lista = tabla_ventas.scan().get("Items", [])
             ventas_hoy = [v for v in ventas_lista if v['Fecha'] == fecha_hoy]
             ventas_hoy = sorted(ventas_hoy, key=lambda x: x['Hora'], reverse=True)
 
             if ventas_hoy:
                 total_dia = sum([float(v['Total']) for v in ventas_hoy])
-                st.metric("TOTAL HOY", f"S/ {total_dia:.2f}")
+                st.metric("RECAUDACIÓN TOTAL HOY", f"S/ {total_dia:.2f}")
 
                 filas_reporte = []
                 for v in ventas_hoy:
@@ -178,7 +189,10 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
                 
                 st.table(pd.DataFrame(filas_reporte))
                 
+                # Reporte Excel
                 out = io.BytesIO()
                 with pd.ExcelWriter(out, engine='xlsxwriter') as writer:
                     pd.DataFrame(filas_reporte).to_excel(writer, index=False, sheet_name='Cierre')
-                st.download_button("📥 Bajar Excel Diario", out.getvalue(), f"Cierre_{fecha_hoy.replace('/','-')}.xlsx")
+                st.download_button("📥 Descargar Reporte Diario", out.getvalue(), f"Cierre_{fecha_hoy.replace('/','-')}.xlsx")
+            else:
+                st.warning("No hay ventas registradas hoy.")
