@@ -100,13 +100,12 @@ if st.session_state.carrito:
             for i in st.session_state.carrito:
                 tabla_inventario.update_item(Key={"ID_Producto": i["id"]}, UpdateExpression="SET Stock_Actual = Stock_Actual - :q", ExpressionAttributeValues={":q": int(i["cantidad"])})
             
-            # --- MEJORA GLOBITO ---
             st.balloons()
             st.success("¡Venta completada!")
             st.session_state.carrito = []
             st.session_state.confirmar_venta = False
             st.session_state.df = cargar_datos()
-            time.sleep(2) # Damos 2 segundos para ver los globos antes de reiniciar
+            time.sleep(2) 
             st.rerun()
         
         if cc2.button("❌ CANCELAR", use_container_width=True):
@@ -131,20 +130,29 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
         c_adm1, c_adm2 = st.columns(2)
         with c_adm1:
             p_abast = st.selectbox("Elegir producto:", df["Producto"].tolist(), key="sel_admin")
-            c_abast = st.number_input("Cantidad:", min_value=1, value=10, key="cant_admin")
+            c_abast = st.number_input("Cantidad:", min_value=1, value=1, key="cant_admin")
+            
+            # Usamos un contenedor vacío para los mensajes, así no se acumulan
+            placeholder_msg = st.empty()
+            
             if st.button("Registrar Entrada", use_container_width=True):
                 try:
                     id_a = df[df["Producto"] == p_abast].iloc[0]["ID_Producto"]
                     f_ing, h_ing = obtener_tiempo_peru()
+                    
                     tabla_inventario.update_item(Key={"ID_Producto": id_a}, UpdateExpression="SET Stock_Actual = Stock_Actual + :q", ExpressionAttributeValues={":q": int(c_abast)})
+                    
                     tabla_ingresos.put_item(Item={
                         "ID_Ingreso": f"IN-{int(time.time())}", "Fecha": f_ing, "Hora": h_ing,
                         "Producto": p_abast, "Cantidad": int(c_abast)
                     })
-                    st.success("¡Stock actualizado!")
+                    
+                    placeholder_msg.success("¡Stock actualizado!")
                     st.session_state.df = cargar_datos()
-                    time.sleep(1.5); st.rerun()
-                except: st.error("Error en AWS.")
+                    time.sleep(1.5)
+                    st.rerun()
+                except Exception:
+                    placeholder_msg.error("Error en AWS. Verifica la tabla 'EntradasInventario'.")
 
         with c_adm2:
             st.subheader("📜 Historial de Ingresos")
@@ -157,12 +165,11 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
                 except: st.info("Sin historial.")
 
         st.divider()
-        # CIERRE DE CAJA (ACTUALIZACIÓN REAL-TIME)
+        # CIERRE DE CAJA
         st.subheader("💰 Cierre de Caja del Día")
         fecha_hoy, _ = obtener_tiempo_peru()
         
         if st.button("🔄 ACTUALIZAR Y GENERAR REPORTE"):
-            # Escaneo fresco cada vez que se pulsa el botón
             ventas_lista = tabla_ventas.scan().get("Items", [])
             ventas_hoy = [v for v in ventas_lista if v['Fecha'] == fecha_hoy]
             
@@ -190,7 +197,6 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
                 
                 st.table(pd.DataFrame(filas_tabla))
                 
-                # Excel
                 output = io.BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                     pd.DataFrame(filas_excel).to_excel(writer, index=False, sheet_name='Ventas')
@@ -203,4 +209,4 @@ with st.expander("🔐 PANEL DE ADMINISTRADOR"):
                     use_container_width=True
                 )
             else:
-                st.warning("No hay ventas registradas aún para el día de hoy.")
+                st.warning("No hay ventas hoy.")
