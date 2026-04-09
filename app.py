@@ -12,7 +12,7 @@ st.set_page_config(page_title="Sistema Dental Tío - PRO", layout="wide")
 def obtener_tiempo_peru():
     tz_peru = pytz.timezone('America/Lima')
     ahora = datetime.now(tz_peru)
-    return ahora.strftime("%d/%m/%Y"), ahora.strftime("%H:%M:%S")
+    return ahora.strftime("%d/%m/%Y"), ahora.strftime("%H:%M:%S"), ahora
 
 # 2. CONEXIÓN AWS
 try:
@@ -44,10 +44,10 @@ try:
 except:
     df_stock = pd.DataFrame(columns=['Producto', 'Stock', 'Precio'])
 
-st.title("🦷 Gestión Dental: Ventas e Inventario")
+st.title("🦷 Gestión Dental: Control Histórico")
 
-# --- SECCIÓN: VENTA (PÚBLICO) ---
-with st.expander("📦 Consultar Stock"):
+# --- SECCIÓN VENTA ---
+with st.expander("📦 Consultar Stock Actual"):
     if not df_stock.empty:
         df_stock['Stock'] = pd.to_numeric(df_stock['Stock'])
         st.dataframe(df_stock[['Producto', 'Stock', 'Precio']], use_container_width=True, hide_index=True)
@@ -88,24 +88,22 @@ if st.session_state.carrito:
     if st.session_state.confirmar:
         st.warning(f"¿Confirmar cobro de S/ {total_car:.2f}?")
         if st.button("✅ SÍ, FINALIZAR"):
-            f, h = obtener_tiempo_peru()
+            f, h, _ = obtener_tiempo_peru()
             for item in st.session_state.carrito:
-                # AWS: Descontar
                 res = tabla_stock.get_item(Key={'Producto': item['Producto']})
                 n_stock = int(res['Item']['Stock']) - item['Cantidad']
                 tabla_stock.update_item(Key={'Producto': item['Producto']}, UpdateExpression="set Stock = :s", ExpressionAttributeValues={':s': n_stock})
-                # AWS: Registrar Venta
                 id_v = f"V-{f.replace('/','')}-{h.replace(':','')}-{item['Producto'][:3]}"
                 tabla_ventas.put_item(Item={'ID_Venta': id_v, 'Fecha': f, 'Hora': h, 'Producto': item['Producto'], 'Cantidad': int(item['Cantidad']), 'Total': str(item['Subtotal']), 'Metodo': v_metodo})
             st.balloons(); st.session_state.carrito = []; st.session_state.confirmar = False; st.rerun()
 
 st.divider()
 
-# --- PANEL ADMIN ---
+# --- PANEL ADMIN CON FILTROS ---
 if not st.session_state.autenticado:
-    with st.expander("🔐 Panel de Control"):
+    with st.expander("🔐 Acceso Administrador"):
         ingreso = st.text_input("Contraseña:", type="password")
-        if st.button("Acceder"):
+        if st.button("Entrar"):
             if ingreso == admin_pass:
                 st.session_state.autenticado = True
                 st.rerun()
@@ -115,43 +113,53 @@ else:
         st.session_state.autenticado = False
         st.rerun()
 
-    t1, t2 = st.tabs(["💰 Ganancias Hoy", "📥 Mercadería"])
+    t1, t2 = st.tabs(["💰 Consultar Ventas", "📥 Mercadería e Ingresos"])
     
     with t1:
-        f_hoy, _ = obtener_tiempo_peru()
-        st.subheader(f"Cierre de Caja: {f_hoy}")
-        ventas = tabla_ventas.scan().get('Items', [])
-        df_hoy = pd.DataFrame([v for v in ventas if v['Fecha'] == f_hoy])
+        # FILTRO DE FECHA PARA VENTAS
+        _, _, ahora = obtener_tiempo_peru()
+        fecha_busqueda = st.date_input("Seleccionar fecha para ver ventas:", ahora)
+        f_formateada = fecha_busqueda.strftime("%d/%m/%Y")
         
-        if not df_hoy.empty:
-            df_hoy['Total'] = pd.to_numeric(df_hoy['Total'])
-            st.metric("GANANCIA TOTAL", f"S/ {df_hoy['Total'].sum():.2f}")
-            # ORDENAR POR HORA (Más reciente arriba)
-            df_hoy = df_hoy.sort_values(by='Hora', ascending=False)
-            st.dataframe(df_hoy[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
-        else: st.info("Sin ventas registradas hoy.")
+        st.subheader(f"Ventas del día: {f_formateada}")
+        ventas_all = tabla_ventas.scan().get('Items', [])
+        df_ventas = pd.DataFrame([v for v in ventas_all if v['Fecha'] == f_formateada])
+        
+        if not df_ventas.empty:
+            df_ventas['Total'] = pd.to_numeric(df_ventas['Total'])
+            st.metric("RECAUDACIÓN", f"S/ {df_ventas['Total'].sum():.2f}")
+            df_ventas = df_ventas.sort_values(by='Hora', ascending=False)
+            st.dataframe(df_ventas[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
+        else:
+            st.info(f"No se encontraron ventas el {f_formateada}")
 
     with t2:
-        st.write("### Registrar llegada")
+        # REGISTRO
+        st.write("### Registrar nueva llegada")
         with st.form("abastecer"):
             p_ab = st.selectbox("Producto:", df_stock['Producto'].tolist()) if not df_stock.empty else st.text_input("Nombre")
             c_ab = st.number_input("Cantidad nueva:", min_value=1)
-            pr_ab = st.number_input("Precio actual (S/):", min_value=0.0)
-            if st.form_submit_button("Actualizar Stock"):
+            pr_ab = st.number_input("Precio venta actual (S/):", min_value=0.0)
+            if st.form_submit_button("Guardar en Nube"):
                 res = tabla_stock.get_item(Key={'Producto': p_ab})
                 s_fin = (int(res['Item']['Stock']) if 'Item' in res else 0) + c_ab
                 tabla_stock.put_item(Item={'Producto': p_ab, 'Stock': s_fin, 'Precio': str(pr_ab)})
-                
-                f, h = obtener_tiempo_peru()
+                f, h, _ = obtener_tiempo_peru()
                 tabla_auditoria.put_item(Item={'ID_Ingreso': f"IN-{f.replace('/','')}-{h.replace(':','')}", 'Fecha': f, 'Hora': h, 'Producto': p_ab, 'Cantidad_Entrante': int(c_ab), 'Stock_Resultante': int(s_fin), 'Precio_Fijado': str(pr_ab)})
-                st.success("Guardado"); time.sleep(1); st.rerun()
+                st.success("Inventario actualizado"); time.sleep(1); st.rerun()
 
-        st.write("### Historial de Cambios")
+        st.divider()
+        # FILTRO DE FECHA PARA AUDITORÍA
+        st.write("### Historial de Ingresos")
+        fecha_ing_busqueda = st.date_input("Ver ingresos de esta fecha:", ahora)
+        f_ing_formateada = fecha_ing_busqueda.strftime("%d/%m/%Y")
+        
         ing_raw = tabla_auditoria.scan().get('Items', [])
-        if ing_raw:
-            df_ing = pd.DataFrame(ing_raw)
-            # LIMPIAR COLUMNAS NONE
+        df_ing = pd.DataFrame([i for i in ing_raw if i['Fecha'] == f_ing_formateada])
+        
+        if not df_ing.empty:
             df_ing = df_ing.dropna(axis=1, how='all').fillna('-')
-            # ORDENAR: Más reciente arriba
-            df_ing = df_ing.sort_values(by=['Fecha', 'Hora'], ascending=False)
-            st.dataframe(df_ing, use_container_width=True, hide_index=True)
+            df_ing = df_ing.sort_values(by='Hora', ascending=False)
+            st.dataframe(df_ing[['Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante', 'Precio_Fijado']], use_container_width=True, hide_index=True)
+        else:
+            st.info(f"No hubo ingresos de stock el {f_ing_formateada}")
