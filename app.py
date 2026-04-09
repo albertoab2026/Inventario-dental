@@ -64,23 +64,22 @@ tab_ventas, tab_admin = st.tabs(["🛒 Punto de Venta", "⚙️ Administración"
 with tab_ventas:
     if not df_stock.empty:
         df_stock['Stock'] = pd.to_numeric(df_stock['Stock'])
+        df_stock['Precio'] = pd.to_numeric(df_stock['Precio'])
         
-        # --- LÓGICA DE ALERTAS (STOCK BAJO < 5) ---
+        # Alertas de Stock Bajo
         stock_bajo = df_stock[df_stock['Stock'] < 5]
         if not stock_bajo.empty:
             for _, fila in stock_bajo.iterrows():
-                st.error(f"⚠️ **STOCK CRÍTICO:** El producto **{fila['Producto']}** tiene solo **{fila['Stock']}** unidades.")
+                st.error(f"⚠️ **STOCK BAJO:** {fila['Producto']} (Solo quedan {fila['Stock']})")
 
         with st.expander("Ver Stock Disponible"):
-            # Colorear filas de stock bajo en la tabla
-            def resaltar_bajo_stock(s):
-                return ['background-color: #ff4b4b; color: white' if s.Stock < 5 else '' for _ in s]
-            
-            st.dataframe(df_stock[['Producto', 'Stock', 'Precio']].style.apply(resaltar_bajo_stock, axis=None), 
-                         use_container_width=True, hide_index=True)
+            # En lugar de colores que rompen el app, usamos una columna de advertencia
+            df_mostrar = df_stock.copy()
+            df_mostrar['Estado'] = df_mostrar['Stock'].apply(lambda x: "🚨 CRÍTICO" if x < 5 else "✅ OK")
+            st.dataframe(df_mostrar[['Estado', 'Producto', 'Stock', 'Precio']], use_container_width=True, hide_index=True)
         
         c1, c2, c3 = st.columns([3, 1, 1])
-        with c1: prod_sel = st.selectbox("Producto:", df_stock['Producto'].tolist())
+        with c1: prod_sel = st.selectbox("Seleccione Producto:", df_stock['Producto'].tolist())
         with c2: cant_sel = st.number_input("Cantidad:", min_value=1, value=1)
         with c3:
             st.write("##")
@@ -90,10 +89,10 @@ with tab_ventas:
                     p = float(df_stock.loc[df_stock['Producto'] == prod_sel, 'Precio'].values[0])
                     st.session_state.carrito.append({'Producto': prod_sel, 'Cantidad': cant_sel, 'Precio': p, 'Subtotal': round(p * cant_sel, 2)})
                     st.rerun()
-                else: st.error("Stock insuficiente")
+                else: st.error("No hay suficiente stock")
 
     if st.session_state.carrito:
-        st.write("### 🛒 Carrito de Compras")
+        st.write("### 🛒 Carrito")
         df_car = pd.DataFrame(st.session_state.carrito)
         st.table(df_car)
         
@@ -101,7 +100,7 @@ with tab_ventas:
         
         col_total, col_vaciar = st.columns([2, 1])
         with col_total:
-            st.metric(label="Total de Venta", value=f"S/ {total_v:.2f}")
+            st.metric(label="Total a Cobrar", value=f"S/ {total_v:.2f}")
         with col_vaciar:
             st.write("##")
             if st.button("🗑️ Vaciar Carrito", use_container_width=True):
@@ -115,10 +114,10 @@ with tab_ventas:
             st.session_state.confirmar = True
         
         if st.session_state.confirmar:
-            st.warning("⚠️ ¿Confirmar transacción?")
+            st.warning("⚠️ ¿Confirmar venta?")
             c_si, c_no = st.columns(2)
             with c_si:
-                if st.button("✅ SÍ, FINALIZAR", use_container_width=True):
+                if st.button("✅ FINALIZAR", use_container_width=True):
                     f, h, _ = obtener_tiempo_peru()
                     for item in st.session_state.carrito:
                         res = tabla_stock.get_item(Key={'Producto': item['Producto']})
@@ -130,9 +129,9 @@ with tab_ventas:
                             'Cantidad': int(item['Cantidad']), 'Total': str(item['Subtotal']), 
                             'Metodo': m_pago
                         })
-                    st.success("¡Venta realizada con éxito!")
                     st.session_state.carrito = []
                     st.session_state.confirmar = False
+                    st.success("Venta registrada")
                     time.sleep(1)
                     st.rerun()
             with c_no:
@@ -145,50 +144,43 @@ with tab_admin:
     
     with t_ganancia:
         _, _, ahora = obtener_tiempo_peru()
-        f_bus = st.date_input("Ver ventas del día:", ahora).strftime("%d/%m/%Y")
+        f_bus = st.date_input("Fecha a consultar:", ahora).strftime("%d/%m/%Y")
         ventas = tabla_ventas.scan().get('Items', [])
         df_v = pd.DataFrame([v for v in ventas if v['Fecha'] == f_bus])
         
         if not df_v.empty:
             df_v['Total'] = pd.to_numeric(df_v['Total'])
-            st.metric("RECAUDACIÓN TOTAL", f"S/ {df_v['Total'].sum():.2f}")
+            st.metric("RECAUDACIÓN DEL DÍA", f"S/ {df_v['Total'].sum():.2f}")
             df_v = df_v.sort_values(by='Hora', ascending=False)
             st.dataframe(df_v[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
             
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                 df_v.to_excel(writer, index=False, sheet_name='Ventas')
-            st.download_button(label="📥 Descargar Reporte Excel", data=output.getvalue(), file_name=f"Ventas_{f_bus.replace('/','-')}.xlsx", mime="application/vnd.ms-excel")
-        else: st.info("No hay ventas en esta fecha.")
+            st.download_button(label="📥 Descargar Excel", data=output.getvalue(), file_name=f"Ventas_{f_bus.replace('/','-')}.xlsx", mime="application/vnd.ms-excel")
+        else: st.info("No hay ventas registradas hoy.")
 
     with t_stock:
         with st.form("form_stock"):
-            st.write("### Registrar Ingreso de Mercadería")
-            p_in = st.selectbox("Producto:", df_stock['Producto'].tolist()) if not df_stock.empty else st.text_input("Nombre del Producto")
+            st.write("### Cargar Mercadería")
+            p_in = st.selectbox("Producto:", df_stock['Producto'].tolist()) if not df_stock.empty else st.text_input("Nombre")
             c_in = st.number_input("Cantidad entrante:", min_value=1)
-            pr_in = st.number_input("Precio de venta actual:", min_value=0.0)
-            if st.form_submit_button("💾 Guardar en Inventario"):
+            pr_in = st.number_input("Precio de venta:", min_value=0.0)
+            if st.form_submit_button("💾 Guardar"):
                 res = tabla_stock.get_item(Key={'Producto': p_in})
                 n_stock = (int(res['Item']['Stock']) if 'Item' in res else 0) + c_in
                 tabla_stock.put_item(Item={'Producto': p_in, 'Stock': n_stock, 'Precio': str(pr_in)})
-                
                 f, h, _ = obtener_tiempo_peru()
-                tabla_auditoria.put_item(Item={
-                    'ID_Ingreso': f"I-{f}-{h}", 'Fecha': f, 'Hora': h, 
-                    'Producto': p_in, 'Cantidad_Entrante': int(c_in), 
-                    'Stock_Resultante': int(n_stock), 'Precio_Fijado': str(pr_in)
-                })
-                st.success(f"Stock actualizado: {p_in}")
+                tabla_auditoria.put_item(Item={'ID_Ingreso': f"I-{f}-{h}", 'Fecha': f, 'Hora': h, 'Producto': p_in, 'Cantidad_Entrante': int(c_in), 'Stock_Resultante': int(n_stock), 'Precio_Fijado': str(pr_in)})
+                st.success("Inventario actualizado")
                 time.sleep(1)
                 st.rerun()
 
         st.divider()
-        st.write("### Historial de Ingresos")
-        f_st_bus = st.date_input("Ver entradas de fecha:", ahora).strftime("%d/%m/%Y")
+        st.write("### Historial de Entradas")
+        f_st_bus = st.date_input("Ver ingresos de fecha:", ahora).strftime("%d/%m/%Y")
         ing_raw = tabla_auditoria.scan().get('Items', [])
         df_ing = pd.DataFrame([i for i in ing_raw if i['Fecha'] == f_st_bus])
-        
         if not df_ing.empty:
             df_ing = df_ing.sort_values(by='Hora', ascending=False)
             st.dataframe(df_ing[['Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante', 'Precio_Fijado']], use_container_width=True, hide_index=True)
-        else: st.info("Sin movimientos de entrada hoy.")
