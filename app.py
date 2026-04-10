@@ -148,7 +148,7 @@ with tabs[0]:
                 st.session_state.carrito = []
                 st.rerun()
 
-# --- TAB 2: STOCK (CON EXCEL) ---
+# --- TAB 2: STOCK ---
 with tabs[1]:
     st.subheader("📦 Stock en Almacén")
     if not df_stock.empty:
@@ -158,17 +158,10 @@ with tabs[1]:
         
         st.dataframe(df_stock.style.map(color_texto_rojo, subset=['Stock']).format({"Precio": "S/ {:.2f}"}), use_container_width=True, hide_index=True)
         
-        # Excel de Stock
         excel_stock = convertir_a_excel(df_stock, "Inventario")
-        st.download_button(
-            label="📥 DESCARGAR EXCEL DE STOCK",
-            data=excel_stock,
-            file_name=f"Inventario_Dental_{obtener_tiempo_peru()[0].replace('/', '-')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
+        st.download_button(label="📥 DESCARGAR EXCEL DE STOCK", data=excel_stock, file_name=f"Inventario_Dental_{obtener_tiempo_peru()[0].replace('/', '-')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
 
-# --- TAB 3: REPORTES (CON EXCEL) ---
+# --- TAB 3: REPORTES (ORDENADO POR HORA RECIENTE) ---
 with tabs[2]:
     st.subheader("📊 Reporte Diario")
     _, _, ahora_dt, _ = obtener_tiempo_peru()
@@ -178,7 +171,10 @@ with tabs[2]:
         df_v = pd.DataFrame(v_data)
         df_dia = df_v[df_v['Fecha'] == f_bus].copy() if not df_v.empty else pd.DataFrame()
         if not df_dia.empty:
+            # Ordenar por hora descendente
+            df_dia = df_dia.sort_values(by='Hora', ascending=False)
             df_dia['Total'] = pd.to_numeric(df_dia['Total'], errors='coerce').fillna(0)
+            
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("💵 EFECTIVO", f"S/ {df_dia[df_dia['Metodo'] == '💵 Efectivo']['Total'].sum():.2f}")
             c2.metric("🟢 YAPE", f"S/ {df_dia[df_dia['Metodo'] == '🟢 Yape']['Total'].sum():.2f}")
@@ -189,15 +185,24 @@ with tabs[2]:
             
             excel_ventas = convertir_a_excel(df_dia, "Ventas")
             st.download_button(label="📥 DESCARGAR EXCEL DE VENTAS", data=excel_ventas, file_name=f"Ventas_{f_bus.replace('/', '-')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+        else: st.info("Sin ventas en esta fecha.")
 
-# --- TABS RESTANTES ---
+# --- TAB 4: HISTORIAL (ORDENADO POR FECHA Y HORA RECIENTE) ---
 with tabs[3]:
-    st.subheader("📋 Historial")
+    st.subheader("📋 Historial de Movimientos")
     h_data = tabla_auditoria.scan().get('Items', [])
     if h_data:
-        df_h = pd.DataFrame(h_data).sort_index(ascending=False)
+        df_h = pd.DataFrame(h_data)
+        # Crear columna temporal para ordenar correctamente
+        df_h['Timestamp'] = pd.to_datetime(df_h['Fecha'] + ' ' + df_h['Hora'], format='%d/%m/%Y %H:%M:%S', errors='coerce')
+        # Ordenar: Lo más nuevo arriba
+        df_h = df_h.sort_values(by='Timestamp', ascending=False)
+        
         st.dataframe(df_h[['Fecha', 'Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante', 'Tipo']], use_container_width=True, hide_index=True)
+    else:
+        st.info("No hay historial registrado.")
 
+# --- TABS 5 y 6 ---
 with tabs[4]:
     st.subheader("📥 Cargar Stock")
     with st.form(key=f"c_{st.session_state.form_contador}"):
@@ -219,5 +224,8 @@ with tabs[5]:
     if not df_stock.empty:
         p_d = st.selectbox("Borrar:", df_stock['Producto'].tolist())
         if st.button("🗑️ ELIMINAR", type="primary"):
+            f, h, _, uid = obtener_tiempo_peru()
+            s_d = int(df_stock[df_stock['Producto'] == p_d]['Stock'].values[0])
             tabla_stock.delete_item(Key={'Producto': p_d})
+            tabla_auditoria.put_item(Item={'ID_Ingreso': f"D-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_d, 'Cantidad_Entrante': 0, 'Stock_Resultante': s_d, 'Tipo': 'ELIMINADO'})
             st.success("Eliminado."); time.sleep(1); st.rerun()
