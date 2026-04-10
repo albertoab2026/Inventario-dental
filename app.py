@@ -74,15 +74,21 @@ tabs = st.tabs(["🛒 Venta", "📦 Stock", "📊 Reportes", "📋 Historial", "
 # --- TAB 1: VENTA ---
 with tabs[0]:
     if st.session_state.boleta:
+        st.balloons() # <--- ¡AQUÍ ESTÁN LOS GLOBOS DE VUELTA! 🎈
         b = st.session_state.boleta
         ticket = f"""
         <div style="background-color: white; color: black; padding: 20px; border: 2px solid #333; border-radius: 10px; max-width: 400px; margin: auto; font-family: monospace;">
-            <center><h2>🦷 BALLARTA</h2></center><hr>
-            <p>FECHA: {b['fecha']} | {b['hora']}</p>
+            <center>
+                <h2 style="margin:0;">TIENDA DENTAL</h2>
+                <h1 style="margin:0; color: #2E86C1;">BALLARTA</h1>
+                <p>Insumos Profesionales</p>
+            </center>
+            <hr>
+            <p><b>FECHA:</b> {b['fecha']} | {b['hora']}</p>
             <table style="width: 100%;">
         """
         for i in b['items']: ticket += f"<tr><td>{i['Cantidad']} x {i['Producto']}</td><td style='text-align: right;'>S/ {float(i['Subtotal']):.2f}</td></tr>"
-        ticket += f"</table><hr><h3 style='text-align: right;'>TOTAL: S/ {b['total']:.2f}</h3><p>PAGO: {b['metodo']}</p></div>"
+        ticket += f"</table><hr><h2 style='text-align: right;'>TOTAL: S/ {b['total']:.2f}</h2><p><b>PAGO:</b> {b['metodo']}</p></div>"
         st.markdown(ticket, unsafe_allow_html=True)
         if st.button("⬅️ NUEVA VENTA"):
             st.session_state.boleta = None
@@ -108,22 +114,19 @@ with tabs[0]:
             st.markdown(f"<h1 style='color: #2ECC71; text-align: center; border: 2px solid #2ECC71; border-radius: 10px; padding: 10px;'>TOTAL: S/ {total_v:.2f}</h1>", unsafe_allow_html=True)
             
             metodo = st.radio("Método de Pago:", ["💵 Efectivo", "🟢 Yape", "🟣 Plin"], horizontal=True)
-            confirmar = st.checkbox("✅ Confirmo que recibí el dinero")
+            confirmar = st.checkbox("✅ Confirmo recepción del dinero")
             
-            # EL BOTÓN DE FINALIZAR QUE FALTABA
             if st.button("🚀 FINALIZAR VENTA", disabled=not confirmar, type="primary", use_container_width=True):
                 f, h, _, uid = obtener_tiempo_peru()
                 st.session_state.boleta = {'fecha': f, 'hora': h, 'items': list(st.session_state.carrito), 'total': total_v, 'metodo': metodo}
                 for item in st.session_state.carrito:
-                    # Actualizar Stock en AWS
                     n_s = int(df_stock[df_stock['Producto'] == item['Producto']]['Stock'].values[0]) - item['Cantidad']
                     tabla_stock.update_item(Key={'Producto': item['Producto']}, UpdateExpression="set Stock = :s", ExpressionAttributeValues={':s': n_s})
-                    # Guardar Venta en AWS
                     tabla_ventas.put_item(Item={'ID_Venta': f"V-{uid}-{item['Producto'][:2]}", 'Fecha': f, 'Hora': h, 'Producto': item['Producto'], 'Cantidad': int(item['Cantidad']), 'Total': str(item['Subtotal']), 'Metodo': metodo})
                 st.session_state.carrito = []
                 st.rerun()
 
-# --- TAB 2: STOCK (CON MAP) ---
+# --- TAB 2: STOCK (CON MAP Y COLOR ROJO) ---
 with tabs[1]:
     st.subheader("📦 Stock Actual")
     if not df_stock.empty:
@@ -131,7 +134,7 @@ with tabs[1]:
             return 'background-color: #E74C3C; color: white; font-weight: bold' if val <= 5 else ''
         st.dataframe(df_stock.style.map(style_red, subset=['Stock']).format({"Precio": "S/ {:.2f}", "Stock": "{:.0f}"}), use_container_width=True, hide_index=True)
 
-# --- TAB 4: HISTORIAL (CON ELIMINADOS BLINDADO) ---
+# --- TAB 4: HISTORIAL (BLINDADO) ---
 with tabs[3]:
     st.subheader("📋 Historial de Movimientos")
     h_data = tabla_auditoria.scan().get('Items', [])
@@ -150,11 +153,11 @@ with tabs[3]:
         if not eliminados.empty:
             st.dataframe(eliminados[['Fecha', 'Hora', 'Producto', 'Stock_Resultante']], use_container_width=True, hide_index=True)
 
-# --- LAS DEMÁS PESTAÑAS (CARGAR Y MANT.) SE MANTIENEN IGUAL ---
+# --- TAB 5: CARGAR STOCK ---
 with tabs[4]:
     st.subheader("📥 Cargar Stock")
     with st.form("carga_stock"):
-        p_ex = st.selectbox("Existente:", [""] + df_stock['Producto'].tolist())
+        p_ex = st.selectbox("Producto existente:", [""] + df_stock['Producto'].tolist())
         p_nu = st.text_input("O Nuevo:").upper()
         p_f = p_nu if p_nu else p_ex
         c_i = st.number_input("Cantidad:", min_value=1)
@@ -169,10 +172,11 @@ with tabs[4]:
                 st.success(f"✅ Cargado: {p_f}")
                 time.sleep(1); st.rerun()
 
+# --- TAB 6: MANTENIMIENTO ---
 with tabs[5]:
     st.subheader("🛠️ Mantenimiento")
     if not df_stock.empty:
-        p_b = st.selectbox("Producto a eliminar:", df_stock['Producto'].tolist())
+        p_b = st.selectbox("Eliminar del sistema:", df_stock['Producto'].tolist())
         if st.button("🗑️ ELIMINAR PERMANENTE", use_container_width=True):
             f, h, _, uid = obtener_tiempo_peru()
             s_borrar = int(df_stock[df_stock['Producto'] == p_b]['Stock'].values[0])
