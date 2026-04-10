@@ -62,11 +62,8 @@ def get_df_stock():
         items = tabla_stock.scan().get('Items', [])
         if items:
             df = pd.DataFrame(items)
-            # Asegurar que las columnas existan
             for col in ['Stock', 'Precio', 'Producto']:
                 if col not in df.columns: df[col] = 0 if col != 'Producto' else "Sin Nombre"
-            
-            # Limpieza de datos
             df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0).astype(int)
             df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0.0)
             return df[['Producto', 'Stock', 'Precio']].sort_values(by='Producto')
@@ -77,7 +74,7 @@ df_stock = get_df_stock()
 
 tabs = st.tabs(["🛒 Venta", "📦 Stock", "📊 Reportes", "📋 Historial", "📥 Cargar", "🛠️ Mant."])
 
-# --- TAB 1: VENTA ---
+# --- TAB 1: VENTA (CON CONFIRMACIÓN) ---
 with tabs[0]:
     if st.session_state.boleta:
         st.balloons()
@@ -121,38 +118,34 @@ with tabs[0]:
             st.markdown(f"<h1 style='color: #2ECC71; text-align: center; border: 2px solid #2ECC71; border-radius: 10px; padding: 10px;'>TOTAL: S/ {total_v:.2f}</h1>", unsafe_allow_html=True)
             
             metodo = st.radio("Método de Pago:", ["💵 Efectivo", "🟢 Yape", "🟣 Plin"], horizontal=True)
-            confirmar_pago = st.checkbox("✅ Confirmo que recibí el pago")
+            confirmar_pago = st.checkbox("✅ Confirmo que recibí el pago del cliente")
             
             if st.button("🚀 FINALIZAR VENTA", type="primary", use_container_width=True, disabled=not confirmar_pago):
                 f, h, _, uid = obtener_tiempo_peru()
                 st.session_state.boleta = {'fecha': f, 'hora': h, 'items': list(st.session_state.carrito), 'total': total_v, 'metodo': metodo}
                 for item in st.session_state.carrito:
-                    # Actualizar Stock
                     s_actual = int(df_stock[df_stock['Producto'] == item['Producto']]['Stock'].values[0])
-                    n_s = s_actual - item['Cantidad']
-                    tabla_stock.update_item(Key={'Producto': item['Producto']}, UpdateExpression="set Stock = :s", ExpressionAttributeValues={':s': n_s})
-                    # Guardar Venta
+                    tabla_stock.update_item(Key={'Producto': item['Producto']}, UpdateExpression="set Stock = :s", ExpressionAttributeValues={':s': s_actual - item['Cantidad']})
                     tabla_ventas.put_item(Item={'ID_Venta': f"V-{uid}-{item['Producto'][:2]}", 'Fecha': f, 'Hora': h, 'Producto': item['Producto'], 'Cantidad': int(item['Cantidad']), 'Total': str(item['Subtotal']), 'Metodo': metodo})
                 st.session_state.carrito = []
                 st.rerun()
 
-# --- TAB 2: STOCK (CORREGIDO) ---
+# --- TAB 2: STOCK (FIJADO SIN ERRORES) ---
 with tabs[1]:
     st.subheader("📦 Stock en Almacén")
     if not df_stock.empty:
-        # Estilo para el color rojo
-        def resaltar_bajo_stock(val):
-            color = '#ff4b4b' if val <= 5 else ''
-            return f'background-color: {color}; color: {"white" if color else "black"}; font-weight: bold' if color else ''
+        # Función moderna para el color
+        def resaltar_rojo(s):
+            is_low = s <= 5
+            return ['background-color: #ff4b4b; color: white; font-weight: bold' if is_low else '' for _ in s]
 
-        # Mostrar tabla con formato
         st.dataframe(
-            df_stock.style.applymap(resaltar_bajo_stock, subset=['Stock']).format({"Precio": "S/ {:.2f}", "Stock": "{}"}),
+            df_stock.style.apply(resaltar_rojo, subset=['Stock']).format({"Precio": "S/ {:.2f}", "Stock": "{}"}),
             use_container_width=True, 
             hide_index=True
         )
 
-# --- TAB 3: REPORTES (RESTABLECIDO) ---
+# --- TAB 3: REPORTES (CON SEPARACIÓN DE PAGOS) ---
 with tabs[2]:
     st.subheader("📊 Reporte Diario")
     _, _, ahora_dt, _ = obtener_tiempo_peru()
@@ -161,27 +154,24 @@ with tabs[2]:
     v_data = tabla_ventas.scan().get('Items', [])
     if v_data:
         df_v = pd.DataFrame(v_data)
-        df_dia = df_v[df_v['Fecha'] == f_bus].copy()
+        df_dia = df_v[df_v['Fecha'] == f_bus].copy() if not df_v.empty else pd.DataFrame()
         
         if not df_dia.empty:
             df_dia['Total'] = pd.to_numeric(df_dia['Total'], errors='coerce').fillna(0)
             
             # Totales por método
-            t_efectivo = df_dia[df_dia['Metodo'] == "💵 Efectivo"]['Total'].sum()
-            t_yape = df_dia[df_dia['Metodo'] == "🟢 Yape"]['Total'].sum()
-            t_plin = df_dia[df_dia['Metodo'] == "🟣 Plin"]['Total'].sum()
-            t_total = df_dia['Total'].sum()
+            t_efe = df_dia[df_dia['Metodo'] == "💵 Efectivo"]['Total'].sum()
+            t_yap = df_dia[df_dia['Metodo'] == "🟢 Yape"]['Total'].sum()
+            t_pli = df_dia[df_dia['Metodo'] == "🟣 Plin"]['Total'].sum()
             
-            # Mostrar métricas
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("💵 EFECTIVO", f"S/ {t_efectivo:.2f}")
-            m2.metric("🟢 YAPE", f"S/ {t_yape:.2f}")
-            m3.metric("🟣 PLIN", f"S/ {t_plin:.2f}")
-            m4.metric("💰 TOTAL", f"S/ {t_total:.2f}")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("💵 EFECTIVO", f"S/ {t_efe:.2f}")
+            c2.metric("🟢 YAPE", f"S/ {t_yap:.2f}")
+            c3.metric("🟣 PLIN", f"S/ {t_pli:.2f}")
+            c4.metric("💰 TOTAL", f"S/ {df_dia['Total'].sum():.2f}")
             
             st.dataframe(df_dia[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
-        else:
-            st.info("No hay ventas registradas para hoy.")
+        else: st.info("Sin ventas hoy.")
 
 # --- TAB 4: HISTORIAL ---
 with tabs[3]:
