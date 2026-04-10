@@ -58,53 +58,88 @@ st.title("🦷 Gestión Dental BALLARTA")
 
 # CARGAR STOCK ACTUAL
 items = tabla_stock.scan().get('Items', [])
-df_stock = pd.DataFrame(items) if items else pd.DataFrame(columns=['Producto', 'Stock', 'Precio'])
+df_stock = pd.to_numeric(pd.DataFrame(items)) if items else pd.DataFrame(columns=['Producto', 'Stock', 'Precio'])
 
 tab_ventas, tab_admin = st.tabs(["🛒 Punto de Venta", "⚙️ Administración"])
 
 with tab_ventas:
-    # --- VISTA DE LA BOLETA (SOLO DESPUÉS DE VENDER) ---
+    # --- VISTA DE LA BOLETA (OPTIMIZADA PARA CAPTURA DE PANTALLA EN MODO OSCURO) ---
     if st.session_state.ultima_boleta:
         b = st.session_state.ultima_boleta
         
-        # Este recuadro es el que tu tío capturará para enviar por WhatsApp
+        # Estilos CSS forzados para garantizar fondo blanco y texto negro en la captura
         st.markdown(f"""
-        <div style="background-color: #f9f9f9; padding: 25px; border-radius: 15px; border: 2px solid #4CAF50; max-width: 500px; margin: auto; font-family: 'Courier New', Courier, monospace; color: black;">
-            <div style="text-align: center;">
-                <h1 style="margin-bottom: 5px;">🦷 BALLARTA</h1>
-                <p style="margin-top: 0; font-size: 14px;">Insumos y Suministros Dentales</p>
-                <p style="font-size: 12px;">Carabayllo, Lima</p>
-                <hr style="border: 0.5px dashed #ccc;">
+        <style>
+            .ticket-container {{
+                background-color: white !important;
+                color: black !important;
+                padding: 25px;
+                border-radius: 15px;
+                border: 2px solid #ddd;
+                max-width: 500px;
+                margin: auto;
+                font-family: 'Courier New', Courier, monospace;
+            }}
+            .ticket-header {{
+                text-align: center;
+                color: black !important;
+            }}
+            .ticket-header h1 {{
+                margin-bottom: 5px;
+                color: black !important;
+            }}
+            .ticket-body p, .ticket-body table, .ticket-body h3 {{
+                color: black !important;
+            }}
+            .ticket-body hr {{
+                border: 0.5px dashed #ccc !important;
+            }}
+            .ticket-table th {{
+                text-align: left;
+                color: black !important;
+            }}
+            .ticket-table td {{
+                color: black !important;
+            }}
+        </style>
+        <div class="ticket-container">
+            <div class="ticket-header">
+                <h1>🦷 BALLARTA</h1>
+                <p style="margin-top: 0; font-size: 14px; color: black !important;">Insumos y Suministros Dentales</p>
+                <p style="font-size: 12px; color: black !important;">Carabayllo, Lima</p>
+                <hr>
             </div>
-            <p><b>Fecha:</b> {b['fecha']}</p>
-            <p><b>Hora:</b> {b['hora']}</p>
-            <hr style="border: 0.5px dashed #ccc;">
-            <table style="width: 100%;">
-                <tr style="text-align: left;">
-                    <th>Cant.</th>
-                    <th>Producto</th>
-                    <th style="text-align: right;">Total</th>
-                </tr>
+            <div class="ticket-body">
+                <p><b>Fecha:</b> {b['fecha']}</p>
+                <p><b>Hora:</b> {b['hora']}</p>
+                <hr>
+                <table class="ticket-table" style="width: 100%;">
+                    <tr>
+                        <th>Cant.</th>
+                        <th>Producto</th>
+                        <th style="text-align: right;">Total</th>
+                    </tr>
         """, unsafe_allow_html=True)
 
         for item in b['items']:
             st.markdown(f"""
-                <tr>
-                    <td>{item['Cantidad']}</td>
-                    <td>{item['Producto']}</td>
-                    <td style="text-align: right;">S/ {float(item['Subtotal']):.2f}</td>
-                </tr>
+                    <tr>
+                        <td>{item['Cantidad']}</td>
+                        <td>{item['Producto']}</td>
+                        <td style="text-align: right;">S/ {float(item['Subtotal']):.2f}</td>
+                    </tr>
             """, unsafe_allow_html=True)
 
         st.markdown(f"""
-            </table>
-            <hr style="border: 0.5px dashed #ccc;">
-            <div style="text-align: right;">
-                <h3>TOTAL A PAGAR: S/ {b['total']:.2f}</h3>
-            </div>
-            <p style="font-size: 14px;"><b>Método:</b> {b['metodo']}</p>
-            <div style="text-align: center; margin-top: 20px;">
-                <p>¡Gracias por su preferencia!</p>
+                </table>
+                <hr>
+                <div style="text-align: right;">
+                    <h3 style="color: black !important;">TOTAL A PAGAR: S/ {b['total']:.2f}</h3>
+                </div>
+                <p style="font-size: 14px;"><b>Método:</b> {b['metodo']}</p>
+                <div style="text-align: center; margin-top: 20px;">
+                    <p>¡Gracias por su preferencia!</p>
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -120,7 +155,6 @@ with tab_ventas:
         df_stock['Stock'] = pd.to_numeric(df_stock['Stock'])
         df_stock['Precio'] = pd.to_numeric(df_stock['Precio'])
         
-        # Alerta stock bajo
         bajos = df_stock[df_stock['Stock'] < 5]
         for _, r in bajos.iterrows():
             st.warning(f"🚨 Poco stock: {r['Producto']} ({r['Stock']} unid.)")
@@ -173,7 +207,7 @@ with tab_ventas:
             st.session_state.carrito = []
             st.rerun()
 
-# --- TAB ADMINISTRACIÓN ---
+# --- TAB ADMINISTRACIÓN (SE MANTIENE IGUAL) ---
 with tab_admin:
     t1, t2, t3 = st.tabs(["📊 Reportes", "📥 Stock", "🛠️ Ajustes"])
     
