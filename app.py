@@ -1,5 +1,5 @@
 import streamlit as st
-import pd
+import pandas as pd
 import boto3
 from datetime import datetime
 import pytz
@@ -134,13 +134,11 @@ with tabs[0]:
 with tabs[1]:
     st.subheader("📦 Stock en Almacén")
     if not df_stock.empty:
-        # Mostramos la tabla directa para evitar errores de compatibilidad de Pandas Styler
         st.dataframe(
             df_stock,
             use_container_width=True, 
             hide_index=True
         )
-        st.caption("Nota: Si el stock es 5 o menos, aparecerá una alerta en la pestaña de Venta.")
 
 # --- TAB 3: REPORTES (RESTABLECIDO CON MÉTRICAS) ---
 with tabs[2]:
@@ -156,7 +154,6 @@ with tabs[2]:
         if not df_dia.empty:
             df_dia['Total'] = pd.to_numeric(df_dia['Total'], errors='coerce').fillna(0)
             
-            # Métricas separadas
             t_efe = df_dia[df_dia['Metodo'] == "💵 Efectivo"]['Total'].sum()
             t_yap = df_dia[df_dia['Metodo'] == "🟢 Yape"]['Total'].sum()
             t_pli = df_dia[df_dia['Metodo'] == "🟣 Plin"]['Total'].sum()
