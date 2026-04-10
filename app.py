@@ -54,31 +54,16 @@ if items:
     df_stock = pd.DataFrame(items)
     df_stock['Stock'] = pd.to_numeric(df_stock['Stock'])
     df_stock['Precio'] = pd.to_numeric(df_stock['Precio'])
-    # Ordenar alfabéticamente por producto y reordenar columnas
+    # Orden solicitado: Producto, Stock, Precio
     df_stock = df_stock[['Producto', 'Stock', 'Precio']].sort_values(by='Producto')
 else:
     df_stock = pd.DataFrame(columns=['Producto', 'Stock', 'Precio'])
 
-# --- CUADRO DE INVENTARIO GENERAL ---
-with st.expander("📦 VER TODO MI INVENTARIO (Stock Actual)", expanded=True):
-    if not df_stock.empty:
-        def resaltar_bajo_stock(val):
-            return 'background-color: #ff4b4b; color: white; font-weight: bold' if val <= 5 else ''
-        
-        # Formatear para quitar ceros extras: Stock como entero, Precio con 2 decimales
-        df_format = df_stock.copy()
-        
-        st.dataframe(
-            df_format.style.map(resaltar_bajo_stock, subset=['Stock'])
-            .format({"Precio": "S/ {:.2f}", "Stock": "{:,.0f}"}),
-            use_container_width=True,
-            hide_index=True
-        )
-    else:
-        st.info("El inventario está vacío.")
+# --- SISTEMA DE PESTAÑAS ---
+# Movimos "Stock Actual" a una pestaña para que no estorbe en la venta
+t1, t2, t3, t4, t5 = st.tabs(["🛒 Venta", "📦 Stock Actual", "📊 Reportes", "📥 Cargar Stock", "🛠️ Mantenimiento"])
 
-t1, t2, t3, t4 = st.tabs(["🛒 Venta", "📊 Reportes", "📥 Cargar Stock", "🛠️ Mantenimiento"])
-
+# --- TAB 1: VENTA (Limpia y rápida) ---
 with t1:
     if st.session_state.boleta:
         st.balloons()
@@ -112,19 +97,19 @@ with t1:
     if not df_stock.empty:
         col1, col2 = st.columns([3, 1])
         with col1:
-            p_sel = st.selectbox("Seleccione Producto:", df_stock['Producto'].tolist())
+            p_sel = st.selectbox("Elegir Producto:", df_stock['Producto'].tolist())
             s_disp = df_stock.loc[df_stock['Producto'] == p_sel, 'Stock'].values[0]
             p_disp = df_stock.loc[df_stock['Producto'] == p_sel, 'Precio'].values[0]
             
             if s_disp <= 5:
-                st.error(f"⚠️ ¡ALERTA! Quedan {s_disp:.0f} unidades.")
+                st.error(f"⚠️ ¡STOCK CRÍTICO! Solo quedan {s_disp:.0f} unidades.")
             else:
                 st.info(f"📦 Disponible: {s_disp:.0f} | 💰 Precio: S/ {p_disp:.2f}")
 
         with col2:
             cant = st.number_input("Cant:", min_value=1, value=1)
         
-        if st.button("➕ Agregar al Carrito", use_container_width=True):
+        if st.button("➕ AGREGAR", use_container_width=True):
             if cant <= s_disp:
                 st.session_state.carrito.append({'Producto': p_sel, 'Cantidad': cant, 'Precio': p_disp, 'Subtotal': round(p_disp * cant, 2)})
                 st.rerun()
@@ -132,14 +117,14 @@ with t1:
                 st.error("No hay suficiente stock.")
 
     if st.session_state.carrito:
-        st.subheader("Venta actual")
+        st.subheader("Carrito de Venta")
         df_c = pd.DataFrame(st.session_state.carrito)
         st.table(df_c)
         total_v = df_c['Subtotal'].sum()
         metodo = st.radio("Método de Pago:", ["💵 Efectivo", "🟢 Yape", "🟣 Plin"], horizontal=True)
         
         st.warning(f"Total a cobrar: S/ {total_v:.2f}")
-        confirma = st.checkbox("Confirmar que recibí el dinero")
+        confirma = st.checkbox("Confirmar que recibí el pago")
         
         if st.button("✅ FINALIZAR VENTA", disabled=not confirma, type="primary", use_container_width=True):
             f, h, _ = obtener_tiempo_peru()
@@ -152,11 +137,28 @@ with t1:
             st.session_state.carrito = []
             st.rerun()
 
-# --- TAB 2: REPORTES ---
+# --- TAB 2: STOCK ACTUAL (Cuadro General) ---
 with t2:
-    st.subheader("Consultar Ventas")
+    st.subheader("📦 Estado General del Inventario")
+    if not df_stock.empty:
+        def resaltar_bajo_stock(val):
+            return 'background-color: #ff4b4b; color: white; font-weight: bold' if val <= 5 else ''
+        
+        # Formateado limpio sin ceros extras
+        st.dataframe(
+            df_stock.style.map(resaltar_bajo_stock, subset=['Stock'])
+            .format({"Precio": "S/ {:.2f}", "Stock": "{:,.0f}"}),
+            use_container_width=True,
+            hide_index=True
+        )
+    else:
+        st.info("El inventario está vacío.")
+
+# --- TAB 3: REPORTES ---
+with t3:
+    st.subheader("Historial de Ventas")
     _, _, hoy_dt = obtener_tiempo_peru()
-    f_ver = st.date_input("Día a consultar:", hoy_dt).strftime("%d/%m/%Y")
+    f_ver = st.date_input("Día:", hoy_dt).strftime("%d/%m/%Y")
     
     vts_raw = tabla_ventas.scan().get('Items', [])
     if vts_raw:
@@ -164,52 +166,44 @@ with t2:
         df_v_dia = df_v[df_v['Fecha'] == f_ver].copy()
         
         if not df_v_dia.empty:
-            # Ordenar por Hora (de la más reciente a la más antigua)
+            # Ordenar por hora (más reciente primero)
             df_v_dia = df_v_dia.sort_values(by='Hora', ascending=False)
             df_v_dia['Total'] = pd.to_numeric(df_v_dia['Total'])
             
             st.metric("Venta del día", f"S/ {df_v_dia['Total'].sum():.2f}")
-            st.dataframe(
-                df_v_dia[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], 
-                use_container_width=True, 
-                hide_index=True
-            )
+            st.dataframe(df_v_dia[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
             
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                 df_v_dia.to_excel(writer, index=False)
             st.download_button("📥 Descargar Excel", output.getvalue(), f"Ventas_{f_ver}.xlsx")
-        else:
-            st.info(f"Sin ventas el {f_ver}.")
-    else:
-        st.info("No hay datos registrados aún.")
+        else: st.info("Sin ventas hoy.")
 
-# --- TAB 3: CARGAR STOCK ---
-with t3:
-    st.subheader("Carga de Mercadería")
+# --- TAB 4: CARGAR STOCK ---
+with t4:
+    st.subheader("Cargar Mercadería")
     with st.form("carga"):
         p_l = df_stock['Producto'].tolist() if not df_stock.empty else []
-        p_e = st.selectbox("Producto existente:", ["-- NUEVO --"] + p_l)
+        p_e = st.selectbox("Existente:", ["-- NUEVO --"] + p_l)
         p_n = st.text_input("Nombre si es nuevo:")
-        c_i = st.number_input("Cantidad que entra:", min_value=1)
-        pr_i = st.number_input("Precio de Venta (S/):", min_value=0.1)
-        
-        if st.form_submit_button("Guardar en Sistema"):
+        c_i = st.number_input("Cantidad:", min_value=1)
+        pr_i = st.number_input("Precio:", min_value=0.1)
+        if st.form_submit_button("Guardar"):
             nombre = p_n.strip() if p_n.strip() else p_e
             if nombre != "-- NUEVO --":
                 res = tabla_stock.get_item(Key={'Producto': nombre})
                 s_prev = int(res['Item']['Stock']) if 'Item' in res else 0
                 tabla_stock.put_item(Item={'Producto': nombre, 'Stock': s_prev + c_i, 'Precio': str(pr_i)})
-                st.success("Inventario actualizado."); time.sleep(1); st.rerun()
+                st.success("Guardado."); time.sleep(1); st.rerun()
 
-# --- TAB 4: MANTENIMIENTO ---
-with t4:
+# --- TAB 5: MANTENIMIENTO ---
+with t5:
     if not df_stock.empty:
-        p_del = st.selectbox("Eliminar producto:", df_stock['Producto'].tolist())
-        if st.button("🗑️ BORRAR DEFINITIVAMENTE"):
+        p_del = st.selectbox("Borrar producto:", df_stock['Producto'].tolist())
+        if st.button("🗑️ ELIMINAR"):
             tabla_stock.delete_item(Key={'Producto': p_del})
-            st.warning("Producto eliminado."); time.sleep(1); st.rerun()
+            st.warning("Eliminado."); time.sleep(1); st.rerun()
 
-if st.sidebar.button("🔴 Cerrar Sesión"):
+if st.sidebar.button("Cerrar Sesión"):
     st.session_state.sesion = False
     st.rerun()
