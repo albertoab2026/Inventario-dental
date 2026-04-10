@@ -56,14 +56,13 @@ if st.sidebar.button("🔴 CERRAR SESIÓN"):
     st.session_state.sesion_iniciada = False
     st.rerun()
 
-# CARGAR STOCK (CON ORDEN DE COLUMNAS)
+# CARGAR STOCK
 def get_df_stock():
     items = tabla_stock.scan().get('Items', [])
     if items:
         df = pd.DataFrame(items)
         df['Stock'] = pd.to_numeric(df['Stock'])
         df['Precio'] = pd.to_numeric(df['Precio'])
-        # REORDENAR: Producto, Stock, Precio
         return df[['Producto', 'Stock', 'Precio']].sort_values(by='Producto')
     return pd.DataFrame(columns=['Producto', 'Stock', 'Precio'])
 
@@ -117,12 +116,9 @@ with t1:
             df_car = pd.DataFrame(st.session_state.carrito)
             st.table(df_car.style.format({"Precio": "{:.2f}", "Subtotal": "{:.2f}"}))
             total_v = df_car['Subtotal'].sum()
-            
             st.markdown(f"<div style='background-color: #1E1E1E; padding: 15px; border-radius: 10px; text-align: center;'><h1 style='color: #2ECC71;'>TOTAL: S/ {total_v:.2f}</h1></div>", unsafe_allow_html=True)
-            
             metodo = st.radio("Método de Pago:", ["💵 Efectivo", "🟢 Yape", "🟣 Plin"], horizontal=True)
             confirmar = st.checkbox("Confirmar que recibí el dinero")
-            
             if st.button("🚀 FINALIZAR VENTA", disabled=not confirmar, type="primary", use_container_width=True):
                 f, h, _, uid = obtener_tiempo_peru()
                 st.session_state.boleta = {'fecha': f, 'hora': h, 'items': list(st.session_state.carrito), 'total': total_v, 'metodo': metodo}
@@ -133,12 +129,12 @@ with t1:
                 st.session_state.carrito = []
                 st.rerun()
 
-# --- TAB 2: STOCK (LIMPIO Y ORDENADO) ---
+# --- TAB 2: STOCK ---
 with t2:
     st.subheader("📦 Inventario Actual")
     st.dataframe(df_stock.style.format({"Precio": "S/ {:.2f}", "Stock": "{:.0f}"}), use_container_width=True, hide_index=True)
 
-# --- TAB 3: REPORTES (ORDENADO POR HORA) ---
+# --- TAB 3: REPORTES ---
 with t3:
     st.subheader("📊 Reporte de Ventas")
     _, _, ahora_dt, _ = obtener_tiempo_peru()
@@ -149,40 +145,29 @@ with t3:
         df_v_dia = df_v[df_v['Fecha'] == f_bus].copy()
         if not df_v_dia.empty:
             df_v_dia['Total'] = pd.to_numeric(df_v_dia['Total'])
-            # MÉTRICAS
-            ce = df_v_dia[df_v_dia['Metodo'] == "💵 Efectivo"]['Total'].sum()
-            cy = df_v_dia[df_v_dia['Metodo'] == "🟢 Yape"]['Total'].sum()
-            cp = df_v_dia[df_v_dia['Metodo'] == "🟣 Plin"]['Total'].sum()
+            ce, cy, cp = df_v_dia[df_v_dia['Metodo'] == "💵 Efectivo"]['Total'].sum(), df_v_dia[df_v_dia['Metodo'] == "🟢 Yape"]['Total'].sum(), df_v_dia[df_v_dia['Metodo'] == "🟣 Plin"]['Total'].sum()
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("💵 EFECTIVO", f"S/ {ce:.2f}"); m2.metric("🟢 YAPE", f"S/ {cy:.2f}"); m3.metric("🟣 PLIN", f"S/ {cp:.2f}"); m4.metric("💰 TOTAL", f"S/ {df_v_dia['Total'].sum():.2f}")
-            
-            # TABLA ORDENADA POR HORA DESCENDENTE
             df_v_ord = df_v_dia.sort_values(by='Hora', ascending=False)
             st.dataframe(df_v_ord[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']].style.format({"Total": "{:.2f}"}), use_container_width=True, hide_index=True)
-            
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                 df_v_ord.to_excel(writer, index=False)
             st.download_button("📥 Descargar Reporte (Excel)", output.getvalue(), f"Ventas_{f_bus}.xlsx")
-        else: st.info("No hay ventas en esta fecha.")
 
-# --- TAB 4: HISTORIAL (ORDENADO POR FECHA Y HORA) ---
+# --- TAB 4: HISTORIAL ---
 with t4:
     st.subheader("📋 Historial de Ingresos")
     historial = tabla_auditoria.scan().get('Items', [])
     if historial:
         df_h = pd.DataFrame(historial)
-        # Crear columna de tiempo para ordenar correctamente
         df_h['Sort_Time'] = pd.to_datetime(df_h['Fecha'] + ' ' + df_h['Hora'], format='%d/%m/%Y %H:%M:%S')
         df_h = df_h.sort_values(by='Sort_Time', ascending=False)
-        
         st.dataframe(df_h[['Fecha', 'Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante']].style.format({"Cantidad_Entrante": "{:.0f}", "Stock_Resultante": "{:.0f}"}), use_container_width=True, hide_index=True)
-        
         out_h = io.BytesIO()
         with pd.ExcelWriter(out_h, engine='xlsxwriter') as writer:
             df_h.drop(columns=['Sort_Time']).to_excel(writer, index=False)
         st.download_button("📥 Descargar Historial (Excel)", out_h.getvalue(), "Historial_Entradas.xlsx")
-    else: st.info("No hay ingresos registrados.")
 
 # --- TAB 5: CARGAR STOCK ---
 with t5:
@@ -203,10 +188,27 @@ with t5:
                 st.success(f"Registrado: {p_fin}")
                 time.sleep(1); st.rerun()
 
-# --- TAB 6: MANTENIMIENTO ---
+# --- TAB 6: MANTENIMIENTO (CON MENSAJE DE ELIMINACIÓN) ---
 with t6:
+    st.subheader("🛠️ Mantenimiento de Productos")
     if not df_stock.empty:
-        p_del = st.selectbox("Eliminar del sistema:", df_stock['Producto'].tolist())
-        if st.button("🗑️ ELIMINAR PERMANENTEMENTE"):
-            tabla_stock.delete_item(Key={'Producto': p_del})
+        # Usamos un formulario pequeño o una selección simple
+        p_a_borrar = st.selectbox("Seleccionar producto para ELIMINAR del sistema:", df_stock['Producto'].tolist())
+        
+        st.warning(f"¿Estás seguro de que deseas eliminar **{p_a_borrar}**? Esta acción no se puede deshacer.")
+        
+        if st.button("🗑️ ELIMINAR PERMANENTEMENTE", use_container_width=True):
+            # Guardamos el nombre antes de borrarlo para el mensaje
+            nombre_borrado = p_a_borrar
+            
+            # Acción en AWS
+            tabla_stock.delete_item(Key={'Producto': nombre_borrado})
+            
+            # Mensaje de confirmación solicitado
+            st.success(f"✅ Se eliminó el producto: {nombre_borrado}")
+            
+            # Esperamos 2 segundos para que el usuario lea el mensaje
+            time.sleep(2)
             st.rerun()
+    else:
+        st.info("No hay productos en el inventario.")
