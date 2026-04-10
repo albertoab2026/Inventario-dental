@@ -37,17 +37,25 @@ if 'sesion_iniciada' not in st.session_state: st.session_state.sesion_iniciada =
 if 'carrito' not in st.session_state: st.session_state.carrito = []
 if 'boleta' not in st.session_state: st.session_state.boleta = None
 
-# --- LOGIN ---
+# --- PANTALLA DE LOGIN CON LOGO ---
 if not st.session_state.sesion_iniciada:
-    st.title("🔐 Acceso Sistema BALLARTA")
-    clave = st.text_input("Clave del sistema:", type="password")
-    if st.button("Ingresar", use_container_width=True):
-        if clave == admin_pass:
-            st.session_state.sesion_iniciada = True
-            st.rerun()
-        else: st.error("Clave incorrecta")
+    st.markdown("<h1 style='text-align: center;'>🦷</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #2E86C1;'>Sistema Dental BALLARTA</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Ingrese sus credenciales para continuar</p>", unsafe_allow_html=True)
+    
+    col_login, _ = st.columns([1, 1])
+    with col_login:
+        clave = st.text_input("Clave del sistema:", type="password")
+        if st.button("🔓 Ingresar al Sistema", use_container_width=True):
+            if clave == admin_pass:
+                st.session_state.sesion_iniciada = True
+                st.rerun()
+            else:
+                # CORRECCIÓN: Ahora sí avisa si la clave está mal
+                st.error("❌ Contraseña incorrecta. Intente de nuevo.")
     st.stop()
 
+# --- INTERFAZ PRINCIPAL ---
 if st.sidebar.button("🔴 CERRAR SISTEMA"):
     st.session_state.sesion_iniciada = False
     st.rerun()
@@ -64,20 +72,16 @@ if items:
 else:
     df_stock = pd.DataFrame(columns=['Producto', 'Stock', 'Precio'])
 
-# --- SISTEMA DE PESTAÑAS ---
+# --- PESTAÑAS ---
 t1, t2, t3, t4, t5, t6 = st.tabs([
-    "🛒 Punto de Venta", 
-    "📦 Stock Actual", 
-    "📊 Reporte Ventas", 
-    "📋 Historial Entradas", 
-    "📥 Cargar Stock", 
-    "🛠️ Mantenimiento"
+    "🛒 Punto de Venta", "📦 Stock Actual", "📊 Reporte Ventas", 
+    "📋 Historial Entradas", "📥 Cargar Stock", "🛠️ Mantenimiento"
 ])
 
 # --- TAB 1: VENTA ---
 with t1:
     if st.session_state.boleta:
-        st.balloons() # ¡Globitos al terminar!
+        st.balloons()
         b = st.session_state.boleta
         ticket = f"""
         <div style="background-color: white; color: black; padding: 25px; border: 5px solid black; border-radius: 10px; max-width: 450px; margin: auto; font-family: Arial;">
@@ -98,7 +102,6 @@ with t1:
             <div style="text-align: right; font-size: 24px; font-weight: bold;">TOTAL: S/ {b['total']:.2f}</div>
             <p><b>MÉTODO:</b> {b['metodo']}</p>
         </div>
-        <br>
         """
         st.markdown(ticket, unsafe_allow_html=True)
         if st.button("⬅️ NUEVA VENTA"):
@@ -112,7 +115,7 @@ with t1:
             prod_sel = st.selectbox("Seleccione Producto:", df_stock['Producto'].tolist())
             s_disp = df_stock.loc[df_stock['Producto'] == prod_sel, 'Stock'].values[0]
             p_disp = df_stock.loc[df_stock['Producto'] == prod_sel, 'Precio'].values[0]
-            if s_disp <= 5: st.error(f"⚠️ **STOCK CRÍTICO:** Quedan {s_disp:.0f} unidades.")
+            if s_disp <= 5: st.error(f"⚠️ **STOCK CRÍTICO:** Solo quedan {s_disp:.0f} unidades.")
             else: st.info(f"📦 Disponible: {s_disp:.0f} | 💰 Precio: S/ {p_disp:.2f}")
         with c2:
             cant_sel = st.number_input("Cantidad:", min_value=1, value=1)
@@ -124,7 +127,6 @@ with t1:
             else: st.error("No hay stock suficiente")
 
     if st.session_state.carrito:
-        st.write("### 🛒 Carrito")
         df_car = pd.DataFrame(st.session_state.carrito)
         st.table(df_car)
         total_v = df_car['Subtotal'].sum()
@@ -148,38 +150,23 @@ with t2:
     if not df_stock.empty:
         st.dataframe(df_stock.style.map(lambda x: 'background-color: #ff4b4b; color: white; font-weight: bold' if x <= 5 else '', subset=['Stock']).format({"Precio": "S/ {:.2f}", "Stock": "{:,.0f}"}), use_container_width=True, hide_index=True)
 
-# --- TAB 3: REPORTE VENTAS (MÉTRICAS SEPARADAS) ---
+# --- TAB 3: REPORTE VENTAS ---
 with t3:
     st.subheader("📊 Ventas del Día")
     _, _, ahora_dt = obtener_tiempo_peru()
     f_bus = st.date_input("Consultar fecha:", ahora_dt).strftime("%d/%m/%Y")
-    
     ventas = tabla_ventas.scan().get('Items', [])
     if ventas:
         df_v = pd.DataFrame(ventas)
         df_v_dia = df_v[df_v['Fecha'] == f_bus].copy()
         if not df_v_dia.empty:
             df_v_dia['Total'] = pd.to_numeric(df_v_dia['Total'])
-            
-            # Métricas separadas
-            c_efectivo = df_v_dia[df_v_dia['Metodo'] == "💵 Efectivo"]['Total'].sum()
-            c_yape = df_v_dia[df_v_dia['Metodo'] == "🟢 Yape"]['Total'].sum()
-            c_plin = df_v_dia[df_v_dia['Metodo'] == "🟣 Plin"]['Total'].sum()
-            
+            ce, cy, cp = df_v_dia[df_v_dia['Metodo'] == "💵 Efectivo"]['Total'].sum(), df_v_dia[df_v_dia['Metodo'] == "🟢 Yape"]['Total'].sum(), df_v_dia[df_v_dia['Metodo'] == "🟣 Plin"]['Total'].sum()
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("💵 EFECTIVO", f"S/ {c_efectivo:.2f}")
-            m2.metric("🟢 YAPE", f"S/ {c_yape:.2f}")
-            m3.metric("🟣 PLIN", f"S/ {c_plin:.2f}")
-            m4.metric("💰 TOTAL", f"S/ {df_v_dia['Total'].sum():.2f}", delta_color="normal")
-            
+            m1.metric("💵 EFECTIVO", f"S/ {ce:.2f}"); m2.metric("🟢 YAPE", f"S/ {cy:.2f}"); m3.metric("🟣 PLIN", f"S/ {cp:.2f}"); m4.metric("💰 TOTAL", f"S/ {df_v_dia['Total'].sum():.2f}")
             st.divider()
             st.dataframe(df_v_dia.sort_values(by='Hora', ascending=False)[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
-            
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                df_v_dia.to_excel(writer, index=False)
-            st.download_button("📥 Descargar Excel", output.getvalue(), f"Ventas_{f_bus}.xlsx")
-        else: st.info("No hay ventas en esta fecha.")
+        else: st.info("No hay ventas.")
 
 # --- TAB 4: HISTORIAL ENTRADAS ---
 with t4:
@@ -211,7 +198,7 @@ with t5:
 # --- TAB 6: MANTENIMIENTO ---
 with t6:
     if not df_stock.empty:
-        prod_mant = st.selectbox("Seleccione producto para eliminar:", df_stock['Producto'].tolist())
+        prod_mant = st.selectbox("Producto para eliminar:", df_stock['Producto'].tolist())
         if st.button("🗑️ ELIMINAR PERMANENTEMENTE", use_container_width=True):
             tabla_stock.delete_item(Key={'Producto': prod_mant})
             st.warning(f"Eliminado: {prod_mant}"); time.sleep(1); st.rerun()
