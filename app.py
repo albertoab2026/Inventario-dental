@@ -150,24 +150,17 @@ with tab_admin:
         
         if not df_v.empty:
             df_v['Total'] = pd.to_numeric(df_v['Total'])
-            
-            # --- NUEVA SECCIÓN: CIERRE DE CAJA POR MÉTODO ---
             st.write("### 📊 Resumen de Caja")
             c_efectivo = df_v[df_v['Metodo'] == "💵 Efectivo"]['Total'].sum()
             c_digital = df_v[df_v['Metodo'].isin(["🟢 Yape", "🟣 Plin"])]['Total'].sum()
             total_dia = df_v['Total'].sum()
-
             m1, m2, m3 = st.columns(3)
             m1.metric("💵 EFECTIVO", f"S/ {c_efectivo:.2f}")
             m2.metric("📱 YAPE / PLIN", f"S/ {c_digital:.2f}")
-            m3.metric("TOTAL GENERAL", f"S/ {total_dia:.2f}", delta_color="normal")
-            
+            m3.metric("TOTAL GENERAL", f"S/ {total_dia:.2f}")
             st.divider()
-            # -----------------------------------------------
-
             df_v = df_v.sort_values(by='Hora', ascending=False)
             st.dataframe(df_v[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
-            
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                 df_v.to_excel(writer, index=False, sheet_name='Ventas')
@@ -178,15 +171,17 @@ with tab_admin:
         with st.form("form_stock"):
             st.write("### Cargar Mercadería")
             p_in = st.selectbox("Producto Existente:", df_stock['Producto'].tolist()) if not df_stock.empty else None
-            p_nuevo = st.text_input("O escribir Producto Nuevo (si no está en la lista):")
-            
+            p_nuevo = st.text_input("O escribir Producto Nuevo:")
             p_final = p_nuevo if p_nuevo else p_in
-            
             c_in = st.number_input("Cantidad entrante:", min_value=1)
-            pr_in = st.number_input("Precio de venta:", min_value=0.0)
+            pr_in = st.number_input("Precio de venta (S/):", min_value=0.0, step=0.50)
             
             if st.form_submit_button("💾 Guardar"):
-                if p_final:
+                if not p_final:
+                    st.error("Debe indicar un nombre de producto.")
+                elif pr_in <= 0:
+                    st.error("🚨 ERROR: El precio de venta debe ser mayor a 0. No se puede regalar mercadería.")
+                else:
                     res = tabla_stock.get_item(Key={'Producto': p_final})
                     n_stock = (int(res['Item']['Stock']) if 'Item' in res else 0) + c_in
                     tabla_stock.put_item(Item={'Producto': p_final, 'Stock': n_stock, 'Precio': str(pr_in)})
@@ -195,8 +190,6 @@ with tab_admin:
                     st.success(f"Inventario actualizado: {p_final}")
                     time.sleep(1)
                     st.rerun()
-                else:
-                    st.error("Debe seleccionar o escribir un nombre de producto.")
 
         st.divider()
         st.write("### Historial de Entradas")
@@ -211,7 +204,6 @@ with tab_admin:
         st.write("### 🛠️ Corregir o Eliminar Productos")
         if not df_stock.empty:
             prod_a_editar = st.selectbox("Seleccione producto para modificar:", df_stock['Producto'].tolist(), key="sel_mant")
-            
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("🗑️ Eliminar permanentemente", use_container_width=True):
@@ -219,7 +211,6 @@ with tab_admin:
                     st.success(f"Eliminado: {prod_a_editar}")
                     time.sleep(1)
                     st.rerun()
-            
             with col2:
                 nuevo_nombre = st.text_input("Corregir nombre a:")
                 if st.button("✏️ Actualizar Nombre", use_container_width=True):
@@ -227,15 +218,9 @@ with tab_admin:
                         res = tabla_stock.get_item(Key={'Producto': prod_a_editar})
                         if 'Item' in res:
                             datos = res['Item']
-                            # Crear nuevo, borrar viejo
-                            tabla_stock.put_item(Item={
-                                'Producto': nuevo_nombre,
-                                'Stock': datos['Stock'],
-                                'Precio': datos['Precio']
-                            })
+                            tabla_stock.put_item(Item={'Producto': nuevo_nombre, 'Stock': datos['Stock'], 'Precio': datos['Precio']})
                             tabla_stock.delete_item(Key={'Producto': prod_a_editar})
                             st.success("Nombre corregido.")
                             time.sleep(1)
                             st.rerun()
-        else:
-            st.info("No hay productos en stock para gestionar.")
+        else: st.info("No hay productos en stock.")
