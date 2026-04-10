@@ -6,7 +6,7 @@ import pytz
 import time
 import io
 
-# 1. CONFIGURACIÓN INICIAL
+# 1. CONFIGURACIÓN
 st.set_page_config(page_title="Sistema Dental BALLARTA", layout="wide")
 
 def obtener_tiempo_peru():
@@ -55,7 +55,7 @@ if st.sidebar.button("🔴 CERRAR SESIÓN"):
     st.session_state.sesion_iniciada = False
     st.rerun()
 
-# CARGAR STOCK (CON MANEJO DE ERRORES)
+# CARGAR STOCK
 def get_df_stock():
     try:
         items = tabla_stock.scan().get('Items', [])
@@ -69,7 +69,6 @@ def get_df_stock():
 
 df_stock = get_df_stock()
 
-# PESTAÑAS
 tabs = st.tabs(["🛒 Venta", "📦 Stock", "📊 Reportes", "📋 Historial", "📥 Cargar", "🛠️ Mant."])
 
 # --- TAB 1: VENTA ---
@@ -107,53 +106,38 @@ with tabs[0]:
             st.table(pd.DataFrame(st.session_state.carrito))
             total_v = sum(i['Subtotal'] for i in st.session_state.carrito)
             st.markdown(f"<h1 style='color: #2ECC71; text-align: center; border: 2px solid #2ECC71; border-radius: 10px; padding: 10px;'>TOTAL: S/ {total_v:.2f}</h1>", unsafe_allow_html=True)
-            metodo = st.radio("Pago:", ["💵 Efectivo", "🟢 Yape", "🟣 Plin"], horizontal=True)
-            if st.button("🚀 FINALIZAR VENTA", use_container_width=True):
+            
+            metodo = st.radio("Método de Pago:", ["💵 Efectivo", "🟢 Yape", "🟣 Plin"], horizontal=True)
+            confirmar = st.checkbox("✅ Confirmo que recibí el dinero")
+            
+            # EL BOTÓN DE FINALIZAR QUE FALTABA
+            if st.button("🚀 FINALIZAR VENTA", disabled=not confirmar, type="primary", use_container_width=True):
                 f, h, _, uid = obtener_tiempo_peru()
                 st.session_state.boleta = {'fecha': f, 'hora': h, 'items': list(st.session_state.carrito), 'total': total_v, 'metodo': metodo}
                 for item in st.session_state.carrito:
+                    # Actualizar Stock en AWS
                     n_s = int(df_stock[df_stock['Producto'] == item['Producto']]['Stock'].values[0]) - item['Cantidad']
                     tabla_stock.update_item(Key={'Producto': item['Producto']}, UpdateExpression="set Stock = :s", ExpressionAttributeValues={':s': n_s})
+                    # Guardar Venta en AWS
                     tabla_ventas.put_item(Item={'ID_Venta': f"V-{uid}-{item['Producto'][:2]}", 'Fecha': f, 'Hora': h, 'Producto': item['Producto'], 'Cantidad': int(item['Cantidad']), 'Total': str(item['Subtotal']), 'Metodo': metodo})
                 st.session_state.carrito = []
                 st.rerun()
 
-# --- TAB 2: STOCK (CORREGIDO COMANDO MAP) ---
+# --- TAB 2: STOCK (CON MAP) ---
 with tabs[1]:
     st.subheader("📦 Stock Actual")
     if not df_stock.empty:
         def style_red(val):
             return 'background-color: #E74C3C; color: white; font-weight: bold' if val <= 5 else ''
-        
-        # Se usa map() en lugar de applymap() para compatibilidad total
         st.dataframe(df_stock.style.map(style_red, subset=['Stock']).format({"Precio": "S/ {:.2f}", "Stock": "{:.0f}"}), use_container_width=True, hide_index=True)
 
-# --- TAB 3: REPORTES ---
-with tabs[2]:
-    st.subheader("📊 Reporte Diario")
-    _, _, ahora_dt, _ = obtener_tiempo_peru()
-    f_bus = st.date_input("Fecha:", ahora_dt).strftime("%d/%m/%Y")
-    v_data = tabla_ventas.scan().get('Items', [])
-    if v_data:
-        df_v = pd.DataFrame(v_data)
-        df_dia = df_v[df_v['Fecha'] == f_bus].copy()
-        if not df_dia.empty:
-            df_dia['Total'] = pd.to_numeric(df_dia['Total'])
-            ce, cy, cp = df_dia[df_dia['Metodo'] == "💵 Efectivo"]['Total'].sum(), df_dia[df_dia['Metodo'] == "🟢 Yape"]['Total'].sum(), df_dia[df_dia['Metodo'] == "🟣 Plin"]['Total'].sum()
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("EFECTIVO", f"S/ {ce:.2f}"); m2.metric("YAPE", f"S/ {cy:.2f}"); m3.metric("PLIN", f"S/ {cp:.2f}"); m4.metric("TOTAL", f"S/ {df_dia['Total'].sum():.2f}")
-            st.dataframe(df_dia.sort_values(by='Hora', ascending=False)[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
-
-# --- TAB 4: HISTORIAL (BLINDADO TOTAL) ---
+# --- TAB 4: HISTORIAL (CON ELIMINADOS BLINDADO) ---
 with tabs[3]:
     st.subheader("📋 Historial de Movimientos")
     h_data = tabla_auditoria.scan().get('Items', [])
     if h_data:
         df_h = pd.DataFrame(h_data)
-        # Si la columna 'Tipo' no existe en registros viejos, se crea automáticamente
-        if 'Tipo' not in df_h.columns:
-            df_h['Tipo'] = 'INGRESO'
-        
+        if 'Tipo' not in df_h.columns: df_h['Tipo'] = 'INGRESO'
         df_h['Sort'] = pd.to_datetime(df_h['Fecha'] + ' ' + df_h['Hora'], format='%d/%m/%Y %H:%M:%S', errors='coerce')
         df_h = df_h.sort_values(by='Sort', ascending=False)
         
@@ -165,17 +149,16 @@ with tabs[3]:
         eliminados = df_h[df_h['Tipo'] == 'ELIMINADO']
         if not eliminados.empty:
             st.dataframe(eliminados[['Fecha', 'Hora', 'Producto', 'Stock_Resultante']], use_container_width=True, hide_index=True)
-        else: st.info("No hay registros de eliminación.")
 
-# --- TAB 5: CARGAR STOCK ---
+# --- LAS DEMÁS PESTAÑAS (CARGAR Y MANT.) SE MANTIENEN IGUAL ---
 with tabs[4]:
     st.subheader("📥 Cargar Stock")
     with st.form("carga_stock"):
-        p_ex = st.selectbox("Producto existente:", [""] + df_stock['Producto'].tolist())
-        p_nu = st.text_input("O Nuevo (Nombre):").upper()
+        p_ex = st.selectbox("Existente:", [""] + df_stock['Producto'].tolist())
+        p_nu = st.text_input("O Nuevo:").upper()
         p_f = p_nu if p_nu else p_ex
-        c_i = st.number_input("Cantidad que entra:", min_value=1)
-        pr_i = st.number_input("Precio de venta:", min_value=0.1)
+        c_i = st.number_input("Cantidad:", min_value=1)
+        pr_i = st.number_input("Precio:", min_value=0.1)
         if st.form_submit_button("💾 REGISTRAR"):
             if p_f:
                 f, h, _, uid = obtener_tiempo_peru()
@@ -186,11 +169,10 @@ with tabs[4]:
                 st.success(f"✅ Cargado: {p_f}")
                 time.sleep(1); st.rerun()
 
-# --- TAB 6: MANTENIMIENTO ---
 with tabs[5]:
     st.subheader("🛠️ Mantenimiento")
     if not df_stock.empty:
-        p_b = st.selectbox("Eliminar del sistema:", df_stock['Producto'].tolist())
+        p_b = st.selectbox("Producto a eliminar:", df_stock['Producto'].tolist())
         if st.button("🗑️ ELIMINAR PERMANENTE", use_container_width=True):
             f, h, _, uid = obtener_tiempo_peru()
             s_borrar = int(df_stock[df_stock['Producto'] == p_b]['Stock'].values[0])
