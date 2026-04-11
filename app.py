@@ -129,16 +129,20 @@ with tabs[0]:
                 st.session_state.carrito = []
                 st.rerun()
 
-# 2. PESTAÑA DE STOCK (CON ALERTA ROJA)
+# 2. PESTAÑA DE STOCK (CORREGIDA PARA EVITAR ERROR ROJO)
 with tabs[1]:
     st.subheader("📦 Inventario")
     if not df_stock.empty:
-        def color_stock_bajo(val):
+        # Usamos map() para evitar el AttributeError de las fotos
+        def resaltar_bajo(val):
             color = 'red' if val <= 5 else 'white'
             return f'color: {color}; font-weight: bold'
-        st.dataframe(df_stock.style.applymap(color_stock_bajo, subset=['Stock']).format({"Precio": "S/ {:.2f}"}), use_container_width=True, hide_index=True)
+        
+        # Aplicamos el estilo de stock bajo en rojo
+        st.dataframe(df_stock.style.map(resaltar_bajo, subset=['Stock']).format({"Precio": "S/ {:.2f}"}), 
+                     use_container_width=True, hide_index=True)
 
-# 3. PESTAÑA DE REPORTES (ORDENADO POR HORA)
+# 3. PESTAÑA DE REPORTES (ORDENADO)
 with tabs[2]:
     st.subheader("📊 Ventas del Día")
     f_bus = st.date_input("Fecha:").strftime("%d/%m/%Y")
@@ -148,10 +152,11 @@ with tabs[2]:
         df_hoy = df_v[df_v['Fecha'] == f_bus].copy() if not df_v.empty else pd.DataFrame()
         if not df_hoy.empty:
             df_hoy['Total'] = pd.to_numeric(df_hoy['Total'])
-            # Ordenar por hora de mayor a menor (lo más reciente arriba)
+            # ORDENAMOS POR HORA (Lo más nuevo arriba)
             df_hoy = df_hoy.sort_values(by='Hora', ascending=False)
             st.metric("TOTAL RECAUDADO", f"S/ {df_hoy['Total'].sum():.2f}")
-            st.dataframe(df_hoy[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']].style.format({"Total": "{:.2f}"}), hide_index=True, use_container_width=True)
+            st.dataframe(df_hoy[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']].style.format({"Total": "{:.2f}"}), 
+                         hide_index=True, use_container_width=True)
         else: st.warning("No hay ventas en esta fecha")
 
 # 4. PESTAÑA DE HISTORIAL
@@ -162,41 +167,39 @@ with tabs[3]:
         df_h = pd.DataFrame(h_data).sort_values(by=['Fecha', 'Hora'], ascending=False)
         st.dataframe(df_h[['Fecha', 'Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante']], use_container_width=True, hide_index=True)
 
-# 5. PESTAÑA DE CARGAR (ACTUALIZA O CREA)
+# 5. PESTAÑA DE CARGAR (SUMAR STOCK A EXISTENTES)
 with tabs[4]:
     st.subheader("📥 Cargar Stock")
     with st.form("form_carga"):
-        # Puedes elegir uno existente o escribir uno nuevo
+        # Lista desplegable para productos que ya existen
         p_lista = ["-- NUEVO PRODUCTO --"] + df_stock['Producto'].tolist()
-        p_eleccion = st.selectbox("Elegir producto existente:", p_lista)
-        p_nombre_nuevo = st.text_input("O escribir nombre de nuevo producto:").upper().strip()
+        p_eleccion = st.selectbox("Seleccionar producto:", p_lista)
         
-        # Lógica de nombre final
-        p_final = p_nombre_nuevo if p_eleccion == "-- NUEVO PRODUCTO --" else p_eleccion
+        p_nombre_manual = st.text_input("O escribe el nombre si es nuevo:").upper().strip()
         
-        p_cant = st.number_input("Cantidad a sumar al stock:", min_value=1)
-        p_precio = st.number_input("Precio de venta sugerido:", min_value=0.1)
+        p_final = p_nombre_manual if p_eleccion == "-- NUEVO PRODUCTO --" else p_eleccion
+        p_cant = st.number_input("Cantidad a sumar:", min_value=1)
+        p_precio = st.number_input("Precio de venta:", min_value=0.1)
         
         if st.form_submit_button("REGISTRAR INGRESO"):
             if p_final:
                 f, h, _, uid = obtener_tiempo_peru()
-                # Buscar stock anterior si existe
+                # Sumamos al stock que ya existe
                 s_anterior = int(df_stock[df_stock['Producto'] == p_final]['Stock'].values[0]) if p_final in df_stock['Producto'].values else 0
-                nuevo_stock_total = s_anterior + p_cant
+                nuevo_total = s_anterior + p_cant
                 
-                # Guardar en Dynamo
-                tabla_stock.put_item(Item={'Producto': p_final, 'Stock': nuevo_stock_total, 'Precio': str(round(p_precio, 2))})
-                tabla_auditoria.put_item(Item={'ID_Ingreso': f"I-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_final, 'Cantidad_Entrante': int(p_cant), 'Stock_Resultante': int(nuevo_stock_total)})
+                tabla_stock.put_item(Item={'Producto': p_final, 'Stock': nuevo_total, 'Precio': str(round(p_precio, 2))})
+                tabla_auditoria.put_item(Item={'ID_Ingreso': f"I-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_final, 'Cantidad_Entrante': int(p_cant), 'Stock_Resultante': int(nuevo_total)})
                 
-                st.success(f"¡Stock actualizado! {p_final} ahora tiene {nuevo_stock_total} unidades.")
+                st.success(f"Stock de {p_final} actualizado a {nuevo_total}")
                 time.sleep(1)
                 st.rerun()
-            else: st.error("Debes indicar un nombre de producto.")
+            else: st.error("Escribe un nombre de producto.")
 
 # 6. PESTAÑA DE MANTENIMIENTO
 with tabs[5]:
     st.subheader("🛠️ Gestión")
-    p_b = st.selectbox("Eliminar permanentemente:", [""] + df_stock['Producto'].tolist())
+    p_b = st.selectbox("Eliminar:", [""] + df_stock['Producto'].tolist())
     if st.button("🗑️ ELIMINAR") and p_b != "":
         tabla_stock.delete_item(Key={'Producto': p_b})
-        st.success("Producto eliminado"); time.sleep(1); st.rerun()
+        st.success("Borrado"); time.sleep(1); st.rerun()
