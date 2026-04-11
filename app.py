@@ -51,14 +51,14 @@ if not st.session_state.sesion_iniciada:
             else: st.error("❌ Contraseña incorrecta")
     st.stop()
 
-# --- BARRA LATERAL (CERRAR SESIÓN) ---
+# --- BARRA LATERAL (OPCIONES) ---
 with st.sidebar:
-    st.title("⚙️ Opciones")
+    st.title("⚙️ Panel")
     if st.button("🔴 CERRAR SESIÓN", use_container_width=True):
         st.session_state.sesion_iniciada = False
         st.rerun()
     st.divider()
-    st.write("Usuario: Administrador")
+    st.info("Conectado a AWS DynamoDB")
 
 def get_df_stock():
     try:
@@ -72,7 +72,6 @@ def get_df_stock():
     return pd.DataFrame(columns=['Producto', 'Stock', 'Precio'])
 
 df_stock = get_df_stock()
-
 tabs = st.tabs(["🛒 VENTA", "📦 STOCK", "📊 REPORTES", "📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."])
 
 # 1. PESTAÑA DE VENTAS
@@ -128,10 +127,10 @@ with tabs[0]:
             rebaja = st.number_input("Rebaja/Descuento (S/):", min_value=0.0, value=0.0)
             t_final = max(0.0, t_bruto - rebaja)
             st.markdown(f"<h2 style='text-align:center; color:#2ECC71;'>TOTAL: S/ {t_final:.2f}</h2>", unsafe_allow_html=True)
-            metodo = st.radio("Método:", ["Efectivo", "Yape", "Plin"], horizontal=True)
+            metodo = st.radio("Método de Pago:", ["Efectivo", "Yape", "Plin"], horizontal=True)
 
             with st.popover("🚀 FINALIZAR VENTA", use_container_width=True):
-                st.write(f"¿Confirmar venta por S/ {t_final:.2f}?")
+                st.write(f"### ¿Confirmar venta por S/ {t_final:.2f}?")
                 if st.button("SÍ, CONFIRMAR", type="primary", use_container_width=True):
                     f, h, _, uid = obtener_tiempo_peru()
                     st.session_state.boleta = {'fecha': f, 'hora': h, 'items': list(st.session_state.carrito), 'total_bruto': t_bruto, 'rebaja_total': rebaja, 'total_neto': t_final, 'metodo': metodo}
@@ -143,16 +142,16 @@ with tabs[0]:
                     st.session_state.carrito = []
                     st.rerun()
 
-# 2. STOCK
+# 2. PESTAÑA DE STOCK
 with tabs[1]:
-    st.subheader("📦 Inventario")
+    st.subheader("📦 Inventario Actual")
     if not df_stock.empty:
         st.dataframe(df_stock.style.map(lambda x: 'color: red; font-weight: bold' if x <= 5 else '', subset=['Stock']).format({"Precio": "S/ {:.2f}"}), use_container_width=True, hide_index=True)
 
-# 3. REPORTES (CON DESGLOSE DE PAGOS)
+# 3. PESTAÑA DE REPORTES (ORDENADO Y DESGLOSADO)
 with tabs[2]:
-    st.subheader("📊 Ventas del Día")
-    f_bus = st.date_input("Fecha de consulta:").strftime("%d/%m/%Y")
+    st.subheader("📊 Resumen de Caja Diaria")
+    f_bus = st.date_input("Consultar Fecha:").strftime("%d/%m/%Y")
     v_data = tabla_ventas.scan().get('Items', [])
     
     if v_data:
@@ -162,49 +161,51 @@ with tabs[2]:
         if not df_hoy.empty:
             df_hoy['Total'] = pd.to_numeric(df_hoy['Total'])
             
-            # --- RESUMEN DE PAGOS ---
-            col_t1, col_t2, col_t3, col_t4 = st.columns(4)
-            with col_t1:
-                st.metric("TOTAL GENERAL", f"S/ {df_hoy['Total'].sum():.2f}")
-            with col_t2:
-                efectivo = df_hoy[df_hoy['Metodo'] == 'Efectivo']['Total'].sum()
-                st.metric("💵 EFECTIVO", f"S/ {efectivo:.2f}")
-            with col_t3:
-                yape = df_hoy[df_hoy['Metodo'] == 'Yape']['Total'].sum()
-                st.metric("📱 YAPE", f"S/ {yape:.2f}")
-            with col_t4:
-                plin = df_hoy[df_hoy['Metodo'] == 'Plin']['Total'].sum()
-                st.metric("💜 PLIN", f"S/ {plin:.2f}")
+            # FILA DE MÉTRICAS DESGLOSADAS
+            m1, m2, m3, m4 = st.columns(4)
+            with m1:
+                st.metric("TOTAL DÍA", f"S/ {df_hoy['Total'].sum():.2f}")
+            with m2:
+                ef = df_hoy[df_hoy['Metodo'] == 'Efectivo']['Total'].sum()
+                st.markdown("<p style='color: #28B463; font-weight: bold;'>💵 EFECTIVO</p>", unsafe_allow_html=True)
+                st.subheader(f"S/ {ef:.2f}")
+            with m3:
+                ya = df_hoy[df_hoy['Metodo'] == 'Yape']['Total'].sum()
+                st.markdown("<p style='color: #00D1FF; font-weight: bold;'>📱 YAPE</p>", unsafe_allow_html=True)
+                st.subheader(f"S/ {ya:.2f}")
+            with m4:
+                pl = df_hoy[df_hoy['Metodo'] == 'Plin']['Total'].sum()
+                st.markdown("<p style='color: #6339AD; font-weight: bold;'>💜 PLIN</p>", unsafe_allow_html=True)
+                st.subheader(f"S/ {pl:.2f}")
             
             st.divider()
-            # Tabla detallada
             df_hoy = df_hoy.sort_values(by='Hora', ascending=False)
             st.dataframe(df_hoy[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], hide_index=True, use_container_width=True)
-        else:
-            st.warning("No se registraron ventas en la fecha seleccionada.")
+        else: st.warning("No hay movimientos en esta fecha.")
 
-# 4. HISTORIAL DE INGRESOS
+# 4. PESTAÑA DE HISTORIAL (ORDENADO POR FECHA/HORA)
 with tabs[3]:
-    st.subheader("📋 Historial de Cargas")
+    st.subheader("📋 Historial de Ingresos de Mercadería")
     h_data = tabla_auditoria.scan().get('Items', [])
     if h_data:
         df_h = pd.DataFrame(h_data)
         df_h = df_h.sort_values(by=['Fecha', 'Hora'], ascending=False)
         st.dataframe(df_h[['Fecha', 'Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante']], use_container_width=True, hide_index=True)
+    else: st.info("Sin registros de ingresos.")
 
-# 5. CARGAR STOCK
+# 5. PESTAÑA DE CARGAR STOCK
 with tabs[4]:
     st.subheader("📥 Cargar Stock")
-    modo = st.radio("Tipo:", ["Existente", "Nuevo"], horizontal=True, on_change=lambda: st.session_state.update({"reset_c": st.session_state.reset_c + 1}))
-    with st.form("form_carga"):
+    modo = st.radio("Tipo de ingreso:", ["Existente", "Nuevo"], horizontal=True, on_change=lambda: st.session_state.update({"reset_c": st.session_state.reset_c + 1}))
+    with st.form("form_carga_v4"):
         if modo == "Existente":
-            p_final = st.selectbox("Producto:", df_stock['Producto'].tolist())
+            p_final = st.selectbox("Elegir Producto:", df_stock['Producto'].tolist())
             p_p_base = df_stock[df_stock['Producto'] == p_final]['Precio'].values[0] if p_final in df_stock['Producto'].values else 10.0
         else:
-            p_final = st.text_input("Nuevo Nombre:").upper().strip()
+            p_final = st.text_input("Nombre de Nuevo Producto:").upper().strip()
             p_p_base = 1.0
-        p_cant = st.number_input("Suma Cantidad:", min_value=1, value=1, key=f"c_cant_{st.session_state.reset_c}")
-        p_precio = st.number_input("Precio Venta:", min_value=0.1, value=float(p_p_base))
+        p_cant = st.number_input("Cantidad a sumar:", min_value=1, value=1, key=f"c_cant_{st.session_state.reset_c}")
+        p_precio = st.number_input("Precio de venta unitario:", min_value=0.1, value=float(p_p_base))
         if st.form_submit_button("REGISTRAR INGRESO"):
             if p_final:
                 f, h, _, uid = obtener_tiempo_peru()
@@ -212,12 +213,12 @@ with tabs[4]:
                 n_t = s_ant + p_cant
                 tabla_stock.put_item(Item={'Producto': p_final, 'Stock': n_t, 'Precio': str(round(p_precio, 2))})
                 tabla_auditoria.put_item(Item={'ID_Ingreso': f"I-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_final, 'Cantidad_Entrante': int(p_cant), 'Stock_Resultante': int(n_t)})
-                st.success("¡Cargado!"); time.sleep(1); st.cache_data.clear(); st.rerun()
+                st.success("¡Stock actualizado!"); time.sleep(1); st.cache_data.clear(); st.rerun()
 
-# 6. MANTENIMIENTO
+# 6. PESTAÑA DE MANTENIMIENTO
 with tabs[5]:
-    st.subheader("🛠️ Eliminar Productos")
-    p_b = st.selectbox("Elegir producto a borrar:", [""] + df_stock['Producto'].tolist())
+    st.subheader("🛠️ Gestión de Sistema")
+    p_b = st.selectbox("Producto a eliminar permanentemente:", [""] + df_stock['Producto'].tolist())
     if st.button("🗑️ ELIMINAR") and p_b != "":
         tabla_stock.delete_item(Key={'Producto': p_b})
-        st.rerun()
+        st.success(f"{p_b} eliminado."); time.sleep(1); st.rerun()
