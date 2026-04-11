@@ -70,7 +70,6 @@ with tabs[0]:
     if st.session_state.boleta:
         st.balloons()
         b = st.session_state.boleta
-        # DISEÑO DE BOLETA CON DESCUENTO RESTAURADO
         ticket = f"""
         <div style="background-color: white; color: #000; padding: 20px; border: 2px solid #000; border-radius: 10px; max-width: 350px; margin: auto; font-family: monospace;">
             <center><b>BALLARTA DENTAL</b><br>Carabayllo, Lima<br>{b['fecha']} {b['hora']}</center>
@@ -80,7 +79,6 @@ with tabs[0]:
         """
         for i in b['items']:
             ticket += f"<tr><td>{i['Cantidad']}</td><td>{i['Producto']}</td><td style='text-align: right;'>S/ {i['Subtotal']:.2f}</td></tr>"
-        
         ticket += f"""
             </table>
             <hr style="border-top: 1px dashed black;">
@@ -115,35 +113,32 @@ with tabs[0]:
         if st.session_state.carrito:
             df_c = pd.DataFrame(st.session_state.carrito)
             st.table(df_c.style.format({"Precio": "{:.2f}", "Subtotal": "{:.2f}"}))
-            
             t_bruto = df_c['Subtotal'].sum()
-            rebaja = st.number_input("Aplicar Rebaja/Descuento (S/):", min_value=0.0, value=0.0, step=0.50)
+            rebaja = st.number_input("Rebaja Final (S/):", min_value=0.0, value=0.0, step=0.50)
             t_final = max(0.0, t_bruto - rebaja)
-            
             st.markdown(f"<h2 style='text-align:center; color:#2ECC71;'>TOTAL A COBRAR: S/ {t_final:.2f}</h2>", unsafe_allow_html=True)
             metodo = st.radio("Método:", ["Efectivo", "Yape", "Plin"], horizontal=True)
-            
             if st.button("🚀 FINALIZAR VENTA", type="primary", use_container_width=True):
                 f, h, _, uid = obtener_tiempo_peru()
                 st.session_state.boleta = {'fecha': f, 'hora': h, 'items': list(st.session_state.carrito), 'total_bruto': t_bruto, 'rebaja_total': rebaja, 'total_neto': t_final, 'metodo': metodo}
-                
                 for idx, item in enumerate(st.session_state.carrito):
-                    # Descontar de AWS
                     nuevo_s = int(df_stock[df_stock['Producto'] == item['Producto']]['Stock'].values[0]) - item['Cantidad']
                     tabla_stock.update_item(Key={'Producto': item['Producto']}, UpdateExpression="set Stock = :s", ExpressionAttributeValues={':s': nuevo_s})
-                    # Guardar venta (Rebaja en el primer item para el reporte)
                     val_db = item['Subtotal'] - rebaja if idx == 0 else item['Subtotal']
                     tabla_ventas.put_item(Item={'ID_Venta': f"V-{uid}-{idx}", 'Fecha': f, 'Hora': h, 'Producto': item['Producto'], 'Cantidad': int(item['Cantidad']), 'Total': str(round(max(0, val_db), 2)), 'Metodo': metodo})
-                
                 st.session_state.carrito = []
                 st.rerun()
 
-# 2. PESTAÑA DE STOCK
+# 2. PESTAÑA DE STOCK (CON ALERTA ROJA)
 with tabs[1]:
     st.subheader("📦 Inventario")
-    st.dataframe(df_stock.style.format({"Precio": "S/ {:.2f}"}), use_container_width=True, hide_index=True)
+    if not df_stock.empty:
+        def color_stock_bajo(val):
+            color = 'red' if val <= 5 else 'white'
+            return f'color: {color}; font-weight: bold'
+        st.dataframe(df_stock.style.applymap(color_stock_bajo, subset=['Stock']).format({"Precio": "S/ {:.2f}"}), use_container_width=True, hide_index=True)
 
-# 3. PESTAÑA DE REPORTES
+# 3. PESTAÑA DE REPORTES (ORDENADO POR HORA)
 with tabs[2]:
     st.subheader("📊 Ventas del Día")
     f_bus = st.date_input("Fecha:").strftime("%d/%m/%Y")
@@ -153,36 +148,55 @@ with tabs[2]:
         df_hoy = df_v[df_v['Fecha'] == f_bus].copy() if not df_v.empty else pd.DataFrame()
         if not df_hoy.empty:
             df_hoy['Total'] = pd.to_numeric(df_hoy['Total'])
+            # Ordenar por hora de mayor a menor (lo más reciente arriba)
+            df_hoy = df_hoy.sort_values(by='Hora', ascending=False)
             st.metric("TOTAL RECAUDADO", f"S/ {df_hoy['Total'].sum():.2f}")
             st.dataframe(df_hoy[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']].style.format({"Total": "{:.2f}"}), hide_index=True, use_container_width=True)
+        else: st.warning("No hay ventas en esta fecha")
 
 # 4. PESTAÑA DE HISTORIAL
 with tabs[3]:
     st.subheader("📋 Movimientos")
-    h = tabla_auditoria.scan().get('Items', [])
-    if h:
-        df_h = pd.DataFrame(h).sort_values(by=['Fecha', 'Hora'], ascending=False)
+    h_data = tabla_auditoria.scan().get('Items', [])
+    if h_data:
+        df_h = pd.DataFrame(h_data).sort_values(by=['Fecha', 'Hora'], ascending=False)
         st.dataframe(df_h[['Fecha', 'Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante']], use_container_width=True, hide_index=True)
 
-# 5. PESTAÑA DE CARGAR
+# 5. PESTAÑA DE CARGAR (ACTUALIZA O CREA)
 with tabs[4]:
     st.subheader("📥 Cargar Stock")
-    with st.form("c"):
-        p_n = st.text_input("Nombre del Producto:").upper().strip()
-        p_c = st.number_input("Cantidad:", min_value=1)
-        p_p = st.number_input("Precio:", min_value=0.1)
-        if st.form_submit_button("REGISTRAR"):
-            if p_n:
+    with st.form("form_carga"):
+        # Puedes elegir uno existente o escribir uno nuevo
+        p_lista = ["-- NUEVO PRODUCTO --"] + df_stock['Producto'].tolist()
+        p_eleccion = st.selectbox("Elegir producto existente:", p_lista)
+        p_nombre_nuevo = st.text_input("O escribir nombre de nuevo producto:").upper().strip()
+        
+        # Lógica de nombre final
+        p_final = p_nombre_nuevo if p_eleccion == "-- NUEVO PRODUCTO --" else p_eleccion
+        
+        p_cant = st.number_input("Cantidad a sumar al stock:", min_value=1)
+        p_precio = st.number_input("Precio de venta sugerido:", min_value=0.1)
+        
+        if st.form_submit_button("REGISTRAR INGRESO"):
+            if p_final:
                 f, h, _, uid = obtener_tiempo_peru()
-                s_ant = int(df_stock[df_stock['Producto'] == p_n]['Stock'].values[0]) if p_n in df_stock['Producto'].values else 0
-                tabla_stock.put_item(Item={'Producto': p_n, 'Stock': s_ant + p_c, 'Precio': str(round(p_p, 2))})
-                tabla_auditoria.put_item(Item={'ID_Ingreso': f"I-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_n, 'Cantidad_Entrante': int(p_c), 'Stock_Resultante': int(s_ant + p_c)})
-                st.success("Cargado"); time.sleep(1); st.rerun()
+                # Buscar stock anterior si existe
+                s_anterior = int(df_stock[df_stock['Producto'] == p_final]['Stock'].values[0]) if p_final in df_stock['Producto'].values else 0
+                nuevo_stock_total = s_anterior + p_cant
+                
+                # Guardar en Dynamo
+                tabla_stock.put_item(Item={'Producto': p_final, 'Stock': nuevo_stock_total, 'Precio': str(round(p_precio, 2))})
+                tabla_auditoria.put_item(Item={'ID_Ingreso': f"I-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_final, 'Cantidad_Entrante': int(p_cant), 'Stock_Resultante': int(nuevo_stock_total)})
+                
+                st.success(f"¡Stock actualizado! {p_final} ahora tiene {nuevo_stock_total} unidades.")
+                time.sleep(1)
+                st.rerun()
+            else: st.error("Debes indicar un nombre de producto.")
 
 # 6. PESTAÑA DE MANTENIMIENTO
 with tabs[5]:
-    st.subheader("🛠️ Limpieza")
-    p_b = st.selectbox("Eliminar:", [""] + df_stock['Producto'].tolist())
+    st.subheader("🛠️ Gestión")
+    p_b = st.selectbox("Eliminar permanentemente:", [""] + df_stock['Producto'].tolist())
     if st.button("🗑️ ELIMINAR") and p_b != "":
         tabla_stock.delete_item(Key={'Producto': p_b})
-        st.success("Borrado"); time.sleep(1); st.rerun()
+        st.success("Producto eliminado"); time.sleep(1); st.rerun()
