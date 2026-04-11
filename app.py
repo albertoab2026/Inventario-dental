@@ -51,7 +51,7 @@ if not st.session_state.sesion_iniciada:
             else: st.error("❌ Contraseña incorrecta")
     st.stop()
 
-# --- BARRA LATERAL (OPCIONES) ---
+# --- BARRA LATERAL ---
 with st.sidebar:
     st.title("⚙️ Panel")
     if st.button("🔴 CERRAR SESIÓN", use_container_width=True):
@@ -142,83 +142,95 @@ with tabs[0]:
                     st.session_state.carrito = []
                     st.rerun()
 
-# 2. PESTAÑA DE STOCK
+# 2. STOCK
 with tabs[1]:
     st.subheader("📦 Inventario Actual")
     if not df_stock.empty:
         st.dataframe(df_stock.style.map(lambda x: 'color: red; font-weight: bold' if x <= 5 else '', subset=['Stock']).format({"Precio": "S/ {:.2f}"}), use_container_width=True, hide_index=True)
 
-# 3. PESTAÑA DE REPORTES (ORDENADO Y DESGLOSADO CON COLORES SOLICITADOS)
+# 3. REPORTES
 with tabs[2]:
     st.subheader("📊 Resumen de Caja Diaria")
     f_bus = st.date_input("Consultar Fecha:").strftime("%d/%m/%Y")
     v_data = tabla_ventas.scan().get('Items', [])
-    
     if v_data:
         df_v = pd.DataFrame(v_data)
         df_hoy = df_v[df_v['Fecha'] == f_bus].copy() if not df_v.empty else pd.DataFrame()
-        
         if not df_hoy.empty:
             df_hoy['Total'] = pd.to_numeric(df_hoy['Total'])
-            
-            # FILA DE MÉTRICAS DESGLOSADAS
             m1, m2, m3, m4 = st.columns(4)
-            with m1:
-                st.metric("TOTAL DÍA", f"S/ {df_hoy['Total'].sum():.2f}")
-            with m2:
+            with m1: st.metric("TOTAL DÍA", f"S/ {df_hoy['Total'].sum():.2f}")
+            with m2: 
                 ef = df_hoy[df_hoy['Metodo'] == 'Efectivo']['Total'].sum()
                 st.markdown("<p style='color: #28B463; font-weight: bold;'>💵 EFECTIVO</p>", unsafe_allow_html=True)
                 st.subheader(f"S/ {ef:.2f}")
             with m3:
                 ya = df_hoy[df_hoy['Metodo'] == 'Yape']['Total'].sum()
-                st.markdown("<p style='color: #6339AD; font-weight: bold;'>📱 YAPE</p>", unsafe_allow_html=True) # Color Morado solicitado
+                st.markdown("<p style='color: #6339AD; font-weight: bold;'>📱 YAPE</p>", unsafe_allow_html=True)
                 st.subheader(f"S/ {ya:.2f}")
             with m4:
                 pl = df_hoy[df_hoy['Metodo'] == 'Plin']['Total'].sum()
-                st.markdown("<p style='color: #00D1FF; font-weight: bold;'>📱 PLIN</p>", unsafe_allow_html=True) # Color Celeste solicitado, sin corazón
+                st.markdown("<p style='color: #00D1FF; font-weight: bold;'>📱 PLIN</p>", unsafe_allow_html=True)
                 st.subheader(f"S/ {pl:.2f}")
-            
             st.divider()
             df_hoy = df_hoy.sort_values(by='Hora', ascending=False)
             st.dataframe(df_hoy[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], hide_index=True, use_container_width=True)
-        else: st.warning("No hay movimientos en esta fecha.")
 
-# 4. PESTAÑA DE HISTORIAL (ORDENADO POR FECHA/HORA)
+# 4. HISTORIAL (MEJORADO: MUESTRA ELIMINADOS)
 with tabs[3]:
-    st.subheader("📋 Historial de Ingresos de Mercadería")
+    st.subheader("📋 Historial de Movimientos")
     h_data = tabla_auditoria.scan().get('Items', [])
     if h_data:
         df_h = pd.DataFrame(h_data)
         df_h = df_h.sort_values(by=['Fecha', 'Hora'], ascending=False)
+        # Resaltar en rojo los productos eliminados en la tabla
+        def color_eliminados(val):
+            color = 'red' if val == "ELIMINADO" else 'black'
+            return f'color: {color}'
+        
         st.dataframe(df_h[['Fecha', 'Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante']], use_container_width=True, hide_index=True)
-    else: st.info("Sin registros de ingresos.")
 
-# 5. PESTAÑA DE CARGAR STOCK
+# 5. CARGAR STOCK
 with tabs[4]:
     st.subheader("📥 Cargar Stock")
-    modo = st.radio("Tipo de ingreso:", ["Existente", "Nuevo"], horizontal=True, on_change=lambda: st.session_state.update({"reset_c": st.session_state.reset_c + 1}))
-    with st.form("form_carga_v4"):
+    modo = st.radio("Tipo:", ["Existente", "Nuevo"], horizontal=True, on_change=lambda: st.session_state.update({"reset_c": st.session_state.reset_c + 1}))
+    with st.form("form_carga_v5"):
         if modo == "Existente":
-            p_final = st.selectbox("Elegir Producto:", df_stock['Producto'].tolist())
+            p_final = st.selectbox("Elegir:", df_stock['Producto'].tolist())
             p_p_base = df_stock[df_stock['Producto'] == p_final]['Precio'].values[0] if p_final in df_stock['Producto'].values else 10.0
         else:
-            p_final = st.text_input("Nombre de Nuevo Producto:").upper().strip()
+            p_final = st.text_input("Nombre:").upper().strip()
             p_p_base = 1.0
-        p_cant = st.number_input("Cantidad a sumar:", min_value=1, value=1, key=f"c_cant_{st.session_state.reset_c}")
-        p_precio = st.number_input("Precio de venta unitario:", min_value=0.1, value=float(p_p_base))
-        if st.form_submit_button("REGISTRAR INGRESO"):
+        p_cant = st.number_input("Cantidad:", min_value=1, value=1, key=f"c_cant_{st.session_state.reset_c}")
+        p_precio = st.number_input("Precio:", min_value=0.1, value=float(p_p_base))
+        if st.form_submit_button("REGISTRAR"):
             if p_final:
                 f, h, _, uid = obtener_tiempo_peru()
                 s_ant = int(df_stock[df_stock['Producto'] == p_final]['Stock'].values[0]) if p_final in df_stock['Producto'].values else 0
                 n_t = s_ant + p_cant
                 tabla_stock.put_item(Item={'Producto': p_final, 'Stock': n_t, 'Precio': str(round(p_precio, 2))})
                 tabla_auditoria.put_item(Item={'ID_Ingreso': f"I-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_final, 'Cantidad_Entrante': int(p_cant), 'Stock_Resultante': int(n_t)})
-                st.success("¡Stock actualizado!"); time.sleep(1); st.cache_data.clear(); st.rerun()
+                st.success("Cargado"); time.sleep(1); st.cache_data.clear(); st.rerun()
 
-# 6. PESTAÑA DE MANTENIMIENTO
+# 6. MANTENIMIENTO (MEJORADO CON REGISTRO DE ELIMINACIÓN)
 with tabs[5]:
     st.subheader("🛠️ Gestión de Sistema")
-    p_b = st.selectbox("Producto a eliminar permanentemente:", [""] + df_stock['Producto'].tolist())
+    p_b = st.selectbox("Producto a eliminar:", [""] + df_stock['Producto'].tolist())
     if st.button("🗑️ ELIMINAR") and p_b != "":
+        # 1. Obtener datos antes de borrar
+        info_borrar = df_stock[df_stock['Producto'] == p_b].iloc[0]
+        f, h, _, uid = obtener_tiempo_peru()
+        
+        # 2. Registrar en Historial como salida/eliminación
+        tabla_auditoria.put_item(Item={
+            'ID_Ingreso': f"DEL-{uid}", 
+            'Fecha': f, 
+            'Hora': h, 
+            'Producto': f"{p_b} (ELIMINADO)", 
+            'Cantidad_Entrante': 0, 
+            'Stock_Resultante': 0
+        })
+        
+        # 3. Borrar de la tabla de Stock
         tabla_stock.delete_item(Key={'Producto': p_b})
-        st.success(f"{p_b} eliminado."); time.sleep(1); st.rerun()
+        st.warning(f"Se ha eliminado {p_b} y se registró en el historial."); time.sleep(1.5); st.rerun()
