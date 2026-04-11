@@ -38,7 +38,7 @@ if 'boleta' not in st.session_state: st.session_state.boleta = None
 if 'reset_v' not in st.session_state: st.session_state.reset_v = 0
 if 'reset_c' not in st.session_state: st.session_state.reset_c = 0
 
-# --- LOGIN ---
+# --- LÓGICA DE LOGIN ---
 if not st.session_state.sesion_iniciada:
     st.markdown("<h1 style='text-align: center;'>🦷</h1><h1 style='text-align: center; color: #2E86C1;'>Sistema Dental BALLARTA</h1>", unsafe_allow_html=True)
     col_login, _ = st.columns([1, 1])
@@ -50,6 +50,15 @@ if not st.session_state.sesion_iniciada:
                 st.rerun()
             else: st.error("❌ Contraseña incorrecta")
     st.stop()
+
+# --- BARRA LATERAL (CERRAR SESIÓN) ---
+with st.sidebar:
+    st.title("⚙️ Opciones")
+    if st.button("🔴 CERRAR SESIÓN", use_container_width=True):
+        st.session_state.sesion_iniciada = False
+        st.rerun()
+    st.divider()
+    st.write("Usuario: Administrador")
 
 def get_df_stock():
     try:
@@ -134,7 +143,7 @@ with tabs[0]:
                     st.session_state.carrito = []
                     st.rerun()
 
-# 2. STOCK (CON COLOR ROJO)
+# 2. STOCK
 with tabs[1]:
     st.subheader("📦 Inventario")
     if not df_stock.empty:
@@ -154,17 +163,14 @@ with tabs[2]:
             st.dataframe(df_hoy[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], hide_index=True, use_container_width=True)
         else: st.warning("No hay ventas hoy")
 
-# 4. HISTORIAL DE INGRESOS (RESTAURADO Y ORDENADO)
+# 4. HISTORIAL DE INGRESOS (ORDENADO)
 with tabs[3]:
-    st.subheader("📋 Historial de Cargas (Ingresos)")
+    st.subheader("📋 Historial de Cargas")
     h_data = tabla_auditoria.scan().get('Items', [])
     if h_data:
         df_h = pd.DataFrame(h_data)
-        # Ordenar por fecha y hora (más reciente arriba)
         df_h = df_h.sort_values(by=['Fecha', 'Hora'], ascending=False)
         st.dataframe(df_h[['Fecha', 'Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante']], use_container_width=True, hide_index=True)
-    else:
-        st.info("No hay registros de ingresos todavía.")
 
 # 5. CARGAR STOCK
 with tabs[4]:
