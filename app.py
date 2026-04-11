@@ -35,8 +35,10 @@ except Exception as e:
 if 'sesion_iniciada' not in st.session_state: st.session_state.sesion_iniciada = False
 if 'carrito' not in st.session_state: st.session_state.carrito = []
 if 'boleta' not in st.session_state: st.session_state.boleta = None
-# Estado para controlar la cantidad
-if 'cantidad_actual' not in st.session_state: st.session_state.cantidad_actual = 1
+
+# Función para resetear cantidad de forma segura
+def reset_cant():
+    st.session_state.cant_val = 1
 
 # --- LOGIN ---
 if not st.session_state.sesion_iniciada:
@@ -72,7 +74,7 @@ df_stock = get_df_stock()
 
 tabs = st.tabs(["🛒 Venta", "📦 Stock", "📊 Reportes", "📋 Historial", "📥 Cargar", "🛠️ Mant."])
 
-# --- TAB 1: VENTA (CON RESET DE CANTIDAD) ---
+# --- TAB 1: VENTA ---
 with tabs[0]:
     if st.session_state.boleta:
         st.balloons()
@@ -110,9 +112,8 @@ with tabs[0]:
         if not df_stock.empty:
             c1, c2 = st.columns([3, 1])
             with c1:
-                # Al cambiar el selectbox, el on_change reinicia la cantidad a 1
-                p_sel = st.selectbox("Elegir Producto:", df_stock['Producto'].tolist(), 
-                                   on_change=lambda: st.session_state.update({"cant_val": 1}))
+                # Usamos la función reset_cant para que sea más estable
+                p_sel = st.selectbox("Elegir Producto:", df_stock['Producto'].tolist(), on_change=reset_cant)
                 
                 info = df_stock[df_stock['Producto'] == p_sel].iloc[0]
                 precio_fijo = float(info['Precio'])
@@ -120,8 +121,9 @@ with tabs[0]:
                 else: st.info(f"Precio Unit: S/ {precio_fijo:.2f} | Stock: {info['Stock']}")
             
             with c2:
-                # Usamos una key para controlar el valor manualmente
-                cant = st.number_input("Cantidad:", min_value=1, value=1, key="cant_val")
+                # Si cant_val no existe todavía en el estado, lo inicializamos
+                if "cant_val" not in st.session_state: st.session_state.cant_val = 1
+                cant = st.number_input("Cantidad:", min_value=1, key="cant_val")
             
             if st.button("➕ AÑADIR AL CARRITO", use_container_width=True):
                 if cant <= info['Stock']:
@@ -129,8 +131,7 @@ with tabs[0]:
                         'Producto': p_sel, 'Cantidad': int(cant), 
                         'Precio': precio_fijo, 'Subtotal': round(precio_fijo * cant, 2)
                     })
-                    # Resetear cantidad después de añadir para el siguiente producto
-                    st.session_state.cant_val = 1
+                    st.session_state.cant_val = 1 # Reset manual tras añadir
                     st.rerun()
                 else: st.error("Stock insuficiente")
 
@@ -184,7 +185,7 @@ with tabs[0]:
                 st.session_state.cant_val = 1
                 st.rerun()
 
-# --- LAS DEMÁS PESTAÑAS SE MANTIENEN IGUAL ---
+# --- DEMÁS PESTAÑAS (IGUALES) ---
 with tabs[1]:
     st.subheader("📦 Inventario")
     if not df_stock.empty:
