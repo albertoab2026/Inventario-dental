@@ -185,11 +185,34 @@ with tabs[3]:
         df_h = df_h.sort_values(by=['Fecha', 'Hora'], ascending=False)
         st.dataframe(df_h[['Fecha', 'Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante']], use_container_width=True, hide_index=True)
 
-# 5. CARGAR STOCK (AJUSTADO PARA CARGA RÁPIDA DE 500 PRODUCTOS)
+# 5. CARGAR STOCK (MODIFICADO PARA CARGA MASIVA)
 with tabs[4]:
     st.subheader("📥 Cargar Stock")
-    modo = st.radio("Tipo:", ["Existente", "Nuevo"], horizontal=True, on_change=lambda: st.session_state.update({"reset_c": st.session_state.reset_c + 1}))
-    with st.form("form_carga_v5", clear_on_submit=True): # clear_on_submit ayuda a limpiar el formulario rápido
+    
+    # --- NUEVA OPCIÓN: CARGA POR EXCEL/CSV ---
+    with st.expander("🚀 CARGA RÁPIDA (500 PRODUCTOS EXCEL/CSV)"):
+        st.write("Sube un archivo .csv con columnas: **Producto, Stock, Precio**")
+        archivo_masivo = st.file_uploader("Elegir archivo CSV", type="csv")
+        if archivo_masivo is not None:
+            df_m = pd.read_csv(archivo_masivo)
+            st.dataframe(df_m.head())
+            if st.button("CONFIRMAR CARGA MASIVA"):
+                f, h, _, uid = obtener_tiempo_peru()
+                barra = st.progress(0)
+                for i, row in df_m.iterrows():
+                    p_n = str(row['Producto']).upper().strip()
+                    p_s = int(row['Stock'])
+                    p_p = str(round(float(row['Precio']), 2))
+                    tabla_stock.put_item(Item={'Producto': p_n, 'Stock': p_s, 'Precio': p_p})
+                    barra.progress((i + 1) / len(df_m))
+                st.success(f"¡Se cargaron {len(df_m)} productos con éxito!")
+                st.rerun()
+
+    st.divider()
+    
+    # --- CARGA MANUAL (TU CÓDIGO ORIGINAL) ---
+    modo = st.radio("Tipo Manual:", ["Existente", "Nuevo"], horizontal=True, on_change=lambda: st.session_state.update({"reset_c": st.session_state.reset_c + 1}))
+    with st.form("form_carga_v5", clear_on_submit=True):
         if modo == "Existente":
             p_final = st.selectbox("Elegir Producto:", df_stock['Producto'].tolist())
             p_p_base = df_stock[df_stock['Producto'] == p_final]['Precio'].values[0] if p_final in df_stock['Producto'].values else 10.0
@@ -197,7 +220,6 @@ with tabs[4]:
             p_final = st.text_input("Nombre de Producto Nuevo:").upper().strip()
             p_p_base = 1.0
         
-        # Aquí se registra por UNIDAD
         p_cant = st.number_input("Cantidad de Unidades:", min_value=1, value=1, key=f"c_cant_{st.session_state.reset_c}")
         p_precio = st.number_input("Precio de Venta Unitario:", min_value=0.1, value=float(p_p_base))
         
@@ -206,15 +228,10 @@ with tabs[4]:
                 f, h, _, uid = obtener_tiempo_peru()
                 s_ant = int(df_stock[df_stock['Producto'] == p_final]['Stock'].values[0]) if p_final in df_stock['Producto'].values else 0
                 n_t = s_ant + p_cant
-                
-                # Guarda en Stock
                 tabla_stock.put_item(Item={'Producto': p_final, 'Stock': n_t, 'Precio': str(round(p_precio, 2))})
-                # Guarda en Auditoría
                 tabla_auditoria.put_item(Item={'ID_Ingreso': f"I-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_final, 'Cantidad_Entrante': int(p_cant), 'Stock_Resultante': int(n_t)})
-                
                 st.success(f"¡{p_final} registrado correctamente!")
-                time.sleep(0.5) # Pausa corta para que el usuario vea el mensaje y pueda seguir cargando
-                st.cache_data.clear()
+                time.sleep(0.5)
                 st.rerun()
 
 # 6. MANTENIMIENTO
@@ -223,13 +240,6 @@ with tabs[5]:
     p_b = st.selectbox("Producto a eliminar:", [""] + df_stock['Producto'].tolist())
     if st.button("🗑️ ELIMINAR") and p_b != "":
         f, h, _, uid = obtener_tiempo_peru()
-        tabla_auditoria.put_item(Item={
-            'ID_Ingreso': f"DEL-{uid}", 
-            'Fecha': f, 
-            'Hora': h, 
-            'Producto': f"{p_b} (ELIMINADO)", 
-            'Cantidad_Entrante': 0, 
-            'Stock_Resultante': 0
-        })
+        tabla_auditoria.put_item(Item={'ID_Ingreso': f"DEL-{uid}", 'Fecha': f, 'Hora': h, 'Producto': f"{p_b} (ELIMINADO)", 'Cantidad_Entrante': 0, 'Stock_Resultante': 0})
         tabla_stock.delete_item(Key={'Producto': p_b})
         st.warning(f"Se ha eliminado {p_b}."); time.sleep(1.2); st.rerun()
