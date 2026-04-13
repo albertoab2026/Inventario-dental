@@ -136,7 +136,9 @@ with tabs[0]:
             metodo_sel = st.radio("Método de Pago:", ["💵 Efectivo", "🟣 Yape", "🔵 Plin"], horizontal=True)
             metodo = metodo_sel.split(" ")[1]
 
-            if st.button("🚀 FINALIZAR VENTA", type="primary", use_container_width=True):
+            # --- NUEVA SECCIÓN: CONFIRMACIÓN DE SEGURIDAD ---
+            st.warning("⚠️ ¿Estás seguro de finalizar la venta?")
+            if st.button("🚀 SÍ, FINALIZAR Y REGISTRAR VENTA", type="primary", use_container_width=True):
                 f, h, _, uid = obtener_tiempo_peru()
                 st.session_state.boleta = {'fecha': f, 'hora': h, 'items': list(st.session_state.carrito), 'total_bruto': t_bruto, 'rebaja_total': rebaja, 'total_neto': t_final, 'metodo': metodo}
                 for idx, item in enumerate(st.session_state.carrito):
@@ -144,6 +146,10 @@ with tabs[0]:
                     tabla_stock.update_item(Key={'Producto': item['Producto']}, UpdateExpression="set Stock = :s", ExpressionAttributeValues={':s': nuevo_s})
                     val_db = item['Subtotal'] - rebaja if idx == 0 else item['Subtotal']
                     tabla_ventas.put_item(Item={'ID_Venta': f"V-{uid}-{idx}", 'Fecha': f, 'Hora': h, 'Producto': item['Producto'], 'Cantidad': int(item['Cantidad']), 'Total': str(round(max(0, val_db), 2)), 'Metodo': metodo})
+                st.session_state.carrito = []
+                st.rerun()
+            
+            if st.button("🗑️ CANCELAR CARRITO", use_container_width=True):
                 st.session_state.carrito = []
                 st.rerun()
 
@@ -177,7 +183,6 @@ with tabs[3]:
         df_h_filt = df_h[df_h['Fecha'] == f_hist].sort_values(by='Hora', ascending=False)
         if not df_h_filt.empty:
             st.dataframe(df_h_filt[['Fecha', 'Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante']], use_container_width=True, hide_index=True)
-        else: st.info(f"Sin movimientos el {f_hist}")
 
 # 5. CARGAR STOCK
 with tabs[4]:
