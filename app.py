@@ -26,7 +26,7 @@ try:
     
     tabla_ventas = dynamodb.Table('VentasDentaltio')
     tabla_stock = dynamodb.Table('StockProductos')
-    tabla_auditoria = dynamodb.Table('EntradasInventario') 
+    tabla_auditoria = dynamodb.Table('EntradasInventario')
 except Exception as e:
     st.error(f"Error de conexión: {e}")
     st.stop()
@@ -73,7 +73,7 @@ def get_df_stock():
 df_stock = get_df_stock()
 tabs = st.tabs(["🛒 VENTA", "📦 STOCK", "📊 REPORTES", "📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."])
 
-# 1. PESTAÑA DE VENTAS
+# 1. PESTAÑA DE VENTAS (CARRITO Y TICKET INTEGRADO)
 with tabs[0]:
     if st.session_state.boleta:
         st.balloons()
@@ -125,17 +125,13 @@ with tabs[0]:
         if st.session_state.carrito:
             df_c = pd.DataFrame(st.session_state.carrito)
             st.table(df_c.style.format({"Precio": "{:.2f}", "Subtotal": "{:.2f}"}))
-            
             t_bruto = df_c['Subtotal'].sum()
             rebaja = st.number_input("Rebaja (S/):", min_value=0.0, value=0.0)
             t_final = max(0.0, t_bruto - rebaja)
             st.markdown(f"<h2 style='text-align:center; color:#2ECC71;'>TOTAL: S/ {t_final:.2f}</h2>", unsafe_allow_html=True)
-            
             met_sel = st.radio("Método de Pago:", ["💵 Efectivo", "🟣 Yape", "🔵 Plin"], horizontal=True)
             metodo = met_sel.split(" ")[1]
-
-            st.warning("⚠️ ¿Confirmar venta?")
-            if st.button("🚀 FINALIZAR Y REGISTRAR", type="primary", use_container_width=True):
+            if st.button("🚀 FINALIZAR Y REGISTRAR VENTA", type="primary", use_container_width=True):
                 f, h, _, uid = obtener_tiempo_peru()
                 st.session_state.boleta = {'fecha': f, 'hora': h, 'items': list(st.session_state.carrito), 'total_bruto': t_bruto, 'rebaja_total': rebaja, 'total_neto': t_final, 'metodo': metodo}
                 for idx, item in enumerate(st.session_state.carrito):
@@ -146,7 +142,7 @@ with tabs[0]:
                 st.session_state.carrito = []
                 st.rerun()
 
-# 2. STOCK (COLOR ROJO FIJO)
+# 2. STOCK
 with tabs[1]:
     st.subheader("📦 Inventario Actual")
     bus_s = st.text_input("🔍 Buscar:", key="bus_stock_p").strip().upper()
@@ -156,7 +152,7 @@ with tabs[1]:
             return 'color: #FF4B4B; font-weight: bold;' if val < 5 else 'color: white;'
         st.dataframe(df_f.style.map(color_stock, subset=['Stock']).format({"Precio": "S/ {:.2f}"}), use_container_width=True, hide_index=True)
 
-# 3. REPORTES (CON SEPARACIÓN DE EFECTIVO/DIGITAL)
+# 3. REPORTES
 with tabs[2]:
     st.subheader("📊 Caja Diaria")
     f_bus = st.date_input("Consultar Fecha:").strftime("%d/%m/%Y")
@@ -166,37 +162,45 @@ with tabs[2]:
         df_hoy = df_v[df_v['Fecha'] == f_bus].copy() if not df_v.empty else pd.DataFrame()
         if not df_hoy.empty:
             df_hoy['Total'] = pd.to_numeric(df_hoy['Total'])
-            
-            # Cálculo de totales por método
             t_efe = df_hoy[df_hoy['Metodo'] == 'Efectivo']['Total'].sum()
             t_yap = df_hoy[df_hoy['Metodo'] == 'Yape']['Total'].sum()
             t_pli = df_hoy[df_hoy['Metodo'] == 'Plin']['Total'].sum()
-            t_total = df_hoy['Total'].sum()
-
-            c1, c2, c3, c4 = st.columns(4)
+            c1, c2, c3 = st.columns(3)
             c1.metric("💵 EFECTIVO", f"S/ {t_efe:.2f}")
             c2.metric("🟣 YAPE", f"S/ {t_yap:.2f}")
             c3.metric("🔵 PLIN", f"S/ {t_pli:.2f}")
-            c4.metric("💰 TOTAL DÍA", f"S/ {t_total:.2f}")
-            
-            st.divider()
             st.dataframe(df_hoy.sort_values(by='Hora', ascending=False)[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
 
-# 4. HISTORIAL
+# 4. HISTORIAL (MEJORADO)
 with tabs[3]:
-    st.subheader("📋 Movimientos")
-    f_hist = st.date_input("Filtrar Fecha:", value=datetime.now()).strftime("%d/%m/%Y")
+    st.subheader("📋 Historial de Movimientos")
+    f_hist = st.date_input("Filtrar por Fecha:", value=datetime.now(), key="f_hist_key").strftime("%d/%m/%Y")
     h_data = tabla_auditoria.scan().get('Items', [])
     if h_data:
         df_h = pd.DataFrame(h_data)
-        df_h_filt = df_h[df_h['Fecha'] == f_hist].sort_values(by='Hora', ascending=False)
+        df_h_filt = df_h[df_h['Fecha'] == f_hist].copy()
         if not df_h_filt.empty:
-            st.dataframe(df_h_filt[['Fecha', 'Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante']], use_container_width=True, hide_index=True)
+            st.write("📥 **Entradas de Mercadería**")
+            df_entradas = df_h_filt[df_h_filt['ID_Ingreso'].str.startswith('I-', na=False)]
+            st.dataframe(df_entradas[['Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante']], column_config={"Cantidad_Entrante": st.column_config.NumberColumn("Cant.", width="small")}, use_container_width=True, hide_index=True)
+            st.divider()
+            st.write("🗑️ **Productos Eliminados**")
+            df_borrados = df_h_filt[df_h_filt['ID_Ingreso'].str.startswith('DEL-', na=False)]
+            if not df_borrados.empty:
+                st.dataframe(df_borrados[['Hora', 'Producto', 'Stock_Resultante']], use_container_width=True, hide_index=True)
 
-# 5. CARGAR STOCK
+# 5. CARGAR STOCK (CON CARGA MASIVA)
 with tabs[4]:
     st.subheader("📥 Cargar Mercadería")
-    m_man = st.radio("Carga:", ["Existente", "Nuevo"], horizontal=True)
+    with st.expander("🚀 CARGA MASIVA (Excel/CSV)"):
+        archivo = st.file_uploader("Subir archivo .csv", type="csv")
+        if archivo and st.button("SUBIR TODO"):
+            df_m = pd.read_csv(archivo)
+            for _, r in df_m.iterrows():
+                tabla_stock.put_item(Item={'Producto': str(r['Producto']).upper(), 'Stock': int(r['Stock']), 'Precio': str(r['Precio'])})
+            st.success("✅ ¡Carga Masiva Exitosa!"); st.rerun()
+    st.divider()
+    m_man = st.radio("Tipo:", ["Existente", "Nuevo"], horizontal=True)
     with st.form("f_cargar"):
         if m_man == "Existente":
             bus_c = st.text_input("🔍 Buscar:").strip().upper()
@@ -206,24 +210,24 @@ with tabs[4]:
         else:
             p_f = st.text_input("Nombre:").upper().strip()
             p_b = 1.0
-        
         c1, c2 = st.columns(2)
         c_f = c1.number_input("Cant:", min_value=1, value=1)
-        pr_f = c2.number_input("Precio:", min_value=0.1, value=float(p_b), format="%.2f")
-        
+        pr_f = c2.number_input("Precio:", min_value=0.1, value=float(p_b))
         if st.form_submit_button("📥 REGISTRAR"):
             if p_f:
                 f, h, _, uid = obtener_tiempo_peru()
                 s_a = int(df_stock[df_stock['Producto'] == p_f]['Stock'].values[0]) if p_f in df_stock['Producto'].values else 0
                 n_t = s_a + c_f
-                tabla_stock.put_item(Item={'Producto': p_f, 'Stock': n_t, 'Precio': str(round(pr_f, 2))})
+                tabla_stock.put_item(Item={'Producto': p_f, 'Stock': n_t, 'Precio': str(pr_f)})
                 tabla_auditoria.put_item(Item={'ID_Ingreso': f"I-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_f, 'Cantidad_Entrante': int(c_f), 'Stock_Resultante': int(n_t)})
-                st.success("✅ ¡Registrado!"); time.sleep(1); st.rerun()
+                st.success("✅ Registrado"); time.sleep(1); st.rerun()
 
-# 6. MANTENIMIENTO
+# 6. MANTENIMIENTO (CON REGISTRO DE ELIMINACIÓN)
 with tabs[5]:
-    st.subheader("🛠️ Eliminar")
-    p_del = st.selectbox("Producto:", [""] + df_stock['Producto'].tolist())
-    if st.button("🗑️ BORRAR") and p_del:
+    st.subheader("🛠️ Eliminar Producto")
+    p_del = st.selectbox("Producto a borrar:", [""] + df_stock['Producto'].tolist())
+    if st.button("🗑️ BORRAR DEFINITIVAMENTE") and p_del:
+        f, h, _, uid = obtener_tiempo_peru()
+        tabla_auditoria.put_item(Item={'ID_Ingreso': f"DEL-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_del, 'Cantidad_Entrante': 0, 'Stock_Resultante': 0})
         tabla_stock.delete_item(Key={'Producto': p_del})
-        st.warning(f"Eliminado: {p_del}"); time.sleep(1); st.rerun()
+        st.error(f"Eliminado: {p_del}"); time.sleep(1); st.rerun()
