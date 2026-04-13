@@ -117,7 +117,7 @@ with tabs[0]:
             else: st.warning("No encontrado")
         with c2: cant = st.number_input("Cant:", min_value=1, value=1, key=f"c_v_{st.session_state.reset_v}")
         
-        if st.button("➕ AÑADIR", use_container_width=True) and prod_filt_v:
+        if st.button("➕ AÑADIR AL CARRITO", use_container_width=True) and prod_filt_v:
             if cant <= info['Stock']:
                 st.session_state.carrito.append({'Producto': p_sel, 'Cantidad': int(cant), 'Precio': float(info['Precio']), 'Subtotal': round(float(info['Precio']) * cant, 2)})
                 st.session_state.reset_v += 1
@@ -126,7 +126,6 @@ with tabs[0]:
 
         if st.session_state.carrito:
             df_c = pd.DataFrame(st.session_state.carrito)
-            # SECCIÓN CORREGIDA: Formato de decimales en tabla
             st.table(df_c.style.format({"Precio": "{:.2f}", "Subtotal": "{:.2f}"}))
             
             t_bruto = df_c['Subtotal'].sum()
@@ -134,9 +133,7 @@ with tabs[0]:
             t_final = max(0.0, t_bruto - rebaja)
             st.markdown(f"<h2 style='text-align:center; color:#2ECC71;'>TOTAL: S/ {t_final:.2f}</h2>", unsafe_allow_html=True)
             
-            # SECCIÓN CORREGIDA: Emojis y colores de pago
             metodo_sel = st.radio("Método de Pago:", ["💵 Efectivo", "🟣 Yape", "🔵 Plin"], horizontal=True)
-            # Limpiamos el emoji para guardar solo el texto en la base de datos
             metodo = metodo_sel.split(" ")[1]
 
             if st.button("🚀 FINALIZAR VENTA", type="primary", use_container_width=True):
@@ -155,10 +152,9 @@ with tabs[1]:
     st.subheader("📦 Inventario Actual")
     bus_s = st.text_input("🔍 Buscar en inventario:", key="bus_s").strip().upper()
     df_f = df_stock[df_stock['Producto'].str.upper().str.contains(bus_s, na=False)]
-    # SECCIÓN CORREGIDA: Precio con 2 decimales
     st.dataframe(df_f[['Producto', 'Stock', 'Precio']].style.format({"Precio": "S/ {:.2f}"}), use_container_width=True, hide_index=True)
 
-# 3. REPORTES (CAJA DIARIA)
+# 3. REPORTES
 with tabs[2]:
     st.subheader("📊 Caja Diaria")
     f_bus = st.date_input("Consultar Fecha:").strftime("%d/%m/%Y")
@@ -171,7 +167,7 @@ with tabs[2]:
             st.metric("TOTAL DEL DÍA", f"S/ {df_hoy['Total'].sum():.2f}")
             st.dataframe(df_hoy.sort_values(by='Hora', ascending=False)[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
 
-# 4. HISTORIAL (CON FILTRO DE FECHA)
+# 4. HISTORIAL
 with tabs[3]:
     st.subheader("📋 Historial de Movimientos")
     f_hist = st.date_input("Filtrar Historial por Fecha:", value=datetime.now()).strftime("%d/%m/%Y")
@@ -181,10 +177,9 @@ with tabs[3]:
         df_h_filt = df_h[df_h['Fecha'] == f_hist].sort_values(by='Hora', ascending=False)
         if not df_h_filt.empty:
             st.dataframe(df_h_filt[['Fecha', 'Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante']], use_container_width=True, hide_index=True)
-        else:
-            st.info(f"No hubo movimientos el día {f_hist}")
+        else: st.info(f"Sin movimientos el {f_hist}")
 
-# 5. CARGAR STOCK (CON BUSCADOR)
+# 5. CARGAR STOCK
 with tabs[4]:
     st.subheader("📥 Cargar Mercadería")
     with st.expander("🚀 CARGA MASIVA (Excel/CSV)"):
@@ -193,7 +188,7 @@ with tabs[4]:
             df_m = pd.read_csv(archivo)
             for _, r in df_m.iterrows():
                 tabla_stock.put_item(Item={'Producto': str(r['Producto']).upper(), 'Stock': int(r['Stock']), 'Precio': str(r['Precio'])})
-            st.success("Carga completa"); st.rerun()
+            st.success("✅ ¡Carga Masiva Exitosa!"); st.rerun()
     
     st.divider()
     m_man = st.radio("Tipo de Carga:", ["Existente", "Nuevo"], horizontal=True)
@@ -209,7 +204,6 @@ with tabs[4]:
         
         c1, c2 = st.columns(2)
         c_f = c1.number_input("Cantidad que entra:", min_value=1, value=1)
-        # SECCIÓN CORREGIDA: Formato de carga a 2 decimales
         pr_f = c2.number_input("Precio Unitario:", min_value=0.1, value=float(p_b), format="%.2f")
         
         if st.form_submit_button("📥 REGISTRAR ENTRADA"):
@@ -219,7 +213,7 @@ with tabs[4]:
                 n_t = s_a + c_f
                 tabla_stock.put_item(Item={'Producto': p_f, 'Stock': n_t, 'Precio': str(round(pr_f, 2))})
                 tabla_auditoria.put_item(Item={'ID_Ingreso': f"I-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_f, 'Cantidad_Entrante': int(c_f), 'Stock_Resultante': int(n_t)})
-                st.success("¡Stock actualizado!"); time.sleep(0.5); st.rerun()
+                st.success(f"✅ ¡{p_f} agregado exitosamente!"); time.sleep(1); st.rerun()
 
 # 6. MANTENIMIENTO
 with tabs[5]:
