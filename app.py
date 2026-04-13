@@ -152,24 +152,26 @@ with tabs[0]:
                 st.session_state.carrito = []
                 st.rerun()
 
-# 2. STOCK (CON ALERTA ROJA)
+# 2. STOCK (CORRECCIÓN DEFINITIVA DE COLOR)
 with tabs[1]:
     st.subheader("📦 Inventario Actual")
-    bus_s = st.text_input("🔍 Buscar en inventario:", key="bus_s").strip().upper()
+    bus_s = st.text_input("🔍 Buscar en inventario:", key="bus_stock_final").strip().upper()
     df_f = df_stock[df_stock['Producto'].str.upper().str.contains(bus_s, na=False)].copy()
     
-    # Función para pintar de rojo si el stock es < 5
-    def color_bajo_stock(val):
-        color = 'red' if val < 5 else 'white'
-        return f'color: {color}'
-
     if not df_f.empty:
+        # Solo pinta el texto de la columna Stock si es < 5
+        def color_rojo(val):
+            color = 'red' if val < 5 else None
+            return f'color: {color}'
+
         st.dataframe(
-            df_f[['Producto', 'Stock', 'Precio']].style.applymap(color_bajo_stock, subset=['Stock'])
+            df_f.style.map(color_rojo, subset=['Stock'])
             .format({"Precio": "S/ {:.2f}"}), 
             use_container_width=True, hide_index=True
         )
-        st.caption("⚠️ Los productos con menos de 5 unidades aparecen en **rojo**.")
+        st.caption("⚠️ Los números en **rojo** indican stock bajo (menos de 5).")
+    else:
+        st.info("No hay resultados.")
 
 # 3. REPORTES
 with tabs[2]:
