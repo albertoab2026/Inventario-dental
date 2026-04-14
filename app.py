@@ -31,7 +31,7 @@ def obtener_tiempo_peru():
 try:
     # Verificación de integridad de secretos
     if "aws" not in st.secrets:
-        st.error("⚠️ Error crítico: Credenciales no configuradas en el servidor.")
+        st.error("⚠️ Error crítico: Credenciales no configuradas.")
         st.stop()
         
     aws_id = st.secrets["aws"]["aws_access_key_id"]
@@ -47,7 +47,7 @@ try:
     tabla_stock = dynamodb.Table(TABLA_STOCK_NAME)
     tabla_auditoria = dynamodb.Table(TABLA_AUDITORIA_NAME)
 except Exception:
-    # Ofuscación de errores para evitar revelar datos técnicos
+    # Ofuscación de errores técnicos para seguridad
     st.error("Error de conexión: Comuníquese con soporte técnico.")
     st.stop()
 
@@ -92,7 +92,7 @@ if st.session_state.df_stock_local is None:
 df_stock = st.session_state.df_stock_local
 
 
-# --- LOGIN SEGURO (BLOQUEO ESTRUCTURAL ANTISALTO) ---
+# --- LOGIN SEGURO (ANTI-FUERZA BRUTA CON FRENO DE 3 SEGUNDOS) ---
 if not st.session_state.sesion_iniciada:
     st.markdown(f"<h1 style='text-align: center;'>{CLIENTE_EMOJI}</h1><h1 style='text-align: center; color: #2E86C1;'>Sistema {CLIENTE_NOMBRE}</h1>", unsafe_allow_html=True)
     col_login, _ = st.columns([1, 1])
@@ -102,7 +102,10 @@ if not st.session_state.sesion_iniciada:
             if clave == admin_pass:
                 st.session_state.sesion_iniciada = True
                 st.rerun()
-            else: st.error("❌ Acceso denegado: Credenciales incorrectas")
+            else: 
+                with st.spinner("Validando acceso..."):
+                    time.sleep(3) # Freno de seguridad anti-hackers
+                st.error("❌ Acceso denegado: Credenciales incorrectas")
     st.stop()
 
 
