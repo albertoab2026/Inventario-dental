@@ -4,7 +4,6 @@ import boto3
 from datetime import datetime
 import pytz
 import time
-import io
 
 # 1. CONFIGURACIÓN E INTERFAZ
 st.set_page_config(page_title="Sistema Dental BALLARTA", layout="wide")
@@ -84,7 +83,7 @@ with st.sidebar:
 
 tabs = st.tabs(["🛒 VENTA", "📦 STOCK", "📊 REPORTES", "📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."])
 
-# 1. PESTAÑA DE VENTAS (MANTIENE TU RESPALDO)
+# 1. PESTAÑA DE VENTAS
 with tabs[0]:
     if st.session_state.boleta:
         st.balloons(); st.success("✅ ¡VENTA REALIZADA!")
@@ -190,10 +189,9 @@ with tabs[2]:
             c3.metric("🔵 PLIN", f"S/ {df_hoy[df_hoy['Metodo'] == 'Plin']['Total'].sum():.2f}")
             c4.metric("📈 GANANCIA REAL", f"S/ {df_hoy['Ganancia'].sum():.2f}")
             st.divider()
-            # Ordenado por hora reciente
             st.dataframe(df_hoy.sort_values(by='Hora', ascending=False)[['Hora', 'Producto', 'Cantidad', 'Total', 'Ganancia', 'Metodo']], use_container_width=True, hide_index=True)
 
-# 4. HISTORIAL (ORDENADO: LO MÁS NUEVO ARRIBA)
+# 4. HISTORIAL (ORDENADO)
 with tabs[3]:
     st.subheader("📋 Movimientos de Inventario")
     f_hist = st.date_input("Fecha de movimientos:", key="f_hist_k").strftime("%d/%m/%Y")
@@ -202,35 +200,30 @@ with tabs[3]:
         df_h = pd.DataFrame(h_data)
         df_h_filt = df_h[df_h['Fecha'] == f_hist].copy()
         if not df_h_filt.empty:
-            # --- AJUSTE: ORDENAR POR HORA DESCENDENTE ---
             df_h_filt = df_h_filt.sort_values(by='Hora', ascending=False)
             st.dataframe(df_h_filt[['Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante']], use_container_width=True, hide_index=True)
 
-# 5. CARGAR STOCK (CON CARGA MASIVA EXCEL/CSV)
+# 5. CARGAR STOCK (LIMPIO Y SIN EJEMPLOS)
 with tabs[4]:
     st.subheader("📥 Registro de Mercadería")
     
     opcion_carga = st.radio("Método de carga:", ["Individual", "Masiva (Excel/CSV)"], horizontal=True)
     
     if opcion_carga == "Individual":
-        ejemplos = {
-            "RESINA FILTEK Z250": {"c": 45.0, "v": 65.0}, "RESINA FILTEK Z350": {"c": 55.0, "v": 85.0},
-            "GUANTES DE LATEX (CAJA)": {"c": 18.0, "v": 25.0}, "ALGINATO JELTRATE": {"c": 22.0, "v": 35.0},
-            "ANESTESIA LIDOCAINA": {"c": 60.0, "v": 85.0}, "AGUJAS DENTALES (CAJA)": {"c": 25.0, "v": 40.0},
-            "EUGENOL 20ML": {"c": 12.0, "v": 20.0}, "IONOMERO DE VIDRIO": {"c": 55.0, "v": 80.0},
-            "PUNTAS DE SUCCION": {"c": 10.0, "v": 18.0}, "BANDA MATRIZ (ROLLO)": {"c": 15.0, "v": 28.0}
-        }
-        m_tipo = st.radio("Producto:", ["Existente (Reponer)", "Nuevo / Ejemplo"], horizontal=True)
+        m_tipo = st.radio("Tipo de ingreso:", ["Existente (Reponer)", "Producto Nuevo"], horizontal=True)
+        
         with st.form("f_cargar"):
             if m_tipo == "Existente (Reponer)":
-                bus_c = st.text_input("🔍 Buscar en sistema:").strip().upper()
+                bus_c = st.text_input("🔍 Buscar producto en sistema:").strip().upper()
                 filt_c = [p for p in df_stock['Producto'].tolist() if bus_c in str(p).upper()]
-                p_final = st.selectbox("Confirmar producto:", filt_c) if filt_c else None
-                p_c_sug, p_v_sug = (float(df_stock[df_stock['Producto'] == p_final].iloc[0]['P_Compra_U']), float(df_stock[df_stock['Producto'] == p_final].iloc[0]['Precio'])) if p_final else (0.0, 0.0)
+                p_final = st.selectbox("Confirmar selección:", filt_c) if filt_c else None
+                
+                # Valores sugeridos si el producto existe
+                p_c_sug, p_v_sug = (float(df_stock[df_stock['Producto'] == p_final].iloc[0]['P_Compra_U']), 
+                                    float(df_stock[df_stock['Producto'] == p_final].iloc[0]['Precio'])) if p_final else (0.0, 0.0)
             else:
-                op_ej = st.selectbox("Elegir de lista rápida:", ["Manual"] + list(ejemplos.keys()))
-                p_final = op_ej if op_ej != "Manual" else st.text_input("O escribe nombre nuevo:").upper().strip()
-                p_c_sug, p_v_sug = (ejemplos[op_ej]["c"], ejemplos[op_ej]["v"]) if op_ej != "Manual" else (0.0, 0.0)
+                p_final = st.text_input("Nombre del Producto Nuevo:").upper().strip()
+                p_c_sug, p_v_sug = 0.0, 0.0
             
             c1, c2, c3 = st.columns(3)
             cant_c = c1.number_input("Cantidad:", min_value=1, value=1)
@@ -245,15 +238,17 @@ with tabs[4]:
                     tabla_stock.put_item(Item={'Producto': p_final, 'Stock': n_total, 'Precio': str(round(pr_venta, 2)), 'P_Compra_U': str(round(pr_compra, 2))})
                     tabla_auditoria.put_item(Item={'ID_Ingreso': f"I-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_final, 'Cantidad_Entrante': int(cant_c), 'Stock_Resultante': int(n_total)})
                     actualizar_stock_local(); st.success("✅ Stock actualizado!"); time.sleep(1); st.rerun()
+                else:
+                    st.error("Por favor, ingrese un nombre de producto.")
 
     else:
         st.info("Sube un archivo Excel o CSV con las columnas: **Producto**, **Stock**, **Precio**, **P_Compra_U**")
         archivo = st.file_uploader("Seleccionar archivo", type=['xlsx', 'csv'])
         if archivo:
             df_masivo = pd.read_excel(archivo) if archivo.name.endswith('xlsx') else pd.read_csv(archivo)
-            st.write("Vista previa de carga:")
+            st.write("Vista previa:")
             st.dataframe(df_masivo.head())
-            if st.button("🚀 PROCESAR Y CARGAR PRODUCTOS"):
+            if st.button("🚀 PROCESAR CARGA MASIVA"):
                 progress_bar = st.progress(0)
                 f, h, _, uid = obtener_tiempo_peru()
                 total = len(df_masivo)
@@ -266,28 +261,28 @@ with tabs[4]:
                         'P_Compra_U': str(round(float(row['P_Compra_U']), 2))
                     })
                     progress_bar.progress((i + 1) / total)
-                st.success(f"✅ Se cargaron {total} productos correctamente.")
+                st.success(f"✅ Se procesaron {total} productos.")
                 actualizar_stock_local(); time.sleep(2); st.rerun()
 
 # 6. MANTENIMIENTO
 with tabs[5]:
-    st.subheader("🛠️ Mantenimiento")
-    st.write("### 💰 Cambiar Precios")
-    p_edit = st.selectbox("Selecciona producto para corregir:", df_stock['Producto'].unique(), key="p_m_edit")
+    st.subheader("🛠️ Administración")
+    st.write("### 💰 Editar Precios")
+    p_edit = st.selectbox("Selecciona producto:", df_stock['Producto'].unique(), key="p_m_edit")
     if p_edit:
         info_e = df_stock[df_stock['Producto'] == p_edit].iloc[0]
         col1, col2 = st.columns(2)
-        c_act = col1.number_input("Nuevo Costo de Compra:", value=float(info_e['P_Compra_U']))
-        v_act = col2.number_input("Nuevo Precio al Público:", value=float(info_e['Precio']))
-        if st.button("💾 Guardar Cambios de Precio"):
+        c_act = col1.number_input("Nuevo Costo Compra:", value=float(info_e['P_Compra_U']))
+        v_act = col2.number_input("Nuevo Precio Venta:", value=float(info_e['Precio']))
+        if st.button("💾 Guardar Cambios"):
             tabla_stock.update_item(Key={'Producto': p_edit}, UpdateExpression="set P_Compra_U = :c, Precio = :p", ExpressionAttributeValues={':c': str(round(c_act, 2)), ':p': str(round(v_act, 2))})
             actualizar_stock_local(); st.success("✅ Precios actualizados"); time.sleep(1); st.rerun()
             
     st.divider()
     st.write("### 🗑️ Eliminar Producto")
-    p_del = st.selectbox("Eliminar definitivamente:", [""] + df_stock['Producto'].tolist())
+    p_del = st.selectbox("Producto a eliminar:", [""] + df_stock['Producto'].tolist())
     if st.button("🗑️ ELIMINAR") and p_del:
         f, h, _, uid = obtener_tiempo_peru()
         tabla_auditoria.put_item(Item={'ID_Ingreso': f"DEL-{uid}", 'Fecha': f, 'Hora': h, 'Producto': f"❌ ELIMINADO: {p_del}", 'Cantidad_Entrante': 0, 'Stock_Resultante': 0})
         tabla_stock.delete_item(Key={'Producto': p_del})
-        actualizar_stock_local(); st.error(f"{p_del} eliminado correctamente."); time.sleep(1.5); st.rerun()
+        actualizar_stock_local(); st.error(f"{p_del} eliminado."); time.sleep(1.5); st.rerun()
