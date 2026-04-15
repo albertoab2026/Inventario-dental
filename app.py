@@ -6,12 +6,12 @@ import pytz
 import time
 
 # 0. CONFIGURACIÓN DEL CLIENTE (SaaS READY)
-# Esta sección permite clonar el sistema para otros negocios
+# Mantenemos las tablas que configuramos para tu modelo Multi-SaaS
 CLIENTE_NOMBRE = "BALLARTA DENTAL"
 CLIENTE_EMOJI = "🦷"
-TABLA_VENTAS_NAME = 'VentasDentaltio'
-TABLA_STOCK_NAME = 'StockProductos'
-TABLA_AUDITORIA_NAME = 'EntradasInventario'
+TABLA_VENTAS_NAME = 'SaaS_Ventas_Test'
+TABLA_STOCK_NAME = 'SaaS_Stock_Test'
+TABLA_AUDITORIA_NAME = 'SaaS_Audit_Test'
 
 
 # 1. CONFIGURACIÓN E INTERFAZ
@@ -29,16 +29,20 @@ def obtener_tiempo_peru():
 
 # 2. CONEXIÓN SEGURA AWS (BLINDAJE DE CREDENCIALES)
 try:
-    # Verificación de integridad de secretos
-    if "aws" not in st.secrets or "auth" not in st.secrets:
-        st.error("⚠️ Error crítico: Credenciales [aws] o [auth] no configuradas.")
+    if "aws" not in st.secrets:
+        st.error("⚠️ Error crítico: Credenciales no configuradas.")
         st.stop()
         
-    # .strip() elimina espacios invisibles que causan el error de token inválido
+    # .strip() elimina espacios invisibles. 
+    # Soporte para [auth] o [auth_multi] según tus capturas
     aws_id = st.secrets["aws"]["aws_access_key_id"].strip()
     aws_key = st.secrets["aws"]["aws_secret_access_key"].strip()
     aws_region = st.secrets["aws"]["aws_region"].strip()
-    admin_pass = st.secrets["auth"]["admin_password"].strip()
+    
+    if "auth_multi" in st.secrets:
+        admin_pass = st.secrets["auth_multi"]["tiotuinventario"].strip()
+    else:
+        admin_pass = st.secrets["auth"]["admin_password"].strip()
     
     dynamodb = boto3.resource('dynamodb', region_name=aws_region,
                               aws_access_key_id=aws_id,
@@ -214,7 +218,6 @@ with tabs[1]:
 with tabs[2]:
     st.subheader("📊 Caja y Ganancias")
     f_bus = st.date_input("Consultar Fecha:", value=datetime.now(tz_peru)).strftime("%d/%m/%Y")
-    # Cambiado a .scan() para evitar errores de Index en tablas nuevas
     v_data = tabla_ventas.scan().get('Items', [])
     if v_data:
         df_v = pd.DataFrame(v_data)
@@ -235,7 +238,6 @@ with tabs[2]:
 with tabs[3]:
     st.subheader("📋 Movimientos de Inventario")
     f_hist = st.date_input("Fecha de movimientos:", value=datetime.now(tz_peru), key="f_hist_k").strftime("%d/%m/%Y")
-    # Cambiado a .scan() para máxima estabilidad
     h_data = tabla_auditoria.scan().get('Items', [])
     if h_data:
         df_h = pd.DataFrame(h_data)
