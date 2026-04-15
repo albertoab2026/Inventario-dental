@@ -186,19 +186,49 @@ with tabs[4]:
                 st.write(f"Registros únicos a subir: {len(df_m)}")
                 st.dataframe(df_m.head(3))
                 
-                if st.button("🚀 INICIAR CARGA MASIVA"):
-                    with tabla_stock.batch_writer() as batch:
-                        for _, r in df_m.iterrows():
-                            batch.put_item(Item={
-                                'Producto': r['Producto'], 
-                                'TenantID': st.session_state.tenant_id, 
-                                'Stock': int(r.get('Stock', 0)), 
-                                'Precio': str(r.get('Precio', 0)), 
-                                'P_Compra_U': str(r.get('P_Compra_U', 0))
-                            })
-                    st.success("¡Carga terminada con éxito!"); actualizar_stock_local(); st.rerun()
-            except Exception as e:
-                st.error(f"Error procesando archivo: {e}")
+                            if st.button("🚀 FINALIZAR VENTA"):
+                f, h, dt, idv = obtener_tiempo_peru()
+                # Convertimos el total a String para que AWS no se queje del 'Float'
+                total_str = str(round(df_c['Subtotal'].sum(), 2))
+                
+                try:
+                    # Preparamos los items convirtiendo números a strings antes de subir
+                    items_para_aws = []
+                    for i in st.session_state.carrito:
+                        item_limpio = {
+                            'Producto': i['Producto'],
+                            'Cantidad': int(i['Cantidad']),
+                            'Precio': str(i['Precio']),
+                            'Subtotal': str(i['Subtotal']),
+                            'TenantID': i['TenantID']
+                        }
+                        items_para_aws.append(item_limpio)
+
+                    # Guardamos la venta
+                    tabla_ventas.put_item(Item={
+                        'VentaID': idv, 
+                        'TenantID': st.session_state.tenant_id, 
+                        'Fecha': f, 
+                        'Hora': h,
+                        'Total': total_str, 
+                        'Items': items_para_aws
+                    })
+
+                    # Descontamos el stock
+                    for item in st.session_state.carrito:
+                        tabla_stock.update_item(
+                            Key={'Producto': item['Producto'], 'TenantID': st.session_state.tenant_id}, 
+                            UpdateExpression="SET Stock = Stock - :v", 
+                            ExpressionAttributeValues={':v': int(item['Cantidad'])}
+                        )
+                    
+                    st.session_state.boleta = {'fecha': f, 'items': st.session_state.carrito, 'total_neto': float(total_str)}
+                    st.session_state.carrito = []
+                    actualizar_stock_local()
+                    st.rerun()
+                except Exception as e: 
+                    st.error(f"Error AWS: {e}")
+
 
 # --- PESTAÑA MANTENIMIENTO (LLAVE COMPUESTA) ---
 with tabs[5]:
