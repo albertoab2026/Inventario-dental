@@ -7,7 +7,6 @@ import time
 import hashlib # 1. Importado para seguridad pro
 
 # 0. CONFIGURACIÓN DEL CLIENTE (SaaS READY)
-# Esta sección permite clonar el sistema para otros negocios
 CLIENTE_NOMBRE = "BALLARTA DENTAL"
 CLIENTE_EMOJI = "🦷"
 TABLA_VENTAS_NAME = 'VentasDentaltio'
@@ -35,7 +34,6 @@ def generar_hash(palabra):
 
 # 2. CONEXIÓN SEGURA AWS (BLINDAJE DE CREDENCIALES)
 try:
-    # Verificación de integridad de secretos
     if "aws" not in st.secrets:
         st.error("⚠️ Error crítico: Credenciales no configuradas.")
         st.stop()
@@ -43,7 +41,7 @@ try:
     aws_id = st.secrets["aws"]["aws_access_key_id"]
     aws_key = st.secrets["aws"]["aws_secret_access_key"]
     aws_region = st.secrets["aws"]["aws_region"]
-    admin_hash_guardado = st.secrets["auth"]["admin_password"] # Lee el Hash de secrets
+    admin_hash_guardado = st.secrets["auth"]["admin_password"] 
     
     dynamodb = boto3.resource('dynamodb', region_name=aws_region,
                               aws_access_key_id=aws_id,
@@ -53,7 +51,6 @@ try:
     tabla_stock = dynamodb.Table(TABLA_STOCK_NAME)
     tabla_auditoria = dynamodb.Table(TABLA_AUDITORIA_NAME)
 except Exception:
-    # Ofuscación de errores técnicos para seguridad
     st.error("Error de conexión: Comuníquese con soporte técnico.")
     st.stop()
 
@@ -77,7 +74,6 @@ def actualizar_stock_local():
             df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0.0)
             df['P_Compra_U'] = pd.to_numeric(df['P_Compra_U'], errors='coerce').fillna(0.0)
             
-            # NORMALIZACIÓN ANTI-HACK Y DUPLICADOS
             df['Producto'] = df['Producto'].astype(str).str.upper().str.strip()
             df = df.groupby('Producto').agg({
                 'Stock': 'sum', 
@@ -105,8 +101,10 @@ if not st.session_state.sesion_iniciada:
     with col_login:
         clave_ingresada = st.text_input("Clave de acceso:", type="password")
         if st.button("🔓 Ingresar", use_container_width=True):
-            # 3. Compara el Hash de lo escrito con el Hash guardado
-            if generar_hash(clave_ingresada) == admin_hash_guardado:
+            # LIMPIEZA AUTOMÁTICA DE ERRORES EN SECRETS (Espacios o saltos de línea)
+            hash_limpio = admin_hash_guardado.strip().replace("\n", "").replace("\r", "")
+            
+            if generar_hash(clave_ingresada.strip()) == hash_limpio:
                 st.session_state.sesion_iniciada = True
                 st.rerun()
             else: 
@@ -317,6 +315,6 @@ with tabs[5]:
         actualizar_stock_local(); st.error(f"{p_del} eliminado."); time.sleep(1.5); st.rerun()
 
 
-# --- FIN DEL CODIGO (305 LINEAS EXACTAS) ---
+# --- FIN DEL CODIGO ---
 # SaaS Engine Ballarta Cloud 2026
 # Sistema universal para negocios locales
