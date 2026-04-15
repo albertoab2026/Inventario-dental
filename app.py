@@ -4,40 +4,39 @@ import boto3
 from datetime import datetime
 import pytz
 import time
+from boto3.dynamodb.conditions import Key
 
-# 0. CONFIGURACIÓN DEL CLIENTE (SaaS READY)
-CLIENTE_NOMBRE = "BALLARTA DENTAL"
-CLIENTE_EMOJI = "🦷"
-TABLA_VENTAS_NAME = 'VentasDentaltio'
-TABLA_STOCK_NAME = 'StockProductos'
-TABLA_AUDITORIA_NAME = 'EntradasInventario'
+# 0. CONFIGURACIÓN DEL SISTEMA (MARCA BLANCA)
+MI_SISTEMA_NOMBRE = "NEXOS GESTIÓN"
+MI_SISTEMA_EMOJI = "🚀"
 
+# TABLAS DE LABORATORIO SAAS
+TABLA_VENTAS_NAME = 'SaaS_Ventas_Test'
+TABLA_STOCK_NAME = 'SaaS_Stock_Test'
+TABLA_AUDITORIA_NAME = 'SaaS_Audit_Test'
 
 # 1. CONFIGURACIÓN E INTERFAZ
-st.set_page_config(page_title=f"Sistema {CLIENTE_NOMBRE}", layout="wide")
-
+st.set_page_config(page_title=f"Sistema {MI_SISTEMA_NOMBRE}", layout="wide")
 
 # --- AJUSTE GLOBAL DE TIEMPO PERÚ ---
 tz_peru = pytz.timezone('America/Lima')
-
 
 def obtener_tiempo_peru():
     ahora = datetime.now(tz_peru)
     return ahora.strftime("%d/%m/%Y"), ahora.strftime("%H:%M:%S"), ahora, ahora.strftime("%Y%m%d%H%M%S%f")
 
-
 # 2. CONEXIÓN SEGURA AWS
 try:
-    if "aws" not in st.secrets:
-        st.error("⚠️ Error crítico: Credenciales no configuradas.")
+    if "aws" not in st.secrets or "auth_multi" not in st.secrets:
+        st.error("⚠️ Error crítico: Credenciales no configuradas en Secrets.")
         st.stop()
         
     aws_id = st.secrets["aws"]["aws_access_key_id"]
     aws_key = st.secrets["aws"]["aws_secret_access_key"]
     aws_region = st.secrets["aws"]["aws_region"]
     
-    # CLAVE DIRECTA DESDE SECRETS
-    admin_password_configurada = st.secrets["auth"]["admin_password"] 
+    # NUEVO: Diccionario de clientes para SaaS
+    clientes_registrados = st.secrets["auth_multi"] 
     
     dynamodb = boto3.resource('dynamodb', region_name=aws_region,
                               aws_access_key_id=aws_id,
@@ -46,10 +45,9 @@ try:
     tabla_ventas = dynamodb.Table(TABLA_VENTAS_NAME)
     tabla_stock = dynamodb.Table(TABLA_STOCK_NAME)
     tabla_auditoria = dynamodb.Table(TABLA_AUDITORIA_NAME)
-except Exception:
-    st.error("Error de conexión: Comuníquese con soporte técnico.")
+except Exception as e:
+    st.error(f"Error de conexión: {e}")
     st.stop()
-
 
 # 3. CONTROL DE ESTADOS
 if 'sesion_iniciada' not in st.session_state: st.session_state.sesion_iniciada = False
@@ -58,10 +56,32 @@ if 'boleta' not in st.session_state: st.session_state.boleta = None
 if 'reset_v' not in st.session_state: st.session_state.reset_v = 0
 if 'df_stock_local' not in st.session_state: st.session_state.df_stock_local = None
 
+# --- LOGIN MULTI-USUARIO ---
+if not st.session_state.sesion_iniciada:
+    st.markdown(f"<h1 style='text-align: center;'>{MI_SISTEMA_EMOJI}</h1><h1 style='text-align: center; color: #2E86C1;'>{MI_SISTEMA_NOMBRE}</h1>", unsafe_allow_html=True)
+    col_login, _ = st.columns([1, 1])
+    with col_login:
+        clave_ingresada = st.text_input("Clave de acceso:", type="password")
+        if st.button("🔓 Ingresar", use_container_width=True):
+            if clave_ingresada.strip() in clientes_registrados:
+                st.session_state.sesion_iniciada = True
+                st.session_state.tenant_id = clave_ingresada.strip()
+                st.session_state.cliente_nombre = clientes_registrados[clave_ingresada.strip()]
+                st.rerun()
+            else: 
+                st.error("❌ Acceso denegado: Credenciales incorrectas")
+    st.stop()
+
+TENANT_ID = st.session_state.tenant_id
+CLIENTE_ACTUAL = st.session_state.cliente_nombre
 
 def actualizar_stock_local():
     try:
-        items = tabla_stock.scan().get('Items', [])
+        # IMPORTANTE: Solo leemos los items del cliente actual (TenantID)
+        response = tabla_stock.query(
+            KeyConditionExpression=Key('TenantID').eq(TENANT_ID)
+        )
+        items = response.get('Items', [])
         if items:
             df = pd.DataFrame(items)
             for col in ['Stock', 'Precio', 'P_Compra_U']:
@@ -71,6 +91,7 @@ def actualizar_stock_local():
             df['P_Compra_U'] = pd.to_numeric(df['P_Compra_U'], errors='coerce').fillna(0.0)
             
             df['Producto'] = df['Producto'].astype(str).str.upper().str.strip()
+            # Agrupamos por producto dentro del mismo Tenant
             df = df.groupby('Producto').agg({
                 'Stock': 'sum', 
                 'Precio': 'max', 
@@ -83,40 +104,20 @@ def actualizar_stock_local():
     except:
         st.session_state.df_stock_local = pd.DataFrame(columns=['Producto', 'Stock', 'Precio', 'P_Compra_U'])
 
-
 if st.session_state.df_stock_local is None:
     actualizar_stock_local()
 
 df_stock = st.session_state.df_stock_local
 
-
-# --- LOGIN SIMPLE (COMPARACIÓN DIRECTA) ---
-if not st.session_state.sesion_iniciada:
-    st.markdown(f"<h1 style='text-align: center;'>{CLIENTE_EMOJI}</h1><h1 style='text-align: center; color: #2E86C1;'>Sistema {CLIENTE_NOMBRE}</h1>", unsafe_allow_html=True)
-    col_login, _ = st.columns([1, 1])
-    with col_login:
-        clave_ingresada = st.text_input("Clave de acceso:", type="password")
-        if st.button("🔓 Ingresar", use_container_width=True):
-            # Comparamos el texto ingresado directamente con el del secret
-            if clave_ingresada.strip() == admin_password_configurada.strip():
-                st.session_state.sesion_iniciada = True
-                st.rerun()
-            else: 
-                st.error("❌ Acceso denegado: Credenciales incorrectas")
-    st.stop()
-
-
 with st.sidebar:
-    st.title(f"{CLIENTE_EMOJI} Panel")
+    st.title(f"{MI_SISTEMA_EMOJI} Panel")
     if st.button("🔴 CERRAR SESIÓN", use_container_width=True):
         st.session_state.sesion_iniciada = False
         st.rerun()
     st.divider()
-    st.info(f"Empresa: {CLIENTE_NOMBRE}")
-
+    st.info(f"Empresa: {CLIENTE_ACTUAL}")
 
 tabs = st.tabs(["🛒 VENTA", "📦 STOCK", "📊 REPORTES", "📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."])
-
 
 # 1. PESTAÑA DE VENTAS
 with tabs[0]:
@@ -125,7 +126,7 @@ with tabs[0]:
         b = st.session_state.boleta
         ticket = f"""
         <div style="background-color: white; color: #000; padding: 20px; border: 2px solid #000; border-radius: 10px; max-width: 350px; margin: auto; font-family: monospace;">
-            <center><b>{CLIENTE_NOMBRE}</b><br>{b['fecha']} {b['hora']}</center>
+            <center><b>{CLIENTE_ACTUAL}</b><br>{b['fecha']} {b['hora']}</center>
             <hr style="border-top: 1px dashed black;">
             <table style="width: 100%;">
                 <tr><td><b>Cant</b></td><td><b>Prod</b></td><td style="text-align: right;"><b>Tot</b></td></tr>
@@ -185,17 +186,22 @@ with tabs[0]:
                 f, h, _, uid = obtener_tiempo_peru()
                 st.session_state.boleta = {'fecha': f, 'hora': h, 'items': list(st.session_state.carrito), 'total_bruto': t_bruto, 'rebaja_total': rebaja, 'total_neto': t_final, 'metodo': metodo}
                 for idx, item in enumerate(st.session_state.carrito):
+                    # Actualización con TenantID
                     nuevo_s = int(df_stock[df_stock['Producto'] == item['Producto']]['Stock'].values[0]) - item['Cantidad']
-                    tabla_stock.update_item(Key={'Producto': item['Producto']}, UpdateExpression="set Stock = :s", ExpressionAttributeValues={':s': nuevo_s})
+                    tabla_stock.update_item(
+                        Key={'TenantID': TENANT_ID, 'Producto': item['Producto']}, 
+                        UpdateExpression="set Stock = :s", 
+                        ExpressionAttributeValues={':s': nuevo_s}
+                    )
                     val_db = item['Subtotal'] - rebaja if idx == 0 else item['Subtotal']
                     tabla_ventas.put_item(Item={
+                        'TenantID': TENANT_ID,
                         'ID_Venta': f"V-{uid}-{idx}", 'Fecha': f, 'Hora': h, 
                         'Producto': item['Producto'], 'Cantidad': int(item['Cantidad']), 
                         'Total': str(round(max(0, val_db), 2)), 'Metodo': metodo,
                         'P_Compra_U': str(item['P_Compra_U'])
                     })
                 st.session_state.carrito = []; actualizar_stock_local(); st.rerun()
-
 
 # 2. STOCK
 with tabs[1]:
@@ -206,12 +212,12 @@ with tabs[1]:
         def color_stock(val): return 'color: #FF4B4B; font-weight: bold;' if val < 5 else 'color: white;'
         st.dataframe(df_f.style.map(color_stock, subset=['Stock']).format({"Precio": "S/ {:.2f}", "P_Compra_U": "S/ {:.2f}"}), use_container_width=True, hide_index=True)
 
-
 # 3. REPORTES
 with tabs[2]:
     st.subheader("📊 Caja y Ganancias")
     f_bus = st.date_input("Consultar Fecha:", value=datetime.now(tz_peru)).strftime("%d/%m/%Y")
-    v_data = tabla_ventas.scan().get('Items', [])
+    # Consulta filtrada por cliente
+    v_data = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(TENANT_ID)).get('Items', [])
     if v_data:
         df_v = pd.DataFrame(v_data)
         df_hoy = df_v[df_v['Fecha'] == f_bus].copy() if not df_v.empty else pd.DataFrame()
@@ -226,12 +232,12 @@ with tabs[2]:
             st.divider()
             st.dataframe(df_hoy.sort_values(by='Hora', ascending=False)[['Hora', 'Producto', 'Cantidad', 'Total', 'Ganancia', 'Metodo']], use_container_width=True, hide_index=True)
 
-
-# 4. HISTORIAL (ORDENADO)
+# 4. HISTORIAL
 with tabs[3]:
     st.subheader("📋 Movimientos de Inventario")
     f_hist = st.date_input("Fecha de movimientos:", value=datetime.now(tz_peru), key="f_hist_k").strftime("%d/%m/%Y")
-    h_data = tabla_auditoria.scan().get('Items', [])
+    # Consulta filtrada por cliente
+    h_data = tabla_auditoria.query(KeyConditionExpression=Key('TenantID').eq(TENANT_ID)).get('Items', [])
     if h_data:
         df_h = pd.DataFrame(h_data)
         df_h_filt = df_h[df_h['Fecha'] == f_hist].copy()
@@ -239,8 +245,7 @@ with tabs[3]:
             df_h_filt = df_h_filt.sort_values(by='Hora', ascending=False)
             st.dataframe(df_h_filt[['Hora', 'Producto', 'Cantidad_Entrante', 'Stock_Resultante']], use_container_width=True, hide_index=True)
 
-
-# 5. CARGAR STOCK (CON INTEGRIDAD DE DATOS)
+# 5. CARGAR STOCK
 with tabs[4]:
     st.subheader("📥 Registro de Mercadería")
     opcion_carga = st.radio("Método de carga:", ["Individual", "Masiva (Excel/CSV)"], horizontal=True)
@@ -267,8 +272,9 @@ with tabs[4]:
                     f, h, _, uid = obtener_tiempo_peru()
                     s_act = int(df_stock[df_stock['Producto'] == p_limpio]['Stock'].values[0]) if p_limpio in df_stock['Producto'].values else 0
                     n_total = s_act + cant_c
-                    tabla_stock.put_item(Item={'Producto': p_limpio, 'Stock': n_total, 'Precio': str(round(pr_venta, 2)), 'P_Compra_U': str(round(pr_compra, 2))})
-                    tabla_auditoria.put_item(Item={'ID_Ingreso': f"I-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_limpio, 'Cantidad_Entrante': int(cant_c), 'Stock_Resultante': int(n_total)})
+                    # Inserción con TenantID
+                    tabla_stock.put_item(Item={'TenantID': TENANT_ID, 'Producto': p_limpio, 'Stock': n_total, 'Precio': str(round(pr_venta, 2)), 'P_Compra_U': str(round(pr_compra, 2))})
+                    tabla_auditoria.put_item(Item={'TenantID': TENANT_ID, 'ID_Ingreso': f"I-{uid}", 'Fecha': f, 'Hora': h, 'Producto': p_limpio, 'Cantidad_Entrante': int(cant_c), 'Stock_Resultante': int(n_total)})
                     actualizar_stock_local(); st.success("✅ Stock actualizado!"); time.sleep(1); st.rerun()
 
     else:
@@ -279,9 +285,9 @@ with tabs[4]:
             f, h, _, uid = obtener_tiempo_peru()
             for i, row in df_masivo.iterrows():
                 p_nom = str(row['Producto']).upper().strip()
-                tabla_stock.put_item(Item={'Producto': p_nom, 'Stock': int(row['Stock']), 'Precio': str(round(float(row['Precio']), 2)), 'P_Compra_U': str(round(float(row['P_Compra_U']), 2))})
+                # Inserción masiva con TenantID
+                tabla_stock.put_item(Item={'TenantID': TENANT_ID, 'Producto': p_nom, 'Stock': int(row['Stock']), 'Precio': str(round(float(row['Precio']), 2)), 'P_Compra_U': str(round(float(row['P_Compra_U']), 2))})
             st.success("✅ Carga masiva exitosa."); actualizar_stock_local(); time.sleep(2); st.rerun()
-
 
 # 6. MANTENIMIENTO
 with tabs[5]:
@@ -294,7 +300,11 @@ with tabs[5]:
         c_act = col1.number_input("Nuevo Costo Compra:", value=float(info_e['P_Compra_U']))
         v_act = col2.number_input("Nuevo Precio Venta:", value=float(info_e['Precio']))
         if st.button("💾 Guardar Cambios"):
-            tabla_stock.update_item(Key={'Producto': p_edit}, UpdateExpression="set P_Compra_U = :c, Precio = :p", ExpressionAttributeValues={':c': str(round(c_act, 2)), ':p': str(round(v_act, 2))})
+            tabla_stock.update_item(
+                Key={'TenantID': TENANT_ID, 'Producto': p_edit}, 
+                UpdateExpression="set P_Compra_U = :c, Precio = :p", 
+                ExpressionAttributeValues={':c': str(round(c_act, 2)), ':p': str(round(v_act, 2))}
+            )
             actualizar_stock_local(); st.success("✅ Precios actualizados"); time.sleep(1); st.rerun()
             
     st.divider()
@@ -302,6 +312,6 @@ with tabs[5]:
     p_del = st.selectbox("Producto a eliminar:", [""] + df_stock['Producto'].tolist())
     if st.button("🗑️ ELIMINAR") and p_del:
         f, h, _, uid = obtener_tiempo_peru()
-        tabla_auditoria.put_item(Item={'ID_Ingreso': f"DEL-{uid}", 'Fecha': f, 'Hora': h, 'Producto': f"❌ ELIMINADO: {p_del}", 'Cantidad_Entrante': 0, 'Stock_Resultante': 0})
-        tabla_stock.delete_item(Key={'Producto': p_del})
+        tabla_auditoria.put_item(Item={'TenantID': TENANT_ID, 'ID_Ingreso': f"DEL-{uid}", 'Fecha': f, 'Hora': h, 'Producto': f"❌ ELIMINADO: {p_del}", 'Cantidad_Entrante': 0, 'Stock_Resultante': 0})
+        tabla_stock.delete_item(Key={'TenantID': TENANT_ID, 'Producto': p_del})
         actualizar_stock_local(); st.error(f"{p_del} eliminado."); time.sleep(1.5); st.rerun()
