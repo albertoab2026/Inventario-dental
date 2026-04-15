@@ -3,7 +3,6 @@ import pandas as pd
 import boto3
 from datetime import datetime
 import pytz
-import time
 from boto3.dynamodb.conditions import Attr
 
 # ==========================================
@@ -14,7 +13,6 @@ st.set_page_config(page_title=MARCA_SaaS, layout="wide", page_icon="🚀")
 
 TABLA_VENTAS_NAME = 'SaaS_Ventas_Test'
 TABLA_STOCK_NAME = 'SaaS_Stock_Test'
-
 tz_peru = pytz.timezone('America/Lima')
 
 def obtener_tiempo_peru():
@@ -38,7 +36,7 @@ try:
     tabla_ventas = dynamodb.Table(TABLA_VENTAS_NAME)
     tabla_stock = dynamodb.Table(TABLA_STOCK_NAME)
 except Exception as e:
-    st.error(f"Error crítico de conexión: {e}")
+    st.error(f"Error de conexión AWS: {e}")
     st.stop()
 
 # ==========================================
@@ -68,13 +66,13 @@ def actualizar_stock_local():
         st.session_state.df_stock_local = pd.DataFrame(columns=['Producto', 'Stock', 'Precio', 'P_Compra_U'])
 
 # ==========================================
-# 4. LOGIN
+# 4. LOGIN MULTIUSUARIO
 # ==========================================
 if not st.session_state.sesion_iniciada:
-    st.markdown(f"<div style='text-align: center; padding: 10px;'><h1 style='color: #3498DB;'>{MARCA_SaaS}</h1></div>", unsafe_allow_html=True)
+    st.markdown(f"<h1 style='text-align: center; color: #3498DB;'>{MARCA_SaaS}</h1>", unsafe_allow_html=True)
     auth_multi = st.secrets.get("auth_multi", {})
     locales = list(auth_multi.keys())
-    col1, _ = st.columns([1,1])
+    col1, _ = st.columns([1, 1])
     with col1:
         st.subheader("🔑 Acceso")
         local_sel = st.selectbox("Empresa:", locales)
@@ -85,16 +83,12 @@ if not st.session_state.sesion_iniciada:
                 st.session_state.tenant_id = local_sel
                 actualizar_stock_local()
                 st.rerun()
-            else: st.error("Clave incorrecta.")
+            else: st.error("Contraseña incorrecta.")
     st.stop()
-
-# ==========================================
-# 5. INTERFAZ PRINCIPAL
-# ==========================================
 with st.sidebar:
     st.markdown(f"### {MARCA_SaaS}")
-    st.write(f"🏢 {st.session_state.tenant_id}")
-    if st.button("🔴 CERRAR SESIÓN", use_container_width=True):
+    st.info(f"🏢 {st.session_state.tenant_id}")
+    if st.button("🔴 CERRAR SESIÓN"):
         st.session_state.sesion_iniciada = False
         st.rerun()
 
@@ -110,8 +104,8 @@ with tabs[0]:
         st.markdown(f"<div style='background-color: white; color: black; padding: 20px; border: 2px solid black; max-width: 320px; margin: auto; font-family: monospace;'><center><b>{st.session_state.tenant_id}</b><br>{b['fecha']}</center><hr>{items_html}<hr><h3>TOTAL: S/ {b['total_neto']:.2f}</h3></div>", unsafe_allow_html=True)
         if st.button("⬅️ NUEVA VENTA"): st.session_state.boleta = None; st.rerun()
     else:
-        st.subheader("Ventas")
-        bus_v = st.text_input("🔍 Buscar:", key="bus_v").upper()
+        st.subheader("Punto de Venta")
+        bus_v = st.text_input("🔍 Buscar Producto:", key="bus_v").upper()
         prod_filt = [p for p in df_stock['Producto'].tolist() if bus_v in p]
         c1, c2 = st.columns(2)
         with c1:
@@ -122,7 +116,7 @@ with tabs[0]:
             else: st.warning("Sin resultados.")
         with c2: cant = st.number_input("Cantidad:", min_value=1, value=1, key=f"c_{st.session_state.reset_v}")
         
-        if st.button("➕ AÑADIR", use_container_width=True) and prod_filt:
+        if st.button("➕ AÑADIR AL CARRITO", use_container_width=True) and prod_filt:
             if cant <= info['Stock']:
                 st.session_state.carrito.append({'Producto': p_sel, 'Cantidad': int(cant), 'Precio': float(info['Precio']), 'P_Compra_U': float(info['P_Compra_U']), 'Subtotal': round(float(info['Precio']) * cant, 2), 'TenantID': st.session_state.tenant_id})
                 st.session_state.reset_v += 1; st.rerun()
@@ -131,7 +125,7 @@ with tabs[0]:
         if st.session_state.carrito:
             df_c = pd.DataFrame(st.session_state.carrito)
             st.table(df_c[['Producto', 'Cantidad', 'Subtotal']])
-            if st.button("🚀 FINALIZAR"):
+            if st.button("🚀 FINALIZAR VENTA"):
                 f, h, dt, idv = obtener_tiempo_peru()
                 total = df_c['Subtotal'].sum()
                 try:
@@ -144,24 +138,21 @@ with tabs[0]:
                         )
                     st.session_state.boleta = {'fecha': f, 'items': st.session_state.carrito, 'total_neto': total}
                     st.session_state.carrito = []; actualizar_stock_local(); st.rerun()
-                except Exception as e: st.error(f"Error AWS: {e}")
-# --- PESTAÑA STOCK ---
+                except Exception as e: st.error(f"Error en AWS: {e}")
+# --- PESTAÑA STOCK, REPORTES, HISTORIAL ---
 with tabs[1]: 
     st.subheader("📦 Inventario Actual")
-    if not df_stock.empty:
-        st.dataframe(df_stock, use_container_width=True)
-    else:
-        st.info("El inventario está vacío.")
+    st.dataframe(df_stock, use_container_width=True)
 
-# --- PESTAÑA REPORTES E HISTORIAL ---
 with tabs[2]: 
-    st.info("📊 Reportes Nexus próximamente (Ventas por fecha y utilidades).")
-with tabs[3]: 
-    st.info("📋 Historial de Movimientos de inventario.")
+    st.info("📊 Reportes Nexus próximamente (Análisis de utilidades y ventas).")
 
-# --- PESTAÑA CARGAR (OPTIMIZADA CON BATCH WRITER) ---
+with tabs[3]: 
+    st.info("📋 Historial de Movimientos próximamente.")
+
+# --- PESTAÑA CARGAR (SOLUCIÓN ERROR DE DUPLICADOS) ---
 with tabs[4]:
-    st.subheader("📥 Entrada de Mercadería")
+    st.subheader("📥 Carga de Mercadería")
     c_i, c_m = st.columns(2)
     with c_i:
         st.write("✍️ Registro Individual")
@@ -170,7 +161,7 @@ with tabs[4]:
             si = st.number_input("Stock Inicial:", min_value=0)
             pi = st.number_input("Precio Venta:", min_value=0.0)
             ci = st.number_input("Precio Compra:", min_value=0.0)
-            if st.form_submit_button("Guardar en Nube"):
+            if st.form_submit_button("Guardar"):
                 if ni:
                     tabla_stock.put_item(Item={
                         'Producto': ni, 
@@ -179,58 +170,62 @@ with tabs[4]:
                         'Precio': str(pi), 
                         'P_Compra_U': str(ci)
                     })
-                    st.success(f"✅ {ni} guardado correctamente"); actualizar_stock_local(); st.rerun()
+                    st.success("¡Producto Guardado!"); actualizar_stock_local(); st.rerun()
+    
     with c_m:
         st.write("📂 Carga Masiva (Excel/CSV)")
-        archivo = st.file_uploader("Subir archivo:", type=['xlsx', 'csv'])
+        archivo = st.file_uploader("Subir archivo:", type=['csv', 'xlsx'])
         if archivo:
-            df_m = pd.read_csv(archivo) if archivo.name.endswith('.csv') else pd.read_excel(archivo)
-            st.dataframe(df_m.head(3))
-            if st.button("🚀 INICIAR CARGA MASIVA"):
-                try:
-                    # El batch_writer es mucho más rápido y evita errores de AWS
+            try:
+                df_m = pd.read_csv(archivo) if archivo.name.endswith('.csv') else pd.read_excel(archivo)
+                
+                # --- LIMPIEZA CLAVE: Elimina duplicados para evitar el error de AWS ---
+                df_m['Producto'] = df_m['Producto'].astype(str).str.upper().str.strip()
+                df_m = df_m.drop_duplicates(subset=['Producto']) 
+                
+                st.write(f"Registros únicos a subir: {len(df_m)}")
+                st.dataframe(df_m.head(3))
+                
+                if st.button("🚀 INICIAR CARGA MASIVA"):
                     with tabla_stock.batch_writer() as batch:
                         for _, r in df_m.iterrows():
                             batch.put_item(Item={
-                                'Producto': str(r['Producto']).upper().strip(), 
+                                'Producto': r['Producto'], 
                                 'TenantID': st.session_state.tenant_id, 
                                 'Stock': int(r.get('Stock', 0)), 
                                 'Precio': str(r.get('Precio', 0)), 
                                 'P_Compra_U': str(r.get('P_Compra_U', 0))
                             })
-                    st.success("¡Carga masiva terminada con éxito!"); actualizar_stock_local(); st.rerun()
-                except Exception as e:
-                    st.error(f"Error en carga: {e}")
+                    st.success("¡Carga terminada con éxito!"); actualizar_stock_local(); st.rerun()
+            except Exception as e:
+                st.error(f"Error procesando archivo: {e}")
 
-# --- PESTAÑA MANTENIMIENTO ---
+# --- PESTAÑA MANTENIMIENTO (LLAVE COMPUESTA) ---
 with tabs[5]:
     st.subheader("🛠️ Gestión de Inventario")
     if not df_stock.empty:
         p_lista = df_stock['Producto'].tolist()
-        pm = st.selectbox("Seleccione un producto para editar o borrar:", p_lista)
-        # Extraemos los datos actuales del producto seleccionado
+        pm = st.selectbox("Seleccione producto para editar/borrar:", p_lista)
         im = df_stock[df_stock['Producto'] == pm].iloc[0]
         
         c_m1, c_m2 = st.columns(2)
         with c_m1:
-            st.write("🔄 **Actualizar Precios**")
-            uv = st.number_input("Nuevo Precio Venta:", value=float(im['Precio']))
-            uc = st.number_input("Nuevo Precio Compra:", value=float(im['P_Compra_U']))
-            if st.button("🔄 ACTUALIZAR"):
-                # IMPORTANTE: Usamos la llave completa (Producto + TenantID)
+            st.write("🔄 **Actualizar**")
+            nv = st.number_input("Nuevo Precio Venta:", value=float(im['Precio']))
+            nc = st.number_input("Nuevo Precio Compra:", value=float(im['P_Compra_U']))
+            if st.button("🔄 ACTUALIZAR DATOS"):
                 tabla_stock.update_item(
                     Key={'Producto': pm, 'TenantID': st.session_state.tenant_id}, 
                     UpdateExpression="SET Precio = :v, P_Compra_U = :c", 
-                    ExpressionAttributeValues={':v': str(uv), ':c': str(uc)}
+                    ExpressionAttributeValues={':v': str(nv), ':c': str(nc)}
                 )
-                st.success("Precios actualizados correctamente"); actualizar_stock_local(); st.rerun()
+                st.success("Actualizado"); actualizar_stock_local(); st.rerun()
         
         with c_m2:
-            st.write("🗑️ **Zona de Peligro**")
-            st.warning(f"¿Deseas eliminar '{pm}' permanentemente?")
-            if st.button("❌ ELIMINAR PRODUCTO"):
-                # IMPORTANTE: Usamos la llave completa (Producto + TenantID)
+            st.write("🗑️ **Eliminar**")
+            st.warning(f"¿Borrar permanentemente {pm}?")
+            if st.button("❌ ELIMINAR AHORA"):
                 tabla_stock.delete_item(Key={'Producto': pm, 'TenantID': st.session_state.tenant_id})
-                st.error(f"Producto {pm} eliminado."); actualizar_stock_local(); st.rerun()
+                st.error("Producto eliminado"); actualizar_stock_local(); st.rerun()
     else:
-        st.info("No hay productos disponibles para gestionar.")
+        st.info("No hay productos cargados.")
