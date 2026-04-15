@@ -4,6 +4,7 @@ import boto3
 from datetime import datetime
 import pytz
 from boto3.dynamodb.conditions import Attr
+import io
 
 # --- 1. CONFIGURACIÓN INICIAL ---
 st.set_page_config(page_title="NEXUS BALLARTA SaaS", layout="wide", page_icon="🚀")
@@ -54,38 +55,86 @@ if st.sidebar.button("Cerrar Sesión"):
     st.session_state.auth = False
     st.rerun()
 
-# Pestañas solicitadas
 tabs = st.tabs(["🛒 VENTA", "📦 STOCK", "📊 REPORTES", "📋 HISTORIAL", "📥 CARGA", "🛠️ MANTENIMIENTO"])
 
-# --- CONSULTA DE DATOS (Tenant Isolation) ---
-# Esto extrae solo los productos que pertenecen al local logueado
+# Consulta de Stock para las demás pestañas
 res_stock = t_stock.scan(FilterExpression=Attr('TenantID').eq(st.session_state.tenant))
 df_stock = pd.DataFrame(res_stock.get('Items', []))
 
-# --- PESTAÑA: CARGA ---
+# --- PESTAÑA: CARGA (CON CARGA MASIVA EXCEL/CSV) ---
 with tabs[4]:
-    st.subheader("📥 Registro de Productos Nuevos")
-    st.info("Usa esta pestaña para subir tus productos por primera vez.")
-    with st.form("form_registro"):
-        col1, col2 = st.columns(2)
-        with col1:
-            nom = st.text_input("Nombre del Producto:").upper().strip()
-            stk = st.number_input("Stock Inicial:", min_value=0, step=1)
-        with col2:
-            p_v = st.number_input("Precio Venta (S/):", min_value=0.0)
-            p_c = st.number_input("Precio Compra (S/):", min_value=0.0)
+    st.subheader("📥 Gestión de Carga de Productos")
+    
+    modo_carga = st.radio("Seleccione método:", ["Individual (Manual)", "Masivo (Excel / CSV)"], horizontal=True)
+
+    if modo_carga == "Individual (Manual)":
+        with st.form("form_registro"):
+            col1, col2 = st.columns(2)
+            with col1:
+                nom = st.text_input("Nombre del Producto:").upper().strip()
+                stk = st.number_input("Stock Inicial:", min_value=0, step=1)
+            with col2:
+                p_v = st.number_input("Precio Venta (S/):", min_value=0.0)
+                p_c = st.number_input("Precio Compra (S/):", min_value=0.0)
+            
+            if st.form_submit_button("🚀 Guardar Producto"):
+                if nom:
+                    t_stock.put_item(Item={
+                        'TenantID': st.session_state.tenant,
+                        'Producto': nom,
+                        'Stock': int(stk),
+                        'Precio': str(p_v),
+                        'Precio_Compra': str(p_c)
+                    })
+                    st.success(f"✅ {nom} guardado.")
+                    st.rerun()
+    
+    else:
+        st.info("💡 Sube un archivo con 4 columnas: **Producto, Stock, Precio, Precio_Compra**")
         
-        if st.form_submit_button("🚀 Guardar Producto"):
-            if nom:
-                t_stock.put_item(Item={
-                    'TenantID': st.session_state.tenant,
-                    'Producto': nom,
-                    'Stock': int(stk),
-                    'Precio': str(p_v),
-                    'Precio_Compra': str(p_c)
-                })
-                st.success(f"✅ {nom} guardado. Ya aparecerá en Ventas y Stock.")
-                st.rerun()
+        # Botón para descargar plantilla de ejemplo
+        df_ejemplo = pd.DataFrame(columns=["Producto", "Stock", "Precio", "Precio_Compra"])
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df_ejemplo.to_excel(writer, index=False)
+        
+        st.download_button(
+            label="📄 Descargar Plantilla Excel",
+            data=buffer.getvalue(),
+            file_name="plantilla_carga_nexus.xlsx",
+            mime="application/vnd.ms-excel"
+        )
+
+        archivo_subido = st.file_uploader("Arrastra tu Excel o CSV aquí", type=['xlsx', 'csv'])
+        
+        if archivo_subido:
+            try:
+                if archivo_subido.name.endswith('.csv'):
+                    df_masivo = pd.read_csv(archivo_subido)
+                else:
+                    df_masivo = pd.read_excel(archivo_subido)
+                
+                st.write("### Vista previa de productos a subir:")
+                st.dataframe(df_masivo, use_container_width=True)
+                
+                if st.button("⬆️ Subir todos los productos a la Nube"):
+                    progreso = st.progress(0)
+                    total_filas = len(df_masivo)
+                    
+                    for i, fila in df_masivo.iterrows():
+                        t_stock.put_item(Item={
+                            'TenantID': st.session_state.tenant,
+                            'Producto': str(fila['Producto']).upper().strip(),
+                            'Stock': int(fila['Stock']),
+                            'Precio': str(fila['Precio']),
+                            'Precio_Compra': str(fila['Precio_Compra'])
+                        })
+                        progreso.progress((i + 1) / total_filas)
+                    
+                    st.success(f"✅ ¡Éxito! Se han cargado {total_filas} productos.")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Error en el formato del archivo: {e}")
 
 # --- PESTAÑA: STOCK ---
 with tabs[1]:
@@ -93,104 +142,50 @@ with tabs[1]:
     if not df_stock.empty:
         st.dataframe(df_stock[['Producto', 'Stock', 'Precio']], use_container_width=True, hide_index=True)
     else:
-        st.warning("⚠️ El inventario está vacío. Por favor, ve a la pestaña 'CARGA' para añadir productos.")
+        st.warning("Inventario vacío. Usa la pestaña CARGA.")
 
 # --- PESTAÑA: VENTA ---
 with tabs[0]:
     st.subheader("🛒 Punto de Venta")
     if not df_stock.empty:
-        # Solo mostrar productos con stock mayor a 0
         df_con_stock = df_stock[df_stock['Stock'].astype(int) > 0]
-        
         if not df_con_stock.empty:
-            p_sel = st.selectbox("Seleccione Producto:", df_con_stock['Producto'].tolist())
+            p_sel = st.selectbox("Producto:", df_con_stock['Producto'].tolist())
             datos_p = df_con_stock[df_con_stock['Producto'] == p_sel].iloc[0]
+            st.metric("Precio", f"S/ {datos_p['Precio']}")
+            cant = st.number_input("Cantidad:", min_value=1, max_value=int(datos_p['Stock']), value=1)
             
-            c1, c2 = st.columns(2)
-            c1.metric("Precio", f"S/ {datos_p['Precio']}")
-            c2.metric("Disponible", datos_p['Stock'])
-            
-            cant = st.number_input("Cantidad a vender:", min_value=1, max_value=int(datos_p['Stock']), value=1)
-            
-            if st.button("➕ Añadir al Carrito"):
+            if st.button("➕ Añadir"):
                 st.session_state.carrito.append({
-                    'Producto': p_sel, 
-                    'Cantidad': int(cant), 
-                    'Precio': float(datos_p['Precio']),
-                    'Subtotal': round(float(datos_p['Precio']) * cant, 2)
+                    'Producto': p_sel, 'Cantidad': int(cant), 
+                    'Precio': float(datos_p['Precio']), 'Subtotal': round(float(datos_p['Precio']) * cant, 2)
                 })
                 st.rerun()
-        else:
-            st.error("No hay productos con stock disponible para vender.")
 
         if st.session_state.carrito:
-            st.markdown("---")
-            st.write("### Carrito de Compras")
             df_car = pd.DataFrame(st.session_state.carrito)
             st.table(df_car)
-            
-            col_f1, col_f2 = st.columns(2)
-            if col_f1.button("🗑️ Vaciar Carrito"):
-                st.session_state.carrito = []
-                st.rerun()
-                
-            if col_f2.button("🚀 FINALIZAR VENTA", type="primary"):
+            if st.button("🚀 FINALIZAR VENTA"):
                 f, h, uid = obtener_info_tiempo()
-                total = df_car['Subtotal'].sum()
-                
-                # 1. Guardar Venta
                 t_ventas.put_item(Item={
-                    'TenantID': st.session_state.tenant,
-                    'VentaID': f"V-{uid}",
-                    'Fecha': f,
-                    'Hora': h,
-                    'Total': str(total),
-                    'Detalle': df_car.to_dict('records')
+                    'TenantID': st.session_state.tenant, 'VentaID': f"V-{uid}",
+                    'Fecha': f, 'Hora': h, 'Total': str(df_car['Subtotal'].sum())
                 })
-                
-                # 2. Descontar Stock
                 for item in st.session_state.carrito:
                     t_stock.update_item(
                         Key={'TenantID': st.session_state.tenant, 'Producto': item['Producto']},
                         UpdateExpression="SET Stock = Stock - :val",
                         ExpressionAttributeValues={':val': int(item['Cantidad'])}
                     )
-                
                 st.session_state.carrito = []
-                st.success("✅ Venta realizada!")
+                st.success("Venta realizada.")
                 st.rerun()
-    else:
-        st.info("No hay productos registrados. Por favor, ve a la pestaña 'CARGA'.")
 
 # --- PESTAÑA: MANTENIMIENTO ---
 with tabs[5]:
-    st.subheader("🛠️ Gestión de Productos")
+    st.subheader("🛠️ Mantenimiento")
     if not df_stock.empty:
-        p_mant = st.selectbox("Seleccione producto para gestionar:", df_stock['Producto'].tolist())
-        
-        c_m1, c_m2 = st.columns(2)
-        if c_m1.button("❌ ELIMINAR PRODUCTO", use_container_width=True):
+        p_mant = st.selectbox("Seleccione producto para borrar:", df_stock['Producto'].tolist())
+        if st.button("🗑️ Borrar Producto"):
             t_stock.delete_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_mant})
-            st.warning(f"Producto {p_mant} eliminado.")
             st.rerun()
-        
-        st.info("Para editar el precio o stock, simplemente vuelve a cargarlo con el mismo nombre en la pestaña CARGA y se sobrescribirá.")
-    else:
-        st.write("No hay productos para gestionar.")
-
-# --- PESTAÑAS: REPORTES E HISTORIAL ---
-res_ventas = t_ventas.scan(FilterExpression=Attr('TenantID').eq(st.session_state.tenant))
-df_ventas = pd.DataFrame(res_ventas.get('Items', []))
-
-with tabs[2]:
-    st.subheader("📊 Reportes")
-    if not df_ventas.empty:
-        total_acumulado = pd.to_numeric(df_ventas['Total']).sum()
-        st.metric("Ventas Totales del Local", f"S/ {total_acumulado:.2f}")
-    else:
-        st.write("Aún no hay ventas registradas.")
-
-with tabs[3]:
-    st.subheader("📋 Historial")
-    if not df_ventas.empty:
-        st.dataframe(df_ventas[['VentaID', 'Fecha', 'Hora', 'Total']], use_container_width=True)
