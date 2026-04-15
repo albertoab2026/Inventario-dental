@@ -4,6 +4,7 @@ import boto3
 from datetime import datetime
 import pytz
 import time
+import hashlib # 1. Importado para seguridad pro
 
 # 0. CONFIGURACIÓN DEL CLIENTE (SaaS READY)
 # Esta sección permite clonar el sistema para otros negocios
@@ -27,6 +28,11 @@ def obtener_tiempo_peru():
     return ahora.strftime("%d/%m/%Y"), ahora.strftime("%H:%M:%S"), ahora, ahora.strftime("%Y%m%d%H%M%S%f")
 
 
+# 2. FUNCIÓN DE BLINDAJE (LA TRITURADORA)
+def generar_hash(palabra):
+    return hashlib.sha256(palabra.encode()).hexdigest()
+
+
 # 2. CONEXIÓN SEGURA AWS (BLINDAJE DE CREDENCIALES)
 try:
     # Verificación de integridad de secretos
@@ -37,7 +43,7 @@ try:
     aws_id = st.secrets["aws"]["aws_access_key_id"]
     aws_key = st.secrets["aws"]["aws_secret_access_key"]
     aws_region = st.secrets["aws"]["aws_region"]
-    admin_pass = st.secrets["auth"]["admin_password"]
+    admin_hash_guardado = st.secrets["auth"]["admin_password"] # Lee el Hash de secrets
     
     dynamodb = boto3.resource('dynamodb', region_name=aws_region,
                               aws_access_key_id=aws_id,
@@ -92,14 +98,15 @@ if st.session_state.df_stock_local is None:
 df_stock = st.session_state.df_stock_local
 
 
-# --- LOGIN SEGURO (ANTI-FUERZA BRUTA CON FRENO DE 3 SEGUNDOS) ---
+# --- LOGIN SEGURO (ANTI-FUERZA BRUTA Y HASHING) ---
 if not st.session_state.sesion_iniciada:
     st.markdown(f"<h1 style='text-align: center;'>{CLIENTE_EMOJI}</h1><h1 style='text-align: center; color: #2E86C1;'>Sistema {CLIENTE_NOMBRE}</h1>", unsafe_allow_html=True)
     col_login, _ = st.columns([1, 1])
     with col_login:
-        clave = st.text_input("Clave de acceso:", type="password")
+        clave_ingresada = st.text_input("Clave de acceso:", type="password")
         if st.button("🔓 Ingresar", use_container_width=True):
-            if clave == admin_pass:
+            # 3. Compara el Hash de lo escrito con el Hash guardado
+            if generar_hash(clave_ingresada) == admin_hash_guardado:
                 st.session_state.sesion_iniciada = True
                 st.rerun()
             else: 
@@ -115,7 +122,7 @@ with st.sidebar:
         st.session_state.sesion_iniciada = False
         st.rerun()
     st.divider()
-    st.info(f"Empresa: {CLIENTE_NOMBRE}\nEstado: Conexión Segura")
+    st.info(f"Empresa: {CLIENTE_NOMBRE}\nEstado: Conexión Segura (SHA-256)")
 
 
 tabs = st.tabs(["🛒 VENTA", "📦 STOCK", "📊 REPORTES", "📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."])
