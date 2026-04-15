@@ -14,6 +14,7 @@ MI_SISTEMA_EMOJI = "🚀"
 TABLA_VENTAS_NAME = 'SaaS_Ventas_Test'
 TABLA_STOCK_NAME = 'SaaS_Stock_Test'
 TABLA_AUDITORIA_NAME = 'SaaS_Audit_Test'
+INDICE_NAME = 'TenantID-index'  # El índice que creaste en AWS
 
 # 1. CONFIGURACIÓN E INTERFAZ
 st.set_page_config(page_title=f"Sistema {MI_SISTEMA_NOMBRE}", layout="wide")
@@ -77,8 +78,9 @@ CLIENTE_ACTUAL = st.session_state.cliente_nombre
 
 def actualizar_stock_local():
     try:
-        # IMPORTANTE: Solo leemos los items del cliente actual (TenantID)
+        # IMPORTANTE: Usamos el IndexName para filtrar por TenantID rápidamente
         response = tabla_stock.query(
+            IndexName=INDICE_NAME,
             KeyConditionExpression=Key('TenantID').eq(TENANT_ID)
         )
         items = response.get('Items', [])
@@ -101,7 +103,8 @@ def actualizar_stock_local():
             st.session_state.df_stock_local = df[['Producto', 'Stock', 'Precio', 'P_Compra_U']].sort_values(by='Producto')
         else:
             st.session_state.df_stock_local = pd.DataFrame(columns=['Producto', 'Stock', 'Precio', 'P_Compra_U'])
-    except:
+    except Exception as e:
+        st.error(f"Error al leer stock: {e}")
         st.session_state.df_stock_local = pd.DataFrame(columns=['Producto', 'Stock', 'Precio', 'P_Compra_U'])
 
 if st.session_state.df_stock_local is None:
@@ -216,8 +219,12 @@ with tabs[1]:
 with tabs[2]:
     st.subheader("📊 Caja y Ganancias")
     f_bus = st.date_input("Consultar Fecha:", value=datetime.now(tz_peru)).strftime("%d/%m/%Y")
-    # Consulta filtrada por cliente
-    v_data = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(TENANT_ID)).get('Items', [])
+    # Consulta filtrada por cliente usando el Índice
+    v_data = tabla_ventas.query(
+        IndexName=INDICE_NAME,
+        KeyConditionExpression=Key('TenantID').eq(TENANT_ID)
+    ).get('Items', [])
+    
     if v_data:
         df_v = pd.DataFrame(v_data)
         df_hoy = df_v[df_v['Fecha'] == f_bus].copy() if not df_v.empty else pd.DataFrame()
@@ -236,8 +243,12 @@ with tabs[2]:
 with tabs[3]:
     st.subheader("📋 Movimientos de Inventario")
     f_hist = st.date_input("Fecha de movimientos:", value=datetime.now(tz_peru), key="f_hist_k").strftime("%d/%m/%Y")
-    # Consulta filtrada por cliente
-    h_data = tabla_auditoria.query(KeyConditionExpression=Key('TenantID').eq(TENANT_ID)).get('Items', [])
+    # Consulta filtrada por cliente usando el Índice
+    h_data = tabla_auditoria.query(
+        IndexName=INDICE_NAME,
+        KeyConditionExpression=Key('TenantID').eq(TENANT_ID)
+    ).get('Items', [])
+    
     if h_data:
         df_h = pd.DataFrame(h_data)
         df_h_filt = df_h[df_h['Fecha'] == f_hist].copy()
