@@ -3,7 +3,6 @@ import pandas as pd
 import boto3
 from datetime import datetime
 import pytz
-import time
 from boto3.dynamodb.conditions import Attr
 
 # --- 0. CONFIGURACIÓN ---
@@ -38,7 +37,8 @@ if 'boleta' not in st.session_state: st.session_state.boleta = None
 # --- LOGIN ---
 if not st.session_state.auth:
     st.markdown("<h1 style='text-align: center;'>🚀 NEXUS BALLARTA SaaS</h1>", unsafe_allow_html=True)
-    locales = list(st.secrets.get("auth_multi", {"Demo":""}).keys())
+    auth_multi = st.secrets.get("auth_multi", {"Demo": "tiotuinventario"})
+    locales = list(auth_multi.keys())
     local_sel = st.selectbox("Seleccione Local:", locales)
     clave = st.text_input("Contraseña:", type="password")
     if st.button("🔓 Ingresar", use_container_width=True):
@@ -48,41 +48,27 @@ if not st.session_state.auth:
             st.rerun()
         else: st.error("❌ Clave incorrecta")
     st.stop()
-
-# --- 3. CARGA DE DATOS ---
 def obtener_datos():
     try:
         res = tabla_stock.scan(FilterExpression=Attr('TenantID').eq(st.session_state.tenant))
         items = res.get('Items', [])
         df = pd.DataFrame(items)
-        cols = ['Producto', 'Stock', 'Precio', 'Precio_Compra']
-        if df.empty: return pd.DataFrame(columns=cols)
-        for c in cols:
-            if c not in df.columns: df[c] = 0
+        if df.empty: return pd.DataFrame(columns=['Producto', 'Stock', 'Precio', 'Precio_Compra'])
         df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0).astype(int)
         df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0.0)
         df['Precio_Compra'] = pd.to_numeric(df['Precio_Compra'], errors='coerce').fillna(0.0)
-        return df[cols].sort_values('Producto')
+        return df[['Producto', 'Stock', 'Precio', 'Precio_Compra']].sort_values('Producto')
     except: return pd.DataFrame(columns=['Producto', 'Stock', 'Precio', 'Precio_Compra'])
 
 df_inv = obtener_datos()
 
-# --- 4. INTERFAZ ---
-with st.sidebar:
-    st.title(f"🏢 {st.session_state.tenant}")
-    if st.button("🔴 Cerrar Sesión"):
-        st.session_state.auth = False; st.rerun()
-
 tabs = st.tabs(["🛒 VENTA", "📦 STOCK", "📊 REPORTES", "📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."])
 
-# --- PESTAÑA 1: VENTAS ---
 with tabs[0]:
     if st.session_state.boleta:
-        st.balloons()
         st.success("✅ ¡Venta Realizada!")
         if st.button("⬅️ Nueva Venta"): st.session_state.boleta = None; st.rerun()
     else:
-        st.subheader("🛒 Punto de Venta")
         bus = st.text_input("🔍 Buscar Producto:").upper()
         prod_lista = [p for p in df_inv['Producto'].tolist() if bus in str(p)]
         c1, c2 = st.columns([3, 1])
@@ -102,21 +88,16 @@ with tabs[0]:
             df_c = pd.DataFrame(st.session_state.carrito)
             st.table(df_c[['Producto', 'Cantidad', 'Precio', 'Subtotal']])
             total_b = df_c['Subtotal'].sum()
-            
-            # --- REBAJA Y PRECIO VERDE ---
-            col_r, col_t = st.columns([1, 2])
-            rebaja = col_r.number_input("Rebaja S/:", min_value=0.0)
-            t_neto = max(0.0, total_b - rebaja)
-            col_t.markdown(f"<h1 style='text-align:center; color:#2ecc71;'>S/ {t_neto:.2f}</h1>", unsafe_allow_html=True)
+            st.markdown(f"<h1 style='color:#2ecc71;'>Total: S/ {total_b:.2f}</h1>", unsafe_allow_html=True)
             
             if st.button("🚀 FINALIZAR COMPRA", type="primary", use_container_width=True):
                 f, h, uid = obtener_tiempo_peru()
                 try:
                     for i, item in enumerate(st.session_state.carrito):
-                        # --- LA CORRECCIÓN CLAVE PARA TU ERROR ---
+                        # USANDO VentaID (i mayúscula)
                         tabla_ventas.put_item(Item={
                             'TenantID': st.session_state.tenant,
-                            'VentalID': f"V-{uid}-{i}", # ID Único para AWS
+                            'VentaID': f"V-{uid}-{i}", 
                             'Fecha': f, 'Hora': h,
                             'Producto': item['Producto'],
                             'Cantidad': int(item['Cantidad']),
@@ -126,50 +107,31 @@ with tabs[0]:
                         # Descontar Stock
                         n_s = int(df_inv[df_inv['Producto'] == item['Producto']]['Stock'].values[0]) - item['Cantidad']
                         tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': item['Producto']}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': n_s})
-                    
-                    st.session_state.carrito = []
-                    st.session_state.boleta = True
-                    st.rerun()
+                    st.session_state.carrito = []; st.session_state.boleta = True; st.rerun()
                 except Exception as e: st.error(f"Fallo AWS: {e}")
-
-# --- PESTAÑA 2: STOCK ---
 with tabs[1]:
     st.dataframe(df_inv, use_container_width=True)
 
-# --- PESTAÑA 3: REPORTES ---
-with tabs[2]:
-    st.subheader("📊 Ganancias")
-    res_v = tabla_ventas.scan(FilterExpression=Attr('TenantID').eq(st.session_state.tenant))
-    v_data = res_v.get('Items', [])
-    if v_data:
-        df_v = pd.DataFrame(v_data)
-        for c in ['Total', 'Precio_Compra', 'Cantidad']:
-            if c in df_v.columns: df_v[c] = pd.to_numeric(df_v[c], errors='coerce').fillna(0)
-        df_v['Ganancia'] = df_v['Total'] - (df_v['Precio_Compra'] * df_v['Cantidad'])
-        st.metric("GANANCIA TOTAL", f"S/ {df_v['Ganancia'].sum():.2f}")
-    else: st.info("No hay ventas")
-
-# --- PESTAÑA 4: HISTORIAL ---
-with tabs[3]:
-    if 'v_data' in locals() and v_data: st.dataframe(pd.DataFrame(v_data))
-
-# --- PESTAÑA 5: CARGAR ---
 with tabs[4]:
+    st.subheader("📥 Cargar Producto")
     with st.form("carga"):
         p_n = st.text_input("Producto").upper()
         s_n = st.number_input("Stock", min_value=0)
         pr_n = st.number_input("Precio Venta", min_value=0.0)
         pc_n = st.number_input("Precio Compra", min_value=0.0)
         if st.form_submit_button("Guardar en Nube"):
-            tabla_stock.put_item(Item={'TenantID': st.session_state.tenant, 'Producto': p_n, 'Stock': int(s_n), 'Precio': str(pr_n), 'Precio_Compra': str(pc_n)})
-            st.success("Guardado"); st.rerun()
+            if p_n:
+                tabla_stock.put_item(Item={'TenantID': st.session_state.tenant, 'Producto': p_n, 'Stock': int(s_n), 'Precio': str(pr_n), 'Precio_Compra': str(pc_n)})
+                st.success("Guardado"); st.rerun()
 
-# --- PESTAÑA 6: MANTENIMIENTO ---
 with tabs[5]:
+    st.subheader("🛠️ Mantenimiento")
     if not df_inv.empty:
         p_edit = st.selectbox("Editar Producto:", df_inv['Producto'].tolist())
-        with st.form("edit"):
-            ns = st.number_input("Nuevo Stock")
-            if st.form_submit_button("Actualizar"):
-                tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_edit}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': int(ns)})
-                st.success("Actualizado"); st.rerun()
+        ns = st.number_input("Nuevo Stock", value=0)
+        if st.button("Actualizar Stock"):
+            tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_edit}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': int(ns)})
+            st.success("Actualizado"); st.rerun()
+        if st.button("🗑️ Eliminar Producto"):
+            tabla_stock.delete_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_edit})
+            st.error("Eliminado"); st.rerun()
