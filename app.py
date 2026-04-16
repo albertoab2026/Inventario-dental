@@ -6,7 +6,7 @@ import pytz
 import time
 from boto3.dynamodb.conditions import Attr
 
-# --- 0. CONFIGURACIÓN SaaS ---
+# --- 0. CONFIGURACIÓN SaaS (Nombres exactos de tu AWS) ---
 TABLA_STOCK = 'SaaS_Stock_Test'
 TABLA_VENTAS = 'SaaS_Ventas_Test'
 
@@ -26,7 +26,7 @@ try:
     tabla_stock = dynamodb.Table(TABLA_STOCK)
     tabla_ventas = dynamodb.Table(TABLA_VENTAS)
 except Exception as e:
-    st.error(f"Error de conexión: {e}")
+    st.error(f"Error crítico de conexión: {e}")
     st.stop()
 
 # --- 3. CONTROL DE SESIÓN ---
@@ -51,27 +51,37 @@ if not st.session_state.auth:
             st.error("❌ Clave incorrecta")
     st.stop()
 
-# --- CARGA DE DATOS (Con blindaje anti-nan) ---
+# --- CARGA DE DATOS (Con blindaje total) ---
 def obtener_stock_db():
     try:
         res = tabla_stock.scan(FilterExpression=Attr('TenantID').eq(st.session_state.tenant))
         items = res.get('Items', [])
         df = pd.DataFrame(items)
+        
         columnas_base = ['Producto', 'Stock', 'Precio', 'Precio_Compra']
-        if df.empty: return pd.DataFrame(columns=columnas_base)
+        if df.empty:
+            return pd.DataFrame(columns=columnas_base)
+        
+        # Crear columnas faltantes para evitar KeyErrors
         for col in columnas_base:
-            if col not in df.columns: df[col] = 0
+            if col not in df.columns:
+                df[col] = 0 if col != 'Producto' else "S/N"
+        
+        # Limpieza de nans y tipos de datos
         df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0).astype(int)
         df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0.0)
         df['Precio_Compra'] = pd.to_numeric(df['Precio_Compra'], errors='coerce').fillna(0.0)
+        
         return df[columnas_base].sort_values(by='Producto')
     except:
         return pd.DataFrame(columns=['Producto', 'Stock', 'Precio', 'Precio_Compra'])
 
 df_stock = obtener_stock_db()
 
+# --- SIDEBAR ---
 with st.sidebar:
     st.title(f"🏢 {st.session_state.tenant}")
+    st.divider()
     if st.button("🔴 CERRAR SESIÓN", use_container_width=True):
         st.session_state.auth = False
         st.rerun()
@@ -85,14 +95,21 @@ with tabs[0]:
         b = st.session_state.boleta
         ticket = f"""
         <div style="background-color: white; color: #000; padding: 20px; border: 2px solid #000; border-radius: 10px; max-width: 350px; margin: auto; font-family: monospace;">
-            <center><b>{st.session_state.tenant}</b><br>{b['fecha']} {b['hora']}</center><hr>
+            <center><b>{st.session_state.tenant}</b><br>{b['fecha']} {b['hora']}</center>
+            <hr style="border-top: 1px dashed black;">
             <table style="width: 100%;">
         """
         for i in b['items']:
             ticket += f"<tr><td>{i['Cantidad']}</td><td>{i['Producto']}</td><td style='text-align: right;'>S/ {i['Subtotal']:.2f}</td></tr>"
         if b['rebaja'] > 0:
             ticket += f"<tr><td colspan='2' style='color:red;'>Rebaja:</td><td style='text-align: right; color:red;'>-S/ {b['rebaja']:.2f}</td></tr>"
-        ticket += f"</table><hr><div style='text-align: right;'><b>TOTAL: S/ {b['total_neto']:.2f}</b></div><center><br>Pago: {b['metodo']}</center></div>"
+        ticket += f"""
+            </table>
+            <hr style="border-top: 1px dashed black;">
+            <div style="text-align: right; font-size: 16px;"><b>TOTAL: S/ {b['total_neto']:.2f}</b></div>
+            <center><br>Pago: {b['metodo']}<br>¡Vuelva pronto!</center>
+        </div>
+        """
         st.markdown(ticket, unsafe_allow_html=True)
         if st.button("⬅️ NUEVA VENTA"):
             st.session_state.boleta = None; st.rerun()
@@ -102,12 +119,14 @@ with tabs[0]:
         prod_filt = [p for p in df_stock['Producto'].tolist() if bus_v in str(p)]
         
         c1, c2 = st.columns([3, 1])
-        with c1: p_sel = st.selectbox("Producto:", prod_filt) if prod_filt else None
-        with c2: cant = st.number_input("Cantidad:", min_value=1, value=1)
+        with c1:
+            p_sel = st.selectbox("Seleccione:", prod_filt) if prod_filt else None
+        with c2:
+            cant = st.number_input("Cantidad:", min_value=1, value=1)
         
         if p_sel:
             info = df_stock[df_stock['Producto'] == p_sel].iloc[0]
-            st.info(f"💰 Precio: S/ {info['Precio']:.2f} | 📦 Disponible: {info['Stock']}")
+            st.info(f"💰 Precio: S/ {info['Precio']:.2f} | 📦 Stock: {info['Stock']}")
             if st.button("➕ AÑADIR AL CARRITO", use_container_width=True):
                 if cant <= info['Stock']:
                     st.session_state.carrito.append({
@@ -116,7 +135,7 @@ with tabs[0]:
                         'Subtotal': round(float(info['Precio']) * cant, 2)
                     })
                     st.rerun()
-                else: st.error("No hay stock suficiente")
+                else: st.error("⚠️ Stock insuficiente")
 
         if st.session_state.carrito:
             st.divider()
@@ -125,14 +144,14 @@ with tabs[0]:
             
             total_bruto = df_c['Subtotal'].sum()
             
-            # --- SECCIÓN DE REBAJA Y PRECIO GIGANTE ---
+            # --- SECCIÓN REBAJA Y PRECIO GIGANTE ---
             col_reb, col_tot = st.columns([1, 2])
-            rebaja = col_reb.number_input("Aplicar Rebaja (S/):", min_value=0.0, value=0.0)
+            rebaja = col_reb.number_input("Rebaja (S/):", min_value=0.0, value=0.0)
             total_neto = max(0.0, total_bruto - rebaja)
             
-            col_tot.markdown(f"<h1 style='text-align:center; color:#2ecc71; background-color:#f0fff4; border-radius:10px; padding:10px;'>TOTAL: S/ {total_neto:.2f}</h1>", unsafe_allow_html=True)
+            col_tot.markdown(f"<h1 style='text-align:center; color:#2ecc71; background-color:#f0fff4; border: 2px solid #2ecc71; border-radius:10px; padding:10px;'>TOTAL: S/ {total_neto:.2f}</h1>", unsafe_allow_html=True)
             
-            metodo = st.radio("Método de Pago:", ["💵 Efectivo", "🟣 Yape", "🔵 Plin"], horizontal=True)
+            metodo = st.radio("Pago:", ["💵 Efectivo", "🟣 Yape", "🔵 Plin"], horizontal=True)
             confirmar = st.checkbox("✅ ¿Desea realmente hacer la compra?")
             
             if st.button("🚀 FINALIZAR VENTA", type="primary", use_container_width=True, disabled=not confirmar):
@@ -140,47 +159,53 @@ with tabs[0]:
                 st.session_state.boleta = {'fecha': f, 'hora': h, 'items': list(st.session_state.carrito), 'total_neto': total_neto, 'rebaja': rebaja, 'metodo': metodo}
                 
                 for idx, item in enumerate(st.session_state.carrito):
-                    # USAMOS VentalID PARA EVITAR EL ERROR ROJO
+                    # NOMBRE EXACTO CLAVE: VentalID
                     tabla_ventas.put_item(Item={
                         'TenantID': st.session_state.tenant, 'VentalID': f"V-{uid}-{idx}",
                         'Fecha': f, 'Hora': h, 'Producto': item['Producto'], 
                         'Cantidad': int(item['Cantidad']), 'Total': str(round(item['Subtotal'], 2)),
                         'Precio_Compra': str(round(item['Precio_Compra'], 2)), 'Metodo': metodo
                     })
-                    # Actualizar Stock
-                    n_s = int(df_stock[df_stock['Producto'] == item['Producto']]['Stock'].values[0]) - item['Cantidad']
-                    tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': item['Producto']},
-                                            UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': n_s})
+                    # Descuento de Stock
+                    nueva_cant = int(df_stock[df_stock['Producto'] == item['Producto']]['Stock'].values[0]) - item['Cantidad']
+                    tabla_stock.update_item(
+                        Key={'TenantID': st.session_state.tenant, 'Producto': item['Producto']},
+                        UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': nueva_cant}
+                    )
                 st.session_state.carrito = []; st.rerun()
 
 # --- 2. STOCK ---
 with tabs[1]:
-    st.subheader("📦 Inventario Actual")
+    st.subheader("📦 Inventario")
     st.dataframe(df_stock.style.format({"Precio": "{:.2f}", "Precio_Compra": "{:.2f}"}), use_container_width=True, hide_index=True)
 
 # --- 3. REPORTES ---
 with tabs[2]:
-    st.subheader("📊 Ganancias")
+    st.subheader("📊 Reporte de Ganancias")
     res_v = tabla_ventas.scan(FilterExpression=Attr('TenantID').eq(st.session_state.tenant))
-    v_items = res_v.get('Items', [])
-    if v_items:
-        df_v = pd.DataFrame(v_items)
+    v_data = res_v.get('Items', [])
+    if v_data:
+        df_v = pd.DataFrame(v_data)
         for c in ['Total', 'Precio_Compra', 'Cantidad']:
             df_v[c] = pd.to_numeric(df_v[c], errors='coerce').fillna(0.0)
         df_v['Ganancia'] = df_v['Total'] - (df_v['Precio_Compra'] * df_v['Cantidad'])
-        st.metric("GANANCIA TOTAL", f"S/ {df_v['Ganancia'].sum():.2f}")
-        st.dataframe(df_v[['Fecha', 'Producto', 'Cantidad', 'Total', 'Metodo']], use_container_width=True)
+        
+        c1, c2 = st.columns(2)
+        c1.metric("INGRESOS", f"S/ {df_v['Total'].sum():.2f}")
+        c2.metric("GANANCIA NETO", f"S/ {df_v['Ganancia'].sum():.2f}")
+        st.dataframe(df_v[['Fecha', 'Producto', 'Total', 'Metodo']], use_container_width=True)
     else: st.info("Sin ventas registradas")
 
 # --- 4. HISTORIAL ---
 with tabs[3]:
-    st.subheader("📋 Historial de Movimientos")
-    if v_items: st.dataframe(pd.DataFrame(v_items), use_container_width=True)
+    st.subheader("📋 Historial Completo")
+    if v_data: st.dataframe(pd.DataFrame(v_data), use_container_width=True)
+    else: st.info("Historial vacío")
 
 # --- 5. CARGAR ---
 with tabs[4]:
-    st.subheader("📥 Cargar Productos")
-    opc = st.radio("Modo:", ["Individual", "Excel"], horizontal=True)
+    st.subheader("📥 Cargar Mercadería")
+    opc = st.radio("Método:", ["Individual", "Masiva (Excel)"], horizontal=True)
     if opc == "Individual":
         with st.form("f_ind"):
             p_n = st.text_input("Nombre:").upper()
@@ -200,14 +225,16 @@ with tabs[4]:
 
 # --- 6. MANTENIMIENTO ---
 with tabs[5]:
-    st.subheader("🛠️ Administración")
+    st.subheader("🛠️ Administración de Stock")
     if not df_stock.empty:
-        p_ed = st.selectbox("Seleccione para editar:", df_stock['Producto'].tolist())
+        p_ed = st.selectbox("Seleccione producto:", df_stock['Producto'].tolist())
         with st.form("f_ed"):
-            ns = st.number_input("Nuevo Stock:")
-            np = st.number_input("Nuevo Precio:")
+            ns = st.number_input("Nuevo Stock:", value=0)
+            np = st.number_input("Nuevo Precio:", value=0.0)
             if st.form_submit_button("Actualizar"):
-                tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_ed},
-                                        UpdateExpression="SET Stock = :s, Precio = :p",
-                                        ExpressionAttributeValues={':s': int(ns), ':p': str(np)})
+                tabla_stock.update_item(
+                    Key={'TenantID': st.session_state.tenant, 'Producto': p_ed},
+                    UpdateExpression="SET Stock = :s, Precio = :p",
+                    ExpressionAttributeValues={':s': int(ns), ':p': str(np)}
+                )
                 st.success("Actualizado"); st.rerun()
