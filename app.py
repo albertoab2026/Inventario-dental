@@ -31,15 +31,12 @@ if 'carrito' not in st.session_state: st.session_state.carrito = []
 if 'boleta' not in st.session_state: st.session_state.boleta = None
 if 'confirmar' not in st.session_state: st.session_state.confirmar = False
 
-# --- BOTÓN CERRAR SESIÓN EN SIDEBAR ---
 if st.session_state.auth:
     with st.sidebar:
         st.title(f"🏢 {st.session_state.tenant}")
         st.write("---")
         if st.button("🔴 CERRAR SESIÓN", use_container_width=True):
-            st.session_state.auth = False
-            st.session_state.tenant = None
-            st.rerun()
+            st.session_state.auth = False; st.session_state.tenant = None; st.rerun()
 
 if not st.session_state.auth:
     st.markdown("<h1 style='text-align: center;'>🚀 NEXUS BALLARTA SaaS</h1>", unsafe_allow_html=True)
@@ -48,9 +45,7 @@ if not st.session_state.auth:
     clave = st.text_input("Contraseña:", type="password")
     if st.button("🔓 Ingresar", use_container_width=True):
         if clave == "tiotuinventario":
-            st.session_state.auth = True
-            st.session_state.tenant = local_sel
-            st.rerun()
+            st.session_state.auth = True; st.session_state.tenant = local_sel; st.rerun()
         else: st.error("❌ Clave incorrecta")
     st.stop()
 
@@ -110,13 +105,20 @@ with t1:
                     else: st.error("❌ Stock insuficiente")
         
         if st.session_state.carrito:
+            st.write("---")
+            # --- NUEVO BOTÓN PARA VACIAR ---
+            if st.button("🗑️ VACIAR TODO EL CARRITO", type="secondary"):
+                st.session_state.carrito = []; st.rerun()
+                
             df_c = pd.DataFrame(st.session_state.carrito)
             st.table(df_c[['Producto', 'Cantidad', 'Subtotal']])
             total_bruto = sum(i['Subtotal'] for i in st.session_state.carrito)
+            
             m_pago = st.radio("Pago:", ["💵 EFECTIVO", "🟣 YAPE", "🔵 PLIN"], horizontal=True)
             rebaja = st.number_input("💸 Rebaja S/:", min_value=0.0, step=0.5, value=0.0)
             total_neto = max(0.0, total_bruto - rebaja)
             st.markdown(f"<h1 style='text-align:center; color:#2ecc71;'>S/ {total_neto:.2f}</h1>", unsafe_allow_html=True)
+            
             if st.button("🚀 FINALIZAR COMPRA", use_container_width=True, type="primary"): st.session_state.confirmar = True
             if st.session_state.confirmar:
                 st.warning(f"⚠️ ¿Confirmar venta de S/ {total_neto:.2f}?")
@@ -139,47 +141,37 @@ with t2:
             return ['background-color: rgba(255, 75, 75, 0.15); color: #ff4b4b; font-weight: bold;'] * len(row) if row.Stock < 5 else [''] * len(row)
         st.dataframe(df_f.style.apply(resaltar_bajo, axis=1), use_container_width=True, hide_index=True,
             column_order=("Producto", "Precio_Compra", "Precio", "Stock"),
-            column_config={"Producto": st.column_config.TextColumn("NOMBRE", width="large"), "Precio_Compra": st.column_config.NumberColumn("COSTO"), "Precio": st.column_config.NumberColumn("VENTA"), "Stock": st.column_config.NumberColumn("STOCK")})
+            column_config={"Producto": st.column_config.TextColumn("NOMBRE"), "Precio_Compra": st.column_config.NumberColumn("COSTO"), "Precio": st.column_config.NumberColumn("VENTA"), "Stock": st.column_config.NumberColumn("STOCK")})
     else: st.info("Inventario vacío.")
 
-with t3: # --- REPORTES CON SEPARACIÓN DE CAJAS ---
-    st.subheader("📊 Reporte de Ganancias por Día")
-    fecha_sel = st.date_input("📅 Consultar Fecha:", datetime.now(tz_peru))
+with t3: # REPORTES
+    st.subheader("📊 Reporte de Ganancias")
+    fecha_sel = st.date_input("📅 Consultar Día:", datetime.now(tz_peru))
     f_str = fecha_sel.strftime("%d/%m/%Y")
     res_v = tabla_ventas.scan(FilterExpression=Attr('TenantID').eq(st.session_state.tenant) & Attr('Fecha').eq(f_str))
     v_data = res_v.get('Items', [])
     if v_data:
         df_v = pd.DataFrame(v_data)
-        for col in ['Total', 'Precio_Compra', 'Cantidad']:
-            df_v[col] = pd.to_numeric(df_v[col], errors='coerce').fillna(0)
-        df_v['Inversion'] = df_v['Precio_Compra'] * df_v['Cantidad']
-        df_v['Utilidad'] = df_v['Total'] - df_v['Inversion']
-        
+        for col in ['Total', 'Precio_Compra', 'Cantidad']: df_v[col] = pd.to_numeric(df_v[col], errors='coerce').fillna(0)
+        df_v['Inversion'] = df_v['Precio_Compra'] * df_v['Cantidad']; df_v['Utilidad'] = df_v['Total'] - df_v['Inversion']
         st.markdown(f"### Resumen: {f_str}")
         c1, c2, c3 = st.columns(3)
         c1.metric("VENTAS TOTALES", f"S/ {df_v['Total'].sum():.2f}")
-        c2.metric("INVERSIÓN (COSTO)", f"S/ {df_v['Inversion'].sum():.2f}")
+        c2.metric("INVERSIÓN", f"S/ {df_v['Inversion'].sum():.2f}")
         c3.metric("GANANCIA NETA", f"S/ {df_v['Utilidad'].sum():.2f}")
-        
-        st.write("### 💰 Cajas por Método de Pago")
         p1, p2, p3 = st.columns(3)
-        p1.markdown(f"<div style='text-align:center; padding:10px; border:1px solid #ddd; border-radius:10px;'>💵 <b>EFECTIVO</b><br><h2>S/ {df_v[df_v['Metodo'].str.contains('EFECTIVO', na=False)]['Total'].sum():.2f}</h2></div>", unsafe_allow_html=True)
-        p2.markdown(f"<div style='text-align:center; padding:10px; border:1px solid #ddd; border-radius:10px;'>🟣 <b>YAPE</b><br><h2>S/ {df_v[df_v['Metodo'].str.contains('YAPE', na=False)]['Total'].sum():.2f}</h2></div>", unsafe_allow_html=True)
-        p3.markdown(f"<div style='text-align:center; padding:10px; border:1px solid #ddd; border-radius:10px;'>🔵 <b>PLIN</b><br><h2>S/ {df_v[df_v['Metodo'].str.contains('PLIN', na=False)]['Total'].sum():.2f}</h2></div>", unsafe_allow_html=True)
-        
-        st.write("---")
-        st.dataframe(df_v[['Hora', 'Producto', 'Cantidad', 'Inversion', 'Total', 'Utilidad']], use_container_width=True, hide_index=True)
-    else: st.warning(f"No hay ventas para el día {f_str}.")
+        p1.markdown(f"<div style='text-align:center; border:1px solid #ddd; padding:10px;'>💵 EFECTIVO<br><h2>S/ {df_v[df_v['Metodo'].str.contains('EFECTIVO', na=False)]['Total'].sum():.2f}</h2></div>", unsafe_allow_html=True)
+        p2.markdown(f"<div style='text-align:center; border:1px solid #ddd; padding:10px;'>🟣 YAPE<br><h2>S/ {df_v[df_v['Metodo'].str.contains('YAPE', na=False)]['Total'].sum():.2f}</h2></div>", unsafe_allow_html=True)
+        p3.markdown(f"<div style='text-align:center; border:1px solid #ddd; padding:10px;'>🔵 PLIN<br><h2>S/ {df_v[df_v['Metodo'].str.contains('PLIN', na=False)]['Total'].sum():.2f}</h2></div>", unsafe_allow_html=True)
+        st.write("---"); st.dataframe(df_v[['Hora', 'Producto', 'Cantidad', 'Inversion', 'Total', 'Utilidad']], use_container_width=True, hide_index=True)
+    else: st.warning(f"Sin ventas el {f_str}.")
 
 with t5:
     with st.form("carga"):
         p_n = st.text_input("Producto").upper()
-        s_n = st.number_input("Stock", min_value=0)
-        pr_n = st.number_input("Precio Venta", min_value=0.0); pc_n = st.number_input("Precio Compra", min_value=0.0)
+        s_n = st.number_input("Stock", min_value=0); pr_n = st.number_input("Venta", min_value=0.0); pc_n = st.number_input("Compra", min_value=0.0)
         if st.form_submit_button("🚀 GUARDAR"):
-            if p_n:
-                tabla_stock.put_item(Item={'TenantID': st.session_state.tenant, 'Producto': p_n, 'Stock': int(s_n), 'Precio': str(pr_n), 'Precio_Compra': str(pc_n)})
-                st.success("Guardado"); st.rerun()
+            if p_n: tabla_stock.put_item(Item={'TenantID': st.session_state.tenant, 'Producto': p_n, 'Stock': int(s_n), 'Precio': str(pr_n), 'Precio_Compra': str(pc_n)}); st.success("Guardado"); st.rerun()
 
 with t6:
     if not df_inv.empty:
