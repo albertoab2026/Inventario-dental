@@ -49,12 +49,12 @@ def obtener_datos():
         res = tabla_stock.scan(FilterExpression=Attr('TenantID').eq(st.session_state.tenant))
         items = res.get('Items', [])
         df = pd.DataFrame(items)
-        if df.empty: return pd.DataFrame(columns=['Producto', 'Stock', 'Precio', 'Precio_Compra'])
+        if df.empty: return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
         df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0).astype(int)
         df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0.0)
         df['Precio_Compra'] = pd.to_numeric(df['Precio_Compra'], errors='coerce').fillna(0.0)
-        return df[['Producto', 'Stock', 'Precio', 'Precio_Compra']].sort_values('Producto')
-    except: return pd.DataFrame(columns=['Producto', 'Stock', 'Precio', 'Precio_Compra'])
+        return df[['Producto', 'Precio_Compra', 'Precio', 'Stock']].sort_values('Producto')
+    except: return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
 
 df_inv = obtener_datos()
 t1, t2, t3, t4, t5, t6 = st.tabs(["🛒 VENTA", "📦 STOCK", "📊 REPORTES", "📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."])
@@ -81,13 +81,13 @@ with t1:
     else:
         st.subheader("🛒 Punto de Venta")
         bus = st.text_input("🔍 Buscar Producto:").upper()
-        prod_lista = [p for p in df_inv['Producto'].tolist() if bus in str(p)]
+        prod_filt = [p for p in df_inv['Producto'].tolist() if bus in str(p)]
         c1, c2 = st.columns(2)
-        with c1: p_sel = st.selectbox("Seleccionar:", prod_lista) if prod_lista else None
+        with c1: p_sel = st.selectbox("Seleccionar:", prod_filt) if prod_filt else None
         with c2: cant = st.number_input("Cant:", min_value=1, value=1, key=f"cant_{p_sel}" if p_sel else "cant_none")
         
         if p_sel and not df_inv[df_inv['Producto'] == p_sel].empty:
-            info = df_inv[df_inv['Producto'] == p_sel].iloc[0]
+            info = df_inv[df_inv['Producto'] == p_sel].iloc
             st.info(f"💰 Precio: S/ {float(info['Precio']):.2f} | 📦 Stock: {int(info['Stock'])}")
             if st.button("➕ Añadir al Carrito", use_container_width=True):
                 if cant <= info['Stock']:
@@ -112,22 +112,55 @@ with t1:
                     f, h, uid = obtener_tiempo_peru()
                     for i, item in enumerate(st.session_state.carrito):
                         tabla_ventas.put_item(Item={'TenantID': st.session_state.tenant, 'VentaID': f"V-{uid}-{i}", 'Fecha': f, 'Hora': h, 'Producto': item['Producto'], 'Cantidad': int(item['Cantidad']), 'Total': str(item['Subtotal']), 'Precio_Compra': str(item['Precio_Compra']), 'Metodo': m_pago, 'Rebaja': str(rebaja)})
-                        n_s = int(df_inv[df_inv['Producto'] == item['Producto']]['Stock'].values[0]) - item['Cantidad']
+                        n_s = int(df_inv[df_inv['Producto'] == item['Producto']]['Stock'].values) - item['Cantidad']
                         tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': item['Producto']}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': n_s})
                     st.session_state.boleta = {'items': st.session_state.carrito, 'total_bruto': total_bruto, 'rebaja': rebaja, 'total_neto': total_neto, 'metodo': m_pago, 'fecha': f, 'hora': h}
                     st.session_state.carrito = []; st.session_state.confirmar = False; st.rerun()
                 if cc2.button("❌ NO, CANCELAR", use_container_width=True): st.session_state.confirmar = False; st.rerun()
 with t2:
     st.subheader("📦 Inventario de Almacén")
-    bus_stock = st.text_input("🔍 Buscar en stock:", key="bus_stock").upper()
+    bus_stock = st.text_input("🔍 Buscar producto:", key="bus_stock").upper()
+    
     if not df_inv.empty:
         df_f = df_inv[df_inv['Producto'].str.contains(bus_stock, na=False)].copy()
-        # Mostramos nombres Pro en la tabla pero usamos los reales para el código
-        df_f.columns = ['NOMBRE DEL PRODUCTO', 'STOCK ACTUAL', 'P. VENTA (S/)', 'P. COMPRA (S/)']
-        st.dataframe(df_f, use_container_width=True, hide_index=True)
+        
+        # --- FUNCIÓN PARA RESALTAR STOCK BAJO ---
+        def resaltar_stock(row):
+            color = 'background-color: rgba(255, 0, 0, 0.2); color: #ff4b4b; font-weight: bold;' if row.Stock < 5 else ''
+            return [color] * len(row)
+
+        # Aplicamos estilo y mostramos
+        st.dataframe(
+            df_f.style.apply(resaltar_stock, axis=1), 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                "Producto": st.column_config.TextColumn("NOMBRE DEL PRODUCTO", width="large"),
+                "Precio_Compra": st.column_config.NumberColumn("PRECIO COMPRA", format="S/ %.2f"),
+                "Precio": st.column_config.NumberColumn("PRECIO VENTA", format="S/ %.2f"),
+                "Stock": st.column_config.NumberColumn("STOCK ACTUAL")
+            }
+        )
+        st.caption("💡 Los productos resaltados en rojo tienen menos de 5 unidades.")
     else: st.info("Inventario vacío.")
 
-with t3: st.info("📊 Reportes próximamente.")
+with t3: # PESTAÑA REPORTES
+    st.subheader("📊 Reporte de Ganancias")
+    res_v = tabla_ventas.scan(FilterExpression=Attr('TenantID').eq(st.session_state.tenant))
+    v_data = res_v.get('Items', [])
+    if v_data:
+        df_v = pd.DataFrame(v_data)
+        df_v['Total'] = pd.to_numeric(df_v['Total'])
+        df_v['Precio_Compra'] = pd.to_numeric(df_v['Precio_Compra'])
+        df_v['Cantidad'] = pd.to_numeric(df_v['Cantidad'])
+        df_v['Ganancia'] = df_v['Total'] - (df_v['Precio_Compra'] * df_v['Cantidad'])
+        
+        c1, c2 = st.columns(2)
+        c1.metric("VENTAS TOTALES", f"S/ {df_v['Total'].sum():.2f}")
+        c2.metric("GANANCIA NETA", f"S/ {df_v['Ganancia'].sum():.2f}")
+        st.dataframe(df_v[['Fecha', 'Producto', 'Total', 'Ganancia']], use_container_width=True, hide_index=True)
+    else: st.info("Sin ventas registradas.")
+
 with t4: st.info("📋 Historial próximamente.")
 with t5:
     with st.form("carga"):
@@ -145,6 +178,3 @@ with t6:
         if st.button("Actualizar Stock"):
             tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_edit}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': int(ns)})
             st.success("Actualizado"); st.rerun()
-        if st.button("🗑️ Eliminar"):
-            tabla_stock.delete_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_edit})
-            st.error("Eliminado"); st.rerun()
