@@ -74,13 +74,14 @@ with t1:
         p_v = [p for p in df_inv['Producto'].tolist() if bus_v in str(p)]
         c1, c2 = st.columns(2)
         p_s = c1.selectbox("Producto:", p_v, key="pv") if p_v else None
-        ct = c2.number_input("Cant:", min_value=1, value=1, key=f"cv_{p_s}") # Key dinámica para resetear
+        ct = c2.number_input("Cant:", min_value=1, value=1, key=f"cv_{p_s}")
         if p_s:
-            row = df_inv[df_inv['Producto'] == p_s].iloc
-            st.info(f"💰 S/ {row['Precio']:g} | 📦 Stock: {row['Stock']}")
+            # CORRECCIÓN: Acceso seguro a la fila
+            row = df_inv[df_inv['Producto'] == p_s].iloc[0]
+            st.info(f"💰 S/ {row.Precio:g} | 📦 Stock: {row.Stock}")
             if st.button("➕ Añadir"):
-                if ct <= row['Stock']:
-                    st.session_state.carrito.append({'Producto': p_s, 'Cantidad': int(ct), 'Precio': row['Precio'], 'Precio_Compra': row['Precio_Compra'], 'Subtotal': round(row['Precio']*ct, 2)})
+                if ct <= row.Stock:
+                    st.session_state.carrito.append({'Producto': p_s, 'Cantidad': int(ct), 'Precio': float(row.Precio), 'Precio_Compra': float(row.Precio_Compra), 'Subtotal': round(float(row.Precio)*ct, 2)})
                     st.rerun()
         if st.session_state.carrito:
             st.table(pd.DataFrame(st.session_state.carrito)[['Producto', 'Cantidad', 'Subtotal']])
@@ -88,25 +89,26 @@ with t1:
             m_p = st.radio("Método:", ["💵 EFECTIVO", "🟣 YAPE", "🔵 PLIN"], horizontal=True)
             t_n = sum(i['Subtotal'] for i in st.session_state.carrito)
             st.markdown(f"<h1 style='text-align:center; color:#2ecc71;'>S/ {t_n:g}</h1>", unsafe_allow_html=True)
-            if st.button("🚀 FINALIZAR", use_container_width=True, type="primary"): st.session_state.confirmar = True
+            if st.button("🚀 FINALIZAR VENTA", use_container_width=True, type="primary"): st.session_state.confirmar = True
             if st.session_state.confirmar:
                 st.warning(f"⚠️ ¿Confirmar S/ {t_n:g}?"); cc1, cc2 = st.columns(2)
                 if cc1.button("✅ SÍ"):
                     f, h, uid = obtener_tiempo_peru()
                     for i, it in enumerate(st.session_state.carrito):
                         tabla_ventas.put_item(Item={'TenantID': st.session_state.tenant, 'VentaID': f"V-{uid}-{i}", 'Fecha': f, 'Hora': h, 'Producto': it['Producto'], 'Cantidad': int(it['Cantidad']), 'Total': str(it['Subtotal']), 'Precio_Compra': str(it['Precio_Compra']), 'Metodo': m_p})
-                        n_s = int(df_inv[df_inv['Producto']==it['Producto']]['Stock'].values) - it['Cantidad']
-                        tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': it['Producto']}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': n_s})
+                        # Actualización de stock segura
+                        s_act = int(df_inv[df_inv['Producto']==it['Producto']]['Stock'].iloc[0])
+                        tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': it['Producto']}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': s_act - it['Cantidad']})
                     st.session_state.boleta = {'items': st.session_state.carrito, 't_neto': t_n, 'metodo': m_p, 'fecha': f, 'hora': h}
                     st.session_state.carrito = []; st.session_state.confirmar = False; st.rerun()
                 if cc2.button("❌ NO"): st.session_state.confirmar = False; st.rerun()
-
 with t2:
     st.subheader("📦 Stock Actual")
     def r_r(r): return ['color: #ff4b4b; font-weight: bold;'] * len(r) if r.Stock < 5 else [''] * len(r)
     st.dataframe(df_inv.style.apply(r_r, axis=1).format({"Precio": "{:g}", "Precio_Compra": "{:g}", "Stock": "{:d}"}), use_container_width=True, hide_index=True)
+
 with t3:
-    st.subheader("📊 Reporte Detallado")
+    st.subheader("📊 Ganancia Neta")
     f_r = st.date_input("Día:", datetime.now(tz_peru), key="fr").strftime("%d/%m/%Y")
     res_v = tabla_ventas.scan(FilterExpression=Attr('TenantID').eq(st.session_state.tenant) & Attr('Fecha').eq(f_r))
     v_d = res_v.get('Items', [])
@@ -125,45 +127,42 @@ with t3:
         st.divider(); st.metric("📈 GANANCIA NETA TOTAL", f"S/ {(df_v['Total'].sum() - df_v['Inv'].sum()):g}")
         st.dataframe(df_v[['Hora', 'Producto', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
     else: st.info("Sin ventas.")
-
 with t4:
-    st.subheader("📋 Historial de Movimientos")
+    st.subheader("📋 Historial")
     f_h = st.date_input("Fecha:", datetime.now(tz_peru), key="fh").strftime("%d/%m/%Y")
     res_m = tabla_movs.scan(FilterExpression=Attr('TenantID').eq(st.session_state.tenant) & Attr('Fecha').eq(f_h))
     if res_m.get('Items'):
         df_m = pd.DataFrame(res_m.get('Items')).sort_values("Hora", ascending=False)
         st.dataframe(df_m[['Hora', 'Producto', 'Cantidad', 'Tipo']], use_container_width=True, hide_index=True)
-    else: st.info("Sin movimientos.")
+
 with t5:
-    st.subheader("📥 Cargar Nuevo Producto")
+    st.subheader("📥 Cargar Nuevo")
     with st.form("fn"):
         pn = st.text_input("NOMBRE").upper(); sn = st.number_input("STOCK", min_value=0); pvn = st.number_input("P. VENTA", min_value=0.0); pcn = st.number_input("P. COSTO", min_value=0.0)
         if st.form_submit_button("🚀 GUARDAR"):
             tabla_stock.put_item(Item={'TenantID': st.session_state.tenant, 'Producto': pn, 'Stock': int(sn), 'Precio': str(pvn), 'Precio_Compra': str(pcn)})
             registrar_kardex(pn, sn, "ENTRADA/NUEVO")
-            st.success(f"✅ ¡{pn} GUARDADO EXITOSAMENTE!"); import time; time.sleep(1); st.rerun()
+            st.success(f"✅ Guardado"); import time; time.sleep(1); st.rerun()
 
 with t6:
-    st.subheader("🛠️ Gestión de Almacén")
-    op = st.radio("Acción:", ["➕ REPONER STOCK", "🗑️ ELIMINAR PRODUCTO"], horizontal=True)
+    st.subheader("🛠️ Gestión")
+    op = st.radio("Acción:", ["➕ REPONER", "🗑️ ELIMINAR"], horizontal=True)
     bus_m = st.text_input("🔍 Buscar:", key="bm").upper()
     p_m = [p for p in df_inv['Producto'].tolist() if bus_m in str(p)]
     if p_m:
         p_s = st.selectbox("Seleccionar:", p_m, key="psm")
-        r_m = df_inv[df_inv['Producto'] == p_s].iloc
-        if op == "➕ REPONER STOCK":
-            # Key dinámica basada en el producto para que se resetee al cambiar de ítem
+        r_m = df_inv[df_inv['Producto'] == p_s].iloc[0]
+        if op == "➕ REPONER":
             c_m = st.number_input("¿Cuánto entra?", min_value=1, key=f"cant_m_{p_s}") 
-            if st.button("✅ ACTUALIZAR STOCK", use_container_width=True):
-                n_t = int(r_m['Stock'] + c_m)
+            if st.button("✅ ACTUALIZAR STOCK"):
+                n_t = int(r_m.Stock + c_m)
                 tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_s}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': n_t})
                 registrar_kardex(p_s, c_m, f"REPOSICIÓN (+{c_m})")
-                st.success(f"✅ ¡STOCK DE {p_s} ACTUALIZADO A {n_t}!"); import time; time.sleep(1); st.rerun()
+                st.success(f"✅ Actualizado a {n_t}"); import time; time.sleep(1); st.rerun()
         else:
-            st.error(f"⚠️ ¿Eliminar '{p_s}'?"); 
-            if st.button("🗑️ SÍ, ELIMINAR"):
+            if st.button(f"🗑️ ELIMINAR {p_s}"):
                 tabla_stock.delete_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_s})
-                registrar_kardex(p_s, 0, "ELIMINADO"); st.warning("Producto borrado."); import time; time.sleep(1); st.rerun()
+                registrar_kardex(p_s, 0, "ELIMINADO"); st.warning("Borrado."); import time; time.sleep(1); st.rerun()
 
 with st.sidebar:
     st.title(f"🏢 {st.session_state.tenant}")
