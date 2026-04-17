@@ -107,7 +107,7 @@ with tabs[0]: # VENTA
         b = st.session_state.boleta
         st.success("✅ VENTA REALIZADA CON ÉXITO")
         
-        # --- 1. BOLETA VISUAL CON MÉTODO DE PAGO ---
+        # --- 1. BOLETA VISUAL ---
         st.markdown(f"""<div style="background-color:white;color:black;padding:20px;border:2px solid #333;max-width:350px;margin:auto;font-family:monospace;">
             <h3 style="text-align:center;margin:0;">{st.session_state.tenant}</h3>
             <p style="text-align:center;margin:0;">{b['fecha']} {b['hora']}</p><hr>
@@ -119,21 +119,22 @@ with tabs[0]: # VENTA
         
         st.write("") 
 
-        # --- 2. REPORTE POR WHATSAPP ---
+        # --- 2. BOTÓN WHATSAPP ---
+        # Quitamos emojis del texto de WhatsApp para evitar problemas de codificación si fuera necesario
         texto_wa = f"*RECIBO - {st.session_state.tenant}*\n"
         texto_wa += f"Fecha: {b['fecha']} {b['hora']}\n---\n"
         for i in b['items']:
             texto_wa += f"{i['Cantidad']}x {i['Producto']} - S/{i['Subtotal']:g}\n"
-        texto_wa += f"---\n*TOTAL NETO: S/{b['t_neto']:g}*\nMétodo: {b['metodo']}"
+        texto_wa += f"---\n*TOTAL NETO: S/{b['t_neto']:g}*\nMetodo: {b['metodo']}"
         wa_url = f"https://wa.me/?text={urllib.parse.quote(texto_wa)}"
         st.link_button("📲 Enviar reporte por WhatsApp", wa_url, use_container_width=True)
 
-        # --- 3. DESCARGA DE PDF ---
+        # --- 3. DESCARGA PDF (CORREGIDO SIN EMOJIS) ---
         try:
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", 'B', 16)
-            pdf.cell(190, 10, txt=st.session_state.tenant, ln=True, align='C')
+            pdf.cell(190, 10, txt=str(st.session_state.tenant), ln=True, align='C')
             pdf.set_font("Arial", size=10)
             pdf.cell(190, 10, txt=f"Fecha: {b['fecha']} | Hora: {b['hora']}", ln=True, align='C')
             pdf.ln(5)
@@ -143,12 +144,14 @@ with tabs[0]: # VENTA
                 pdf.cell(100, 10, txt=f"{i['Cantidad']}x {i['Producto']}")
                 pdf.cell(90, 10, txt=f"S/ {i['Subtotal']:g}", ln=True, align='R')
             pdf.ln(5)
-            pdf.cell(100, 10, txt=f"Metodo de Pago: {b['metodo']}")
+            # Limpiamos el nombre del método de emojis para el PDF
+            metodo_limpio = b['metodo'].replace("💵 ", "").replace("🟣 ", "").replace("🔵 ", "")
+            pdf.cell(100, 10, txt=f"Metodo de Pago: {metodo_limpio}")
             pdf.cell(90, 10, txt=f"Rebaja: -S/ {b['rebaja']:g}", ln=True, align='R')
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(190, 10, txt=f"TOTAL NETO: S/ {b['t_neto']:g}", ln=True, align='R')
             
-            pdf_bytes = pdf.output(dest='S').encode('latin-1')
+            pdf_bytes = pdf.output(dest='S').encode('latin-1', 'ignore') # 'ignore' evita el error de codec
             st.download_button(label="📥 Descargar Boleta PDF", data=pdf_bytes, file_name=f"Boleta_{b['fecha'].replace('/','-')}.pdf", mime="application/pdf", use_container_width=True)
         except Exception as e:
             st.error(f"Error PDF: {e}")
