@@ -120,7 +120,6 @@ with tabs[0]: # VENTA
         st.write("") 
 
         # --- 2. BOTÓN WHATSAPP ---
-        # Quitamos emojis del texto de WhatsApp para evitar problemas de codificación si fuera necesario
         texto_wa = f"*RECIBO - {st.session_state.tenant}*\n"
         texto_wa += f"Fecha: {b['fecha']} {b['hora']}\n---\n"
         for i in b['items']:
@@ -129,7 +128,7 @@ with tabs[0]: # VENTA
         wa_url = f"https://wa.me/?text={urllib.parse.quote(texto_wa)}"
         st.link_button("📲 Enviar reporte por WhatsApp", wa_url, use_container_width=True)
 
-        # --- 3. DESCARGA PDF (CORREGIDO SIN EMOJIS) ---
+        # --- 3. DESCARGA PDF ---
         try:
             pdf = FPDF()
             pdf.add_page()
@@ -144,14 +143,13 @@ with tabs[0]: # VENTA
                 pdf.cell(100, 10, txt=f"{i['Cantidad']}x {i['Producto']}")
                 pdf.cell(90, 10, txt=f"S/ {i['Subtotal']:g}", ln=True, align='R')
             pdf.ln(5)
-            # Limpiamos el nombre del método de emojis para el PDF
             metodo_limpio = b['metodo'].replace("💵 ", "").replace("🟣 ", "").replace("🔵 ", "")
             pdf.cell(100, 10, txt=f"Metodo de Pago: {metodo_limpio}")
             pdf.cell(90, 10, txt=f"Rebaja: -S/ {b['rebaja']:g}", ln=True, align='R')
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(190, 10, txt=f"TOTAL NETO: S/ {b['t_neto']:g}", ln=True, align='R')
             
-            pdf_bytes = pdf.output(dest='S').encode('latin-1', 'ignore') # 'ignore' evita el error de codec
+            pdf_bytes = pdf.output(dest='S').encode('latin-1', 'ignore') 
             st.download_button(label="📥 Descargar Boleta PDF", data=pdf_bytes, file_name=f"Boleta_{b['fecha'].replace('/','-')}.pdf", mime="application/pdf", use_container_width=True)
         except Exception as e:
             st.error(f"Error PDF: {e}")
@@ -295,25 +293,39 @@ def registrar_kardex(producto_k, cantidad_k, tipo_k):
 
 if st.session_state.rol == "DUEÑO":
     with tabs[4]: # CARGAR
-        st.subheader("📥 Registro de Producto Nuevo")
-        with st.form("formulario_carga"):
-            p_nombre = st.text_input("NOMBRE DEL PRODUCTO").upper()
-            p_stock = st.number_input("STOCK INICIAL", min_value=1)
-            p_costo = st.number_input("PRECIO COSTO (COMPRA)", min_value=0.0)
-            p_venta = st.number_input("PRECIO VENTA", min_value=0.0)
-            if st.form_submit_button("🚀 GUARDAR PRODUCTO"):
-                if p_nombre:
-                    if not df_inv[df_inv['Producto'] == p_nombre].empty:
-                        st.error(f"❌ El producto '{p_nombre}' ya existe.")
-                    else:
-                        tabla_stock.put_item(Item={
-                            'TenantID': st.session_state.tenant, 'Producto': p_nombre, 
-                            'Stock': int(p_stock), 'Precio': str(p_venta), 'Precio_Compra': str(p_costo)
-                        })
-                        registrar_kardex(p_nombre, p_stock, "ENTRADA (NUEVO)")
-                        st.success("✅ ¡Producto Guardado con éxito!")
-                        time.sleep(3)
-                        st.rerun()
+        col_reg, col_bulk = st.columns(2)
+        with col_reg:
+            st.subheader("📥 Registro Individual")
+            with st.form("formulario_carga"):
+                p_nombre = st.text_input("NOMBRE DEL PRODUCTO").upper()
+                p_stock = st.number_input("STOCK INICIAL", min_value=1)
+                p_costo = st.number_input("PRECIO COSTO (COMPRA)", min_value=0.0)
+                p_venta = st.number_input("PRECIO VENTA", min_value=0.0)
+                if st.form_submit_button("🚀 GUARDAR PRODUCTO"):
+                    if p_nombre:
+                        if not df_inv[df_inv['Producto'] == p_nombre].empty:
+                            st.error(f"❌ El producto '{p_nombre}' ya existe.")
+                        else:
+                            tabla_stock.put_item(Item={'TenantID': st.session_state.tenant, 'Producto': p_nombre, 'Stock': int(p_stock), 'Precio': str(p_venta), 'Precio_Compra': str(p_costo)})
+                            registrar_kardex(p_nombre, p_stock, "ENTRADA (NUEVO)")
+                            st.success("✅ ¡Producto Guardado!")
+                            time.sleep(2); st.rerun()
+
+        with col_bulk:
+            st.subheader("📂 Carga Masiva (Excel/CSV)")
+            st.caption("Orden: Producto, Precio_Compra, Precio, Stock")
+            archivo = st.file_uploader("Subir archivo:", type=['xlsx', 'csv'])
+            if archivo:
+                df_b = pd.read_excel(archivo) if archivo.name.endswith('xlsx') else pd.read_csv(archivo)
+                st.write("Vista previa:", df_b.head(3))
+                if st.button("⚡ PROCESAR CARGA"):
+                    prog = st.progress(0)
+                    for i, r in df_b.iterrows():
+                        p_nom = str(r['Producto']).upper()
+                        tabla_stock.put_item(Item={'TenantID': st.session_state.tenant, 'Producto': p_nom, 'Precio_Compra': str(r['Precio_Compra']), 'Precio': str(r['Precio']), 'Stock': int(r['Stock'])})
+                        registrar_kardex(p_nom, r['Stock'], "CARGA MASIVA")
+                        prog.progress((i + 1) / len(df_b))
+                    st.success(f"✅ {len(df_b)} Productos cargados."); time.sleep(2); st.rerun()
 
     with tabs[5]: # MANTENIMIENTO
         st.subheader("🛠️ Gestión de Almacén")
@@ -329,37 +341,23 @@ if st.session_state.rol == "DUEÑO":
                 cantidad_ingreso = st.number_input("¿Cuánto está entrando?", min_value=1, key=f"m_cant_{p_sel_m}")
                 if st.button("✅ ACTUALIZAR STOCK TOTAL"):
                     nuevo_stock_m = int(df_inv.at[idx_m[0], 'Stock'] + cantidad_ingreso)
-                    tabla_stock.update_item(
-                        Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m},
-                        UpdateExpression="SET Stock = :s",
-                        ExpressionAttributeValues={':s': nuevo_stock_m}
-                    )
+                    tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': nuevo_stock_m})
                     registrar_kardex(p_sel_m, cantidad_ingreso, f"REPOSICIÓN (+{cantidad_ingreso})")
-                    st.success(f"✅ Stock de {p_sel_m} actualizado.")
-                    time.sleep(3)
-                    st.rerun()
+                    st.success(f"✅ Stock de {p_sel_m} actualizado."); time.sleep(2); st.rerun()
             
             elif opcion_m == "📝 MODIFICAR PRECIOS":
                 nuevo_c = st.number_input("Nuevo Costo:", value=float(df_inv.at[idx_m[0], 'Precio_Compra']))
                 nuevo_v = st.number_input("Nueva Venta:", value=float(df_inv.at[idx_m[0], 'Precio']))
                 if st.button("💾 GUARDAR CAMBIOS DE PRECIO"):
-                    tabla_stock.update_item(
-                        Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m},
-                        UpdateExpression="SET Precio_Compra = :pc, Precio = :pv",
-                        ExpressionAttributeValues={':pc': str(nuevo_c), ':pv': str(nuevo_v)}
-                    )
-                    registrar_kardex(p_sel_m, 0, f"CAMBIO PRECIOS: C:{nuevo_c} V:{nuevo_v}")
-                    st.success("✅ Precios actualizados.")
-                    time.sleep(3)
-                    st.rerun()
+                    tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m}, UpdateExpression="SET Precio_Compra = :pc, Precio = :pv", ExpressionAttributeValues={':pc': str(nuevo_c), ':pv': str(nuevo_v)})
+                    registrar_kardex(p_sel_m, 0, f"CAMBIO PRECIOS")
+                    st.success("✅ Precios actualizados."); time.sleep(2); st.rerun()
             
             else:
                 if st.button(f"🗑️ ELIMINAR {p_sel_m} DEFINITIVAMENTE"):
                     tabla_stock.delete_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m})
                     registrar_kardex(p_sel_m, 0, "PRODUCTO ELIMINADO")
-                    st.warning(f"El producto {p_sel_m} ha sido borrado.")
-                    time.sleep(3)
-                    st.rerun()
+                    st.warning(f"El producto {p_sel_m} ha sido borrado."); time.sleep(2); st.rerun()
 
 with st.sidebar:
     st.title(f"🏢 {st.session_state.tenant}")
