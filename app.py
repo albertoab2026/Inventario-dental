@@ -7,6 +7,7 @@ from boto3.dynamodb.conditions import Attr
 from fpdf import FPDF
 import time
 import re
+import urllib.parse
 
 # --- 0. CONFIGURACIÓN ---
 TABLA_STOCK = 'SaaS_Stock_Test'
@@ -82,6 +83,7 @@ if not st.session_state.auth:
     if col_empleado.button("🧑‍💼 EMPLEADO", use_container_width=True):
         intentar_login("EMPLEADO")
     st.stop()
+
 def obtener_datos():
     respuesta = tabla_stock.scan(FilterExpression=Attr('TenantID').eq(st.session_state.tenant))
     items = respuesta.get('Items', [])
@@ -104,12 +106,53 @@ with tabs[0]: # VENTA
         st.snow()
         b = st.session_state.boleta
         st.success("✅ VENTA REALIZADA CON ÉXITO")
+        
+        # --- DISEÑO DE BOLETA VISUAL ---
         st.markdown(f"""<div style="background-color:white;color:black;padding:20px;border:2px solid #333;max-width:350px;margin:auto;font-family:monospace;">
             <h3 style="text-align:center;margin:0;">{st.session_state.tenant}</h3>
             <p style="text-align:center;margin:0;">{b['fecha']} {b['hora']}</p><hr>
             {''.join([f'<div style="display:flex;justify-content:space-between;"><span>{i["Cantidad"]}x {i["Producto"]}</span><span>S/{i["Subtotal"]:g}</span></div>' for i in b['items']])}
-            <hr><div style="display:flex;justify-content:space-between;color:red;font-size:12px;"><span>REBAJA:</span><span>- S/{b['rebaja']:g}</span></div>
+            <hr>
+            <div style="display:flex;justify-content:space-between;"><span>MÉTODO:</span><span>{b['metodo']}</span></div>
+            <div style="display:flex;justify-content:space-between;color:red;font-size:12px;"><span>REBAJA:</span><span>- S/{b['rebaja']:g}</span></div>
             <div style="display:flex;justify-content:space-between;font-size:18px;"><b>NETO:</b><b>S/{b['t_neto']:g}</b></div></div>""", unsafe_allow_html=True)
+        
+        st.write("")
+        
+        # --- REPORTE WHATSAPP ---
+        texto_wa = f"*RECIBO DE VENTA - {st.session_state.tenant}*\n"
+        texto_wa += f"Fecha: {b['fecha']} {b['hora']}\n---\n"
+        for i in b['items']:
+            texto_wa += f"{i['Cantidad']}x {i['Producto']} - S/{i['Subtotal']:g}\n"
+        texto_wa += f"---\n*Total Neto: S/{b['t_neto']:g}*\nMétodo: {b['metodo']}"
+        wa_url = f"https://wa.me/?text={urllib.parse.quote(texto_wa)}"
+        st.link_button("📲 Enviar reporte por WhatsApp", wa_url, use_container_width=True)
+
+        # --- DESCARGA PDF ---
+        try:
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", 'B', 16)
+            pdf.cell(190, 10, txt=st.session_state.tenant, ln=True, align='C')
+            pdf.set_font("Arial", size=10)
+            pdf.cell(190, 10, txt=f"Fecha: {b['fecha']} | Hora: {b['hora']}", ln=True, align='C')
+            pdf.ln(5)
+            pdf.cell(190, 0, ln=True, border='H')
+            pdf.ln(5)
+            for i in b['items']:
+                pdf.cell(100, 10, txt=f"{i['Cantidad']}x {i['Producto']}")
+                pdf.cell(90, 10, txt=f"S/ {i['Subtotal']:g}", ln=True, align='R')
+            pdf.ln(5)
+            pdf.cell(100, 10, txt=f"Metodo de Pago: {b['metodo']}")
+            pdf.cell(90, 10, txt=f"Rebaja: -S/ {b['rebaja']:g}", ln=True, align='R')
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(190, 10, txt=f"TOTAL NETO: S/ {b['t_neto']:g}", ln=True, align='R')
+            
+            pdf_output = pdf.output(dest='S').encode('latin-1')
+            st.download_button(label="📥 Descargar Boleta PDF", data=pdf_output, file_name=f"Boleta_{b['fecha'].replace('/','-')}.pdf", mime="application/pdf", use_container_width=True)
+        except Exception as e:
+            st.error(f"Error al generar PDF: {e}")
+
         if st.button("⬅️ NUEVA VENTA", use_container_width=True):
             st.session_state.boleta = None
             st.rerun()
@@ -157,7 +200,6 @@ with tabs[0]: # VENTA
                 if st.button(f"✅ CONFIRMAR COBRO DE S/ {total_neto:g}", use_container_width=True):
                     f_v, h_v, uid_v = obtener_tiempo_peru()
                     for item_v in st.session_state.carrito:
-                        # Verificación final en AWS
                         res_aws = tabla_stock.get_item(Key={'TenantID': st.session_state.tenant, 'Producto': item_v['Producto']})
                         stock_real_aws = int(res_aws.get('Item', {}).get('Stock', 0))
                         if stock_real_aws < item_v['Cantidad']:
@@ -177,6 +219,7 @@ with tabs[0]: # VENTA
                     st.session_state.carrito = []
                     st.session_state.confirmar = False
                     st.rerun()
+
 with tabs[1]: # STOCK
     st.subheader("📦 Consulta de Almacén")
     filtro_stock = st.text_input("🔍 Escriba para filtrar tabla:", key="f_stock_input").upper()
@@ -228,6 +271,7 @@ if st.session_state.rol == "DUEÑO":
             st.dataframe(df_rep[['Hora', 'Producto', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
         else:
             st.info("No se registraron ventas en la fecha seleccionada.")
+
     with tabs[3]: # HISTORIAL
         st.subheader("📋 Historial de Movimientos")
         fecha_h = st.date_input("Fecha de movimientos:", datetime.now(tz_peru), key="fecha_hist").strftime("%d/%m/%Y")
