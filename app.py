@@ -62,7 +62,7 @@ t1, t2, t3, t4, t5, t6 = st.tabs(["🛒 VENTA", "📦 STOCK", "📊 REPORTES", "
 
 with t1:
     if st.session_state.boleta:
-        st.snow() # CONFETI
+        st.snow() 
         b = st.session_state.boleta
         st.success("✅ ¡VENTA REALIZADA CON ÉXITO!")
         st.markdown(f"""<div style="background-color:white;color:black;padding:20px;border:2px solid #333;max-width:350px;margin:auto;font-family:monospace;">
@@ -76,7 +76,9 @@ with t1:
     else:
         bus_v = st.text_input("🔍 Buscar:", key="bv").upper()
         prod_v = [p for p in df_inv['Producto'].tolist() if bus_v in str(p)]
-        c1, c2 = st.columns(2); p_sel = c1.selectbox("Producto:", prod_v, key="pv") if prod_f else None; cant = c2.number_input("Cant:", min_value=1, value=1, key="cv")
+        c1, c2 = st.columns(2)
+        p_sel = c1.selectbox("Producto:", prod_v, key="pv") if prod_v else None
+        cant = c2.number_input("Cant:", min_value=1, value=1, key="cv")
         if p_sel:
             row = df_inv[df_inv['Producto'] == p_sel].iloc[0]
             st.info(f"💰 Precio: S/ {row['Precio']:g} | 📦 Stock: {row['Stock']}")
@@ -99,7 +101,7 @@ with t1:
                     f, h, uid = obtener_tiempo_peru()
                     for i, item in enumerate(st.session_state.carrito):
                         tabla_ventas.put_item(Item={'TenantID': st.session_state.tenant, 'VentaID': f"V-{uid}-{i}", 'Fecha': f, 'Hora': h, 'Producto': item['Producto'], 'Cantidad': int(item['Cantidad']), 'Total': str(item['Subtotal']), 'Precio_Compra': str(item['Precio_Compra']), 'Metodo': m_pago, 'Rebaja': str(rebaja)})
-                        n_s = int(df_inv[df_inv['Producto']==item['Producto']]['Stock'].values) - item['Cantidad']
+                        n_s = int(df_inv[df_inv['Producto']==item['Producto']]['Stock'].values[0]) - item['Cantidad']
                         tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': item['Producto']}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': n_s})
                     st.session_state.boleta = {'items': st.session_state.carrito, 't_bruto': t_bruto, 'rebaja': rebaja, 't_neto': t_neto, 'metodo': m_pago, 'fecha': f, 'hora': h}
                     st.session_state.carrito = []; st.session_state.confirmar = False; st.rerun()
@@ -146,7 +148,7 @@ with t6:
     prod_m = [p for p in df_inv['Producto'].tolist() if bus_m in str(p)]
     if prod_m:
         p_m = st.selectbox("Confirmar:", prod_m, key="pm")
-        s_act = int(df_inv[df_inv['Producto'] == p_m]['Stock'].values)
+        s_act = int(df_inv[df_inv['Producto'] == p_m]['Stock'].values[0])
         c_mas = st.number_input("¿Cuánto entra?", min_value=1, key="cm")
         if st.button("✅ REPOSICIÓN", use_container_width=True):
             tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_m}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': s_act + c_mas})
