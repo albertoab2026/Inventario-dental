@@ -8,7 +8,7 @@ from fpdf import FPDF
 import time
 import re
 import urllib.parse
-from decimal import Decimal # <-- NUEVO: Para evitar errores de precisión en AWS
+from decimal import Decimal, ROUND_HALF_UP # <-- NUEVO: Precisión financiera
 
 # --- 0. CONFIGURACIÓN ---
 TABLA_STOCK = 'SaaS_Stock_Test'
@@ -17,6 +17,10 @@ TABLA_MOVS = 'SaaS_Movimientos_Test'
 
 st.set_page_config(page_title="NEXUS BALLARTA SaaS", layout="wide", page_icon="🚀")
 tz_peru = pytz.timezone('America/Lima')
+
+# Función auxiliar para convertir a Decimal (evita errores de Float en DynamoDB)
+def to_decimal(f):
+    return Decimal(str(f)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 def obtener_tiempo_peru():
     ahora = datetime.now(tz_peru)
@@ -115,11 +119,11 @@ with tabs[0]: # VENTA
         st.markdown(f"""<div style="background-color:white;color:black;padding:20px;border:2px solid #333;max-width:350px;margin:auto;font-family:monospace;">
             <h3 style="text-align:center;margin:0;">{st.session_state.tenant}</h3>
             <p style="text-align:center;margin:0;">{b['fecha']} {b['hora']}</p><hr>
-            {''.join([f'<div style="display:flex;justify-content:space-between;"><span>{i["Cantidad"]}x {i["Producto"]}</span><span>S/{i["Subtotal"]:g}</span></div>' for i in b['items']])}
+            {''.join([f'<div style="display:flex;justify-content:space-between;"><span>{i["Cantidad"]}x {i["Producto"]}</span><span>S/{float(i["Subtotal"]):.2f}</span></div>' for i in b['items']])}
             <hr>
             <div style="display:flex;justify-content:space-between;"><span>MÉTODO:</span><span>{b['metodo']}</span></div>
-            <div style="display:flex;justify-content:space-between;color:red;font-size:12px;"><span>REBAJA:</span><span>- S/{b['rebaja']:g}</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:18px;"><b>NETO:</b><b>S/{b['t_neto']:g}</b></div></div>""", unsafe_allow_html=True)
+            <div style="display:flex;justify-content:space-between;color:red;font-size:12px;"><span>REBAJA:</span><span>- S/{float(b['rebaja']):.2f}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:18px;"><b>NETO:</b><b>S/{float(b['t_neto']):.2f}</b></div></div>""", unsafe_allow_html=True)
         
         st.write("") 
 
@@ -127,8 +131,8 @@ with tabs[0]: # VENTA
         texto_wa = f"*RECIBO - {st.session_state.tenant}*\n"
         texto_wa += f"Fecha: {b['fecha']} {b['hora']}\n---\n"
         for i in b['items']:
-            texto_wa += f"{i['Cantidad']}x {i['Producto']} - S/{i['Subtotal']:g}\n"
-        texto_wa += f"---\n*TOTAL NETO: S/{b['t_neto']:g}*\nMetodo: {b['metodo']}"
+            texto_wa += f"{i['Cantidad']}x {i['Producto']} - S/{float(i['Subtotal']):.2f}\n"
+        texto_wa += f"---\n*TOTAL NETO: S/{float(b['t_neto']):.2f}*\nMetodo: {b['metodo']}"
         wa_url = f"https://wa.me/?text={urllib.parse.quote(texto_wa)}"
         st.link_button("📲 Enviar reporte por WhatsApp", wa_url, use_container_width=True)
 
@@ -145,13 +149,13 @@ with tabs[0]: # VENTA
             pdf.ln(5)
             for i in b['items']:
                 pdf.cell(100, 10, txt=f"{i['Cantidad']}x {i['Producto']}")
-                pdf.cell(90, 10, txt=f"S/ {i['Subtotal']:g}", ln=True, align='R')
+                pdf.cell(90, 10, txt=f"S/ {float(i['Subtotal']):.2f}", ln=True, align='R')
             pdf.ln(5)
             metodo_limpio = b['metodo'].replace("💵 ", "").replace("🟣 ", "").replace("🔵 ", "")
             pdf.cell(100, 10, txt=f"Metodo de Pago: {metodo_limpio}")
-            pdf.cell(90, 10, txt=f"Rebaja: -S/ {b['rebaja']:g}", ln=True, align='R')
+            pdf.cell(90, 10, txt=f"Rebaja: -S/ {float(b['rebaja']):.2f}", ln=True, align='R')
             pdf.set_font("Arial", 'B', 12)
-            pdf.cell(190, 10, txt=f"TOTAL NETO: S/ {b['t_neto']:g}", ln=True, align='R')
+            pdf.cell(190, 10, txt=f"TOTAL NETO: S/ {float(b['t_neto']):.2f}", ln=True, align='R')
             
             pdf_bytes = pdf.output(dest='S').encode('latin-1', 'ignore') 
             st.download_button(label="📥 Descargar Boleta PDF", data=pdf_bytes, file_name=f"Boleta_{b['fecha'].replace('/','-')}.pdf", mime="application/pdf", use_container_width=True)
@@ -176,12 +180,14 @@ with tabs[0]: # VENTA
             
             if st.button("➕ Añadir al Carrito", use_container_width=True):
                 if cantidad_v <= disponible_ahora:
+                    # MODIFICADO: Usamos to_decimal para el carrito
+                    p_v_dec = to_decimal(datos_p.Precio)
                     st.session_state.carrito.append({
                         'Producto': p_seleccionado, 
                         'Cantidad': int(cantidad_v), 
-                        'Precio': float(datos_p.Precio), 
-                        'Precio_Compra': float(datos_p.Precio_Compra), 
-                        'Subtotal': round(float(datos_p.Precio) * cantidad_v, 2)
+                        'Precio': p_v_dec, 
+                        'Precio_Compra': to_decimal(datos_p.Precio_Compra), 
+                        'Subtotal': p_v_dec * int(cantidad_v)
                     })
                     st.rerun()
                 else:
@@ -194,15 +200,18 @@ with tabs[0]: # VENTA
                 st.rerun()
             metodo_p = st.radio("Forma de Pago:", ["💵 EFECTIVO", "🟣 YAPE", "🔵 PLIN"], horizontal=True)
             rebaja_v = st.number_input("💸 Rebaja S/:", min_value=0.0, value=0.0, key="rebaja_v")
+            
+            # MODIFICADO: Suma exacta con Decimal
             total_bruto = sum(item['Subtotal'] for item in st.session_state.carrito)
-            total_neto = max(0.0, total_bruto - rebaja_v)
-            st.markdown(f"<h1 style='text-align:center; color:#2ecc71;'>S/ {total_neto:g}</h1>", unsafe_allow_html=True)
+            total_neto = max(Decimal('0.00'), total_bruto - to_decimal(rebaja_v))
+            
+            st.markdown(f"<h1 style='text-align:center; color:#2ecc71;'>S/ {float(total_neto):.2f}</h1>", unsafe_allow_html=True)
             
             if st.button("🚀 FINALIZAR VENTA", use_container_width=True, type="primary"):
                 st.session_state.confirmar = True
             
             if st.session_state.confirmar:
-                if st.button(f"✅ CONFIRMAR COBRO DE S/ {total_neto:g}", use_container_width=True):
+                if st.button(f"✅ CONFIRMAR COBRO DE S/ {float(total_neto):.2f}", use_container_width=True):
                     f_v, h_v, uid_v = obtener_tiempo_peru()
                     for item_v in st.session_state.carrito:
                         # MODIFICADO: Cambio de get_item a query para mayor rapidez y ahorro
@@ -215,17 +224,20 @@ with tabs[0]: # VENTA
                         if stock_real_aws < item_v['Cantidad']:
                             st.error(f"❌ Error: {item_v['Producto']} se agotó hace un instante."); st.stop()
                         
+                        # MODIFICADO: Guardamos como Decimal directamente (boto3 lo acepta)
                         tabla_ventas.put_item(Item={
                             'TenantID': st.session_state.tenant, 'VentaID': f"V-{uid_v}", 'Fecha': f_v, 'Hora': h_v, 
-                            'Producto': item_v['Producto'], 'Cantidad': int(item_v['Cantidad']), 'Total': str(item_v['Subtotal']), 
-                            'Precio_Compra': str(item_v['Precio_Compra']), 'Metodo': metodo_p, 'Rebaja': str(rebaja_v)
+                            'Producto': item_v['Producto'], 'Cantidad': int(item_v['Cantidad']), 
+                            'Total': item_v['Subtotal'], 
+                            'Precio_Compra': item_v['Precio_Compra'], 
+                            'Metodo': metodo_p, 'Rebaja': to_decimal(rebaja_v)
                         })
                         tabla_stock.update_item(
                             Key={'TenantID': st.session_state.tenant, 'Producto': item_v['Producto']},
                             UpdateExpression="SET Stock = Stock - :s",
                             ExpressionAttributeValues={':s': item_v['Cantidad']}
                         )
-                    st.session_state.boleta = {'items': st.session_state.carrito, 't_neto': total_neto, 'rebaja': rebaja_v, 'metodo': metodo_p, 'fecha': f_v, 'hora': h_v}
+                    st.session_state.boleta = {'items': st.session_state.carrito, 't_neto': total_neto, 'rebaja': to_decimal(rebaja_v), 'metodo': metodo_p, 'fecha': f_v, 'hora': h_v}
                     st.session_state.carrito = []
                     st.session_state.confirmar = False
                     st.rerun()
@@ -243,7 +255,7 @@ with tabs[1]: # STOCK
         return [''] * len(fila)
         
     st.dataframe(df_mostrar.style.apply(estilo_filas, axis=1).format({
-        "Precio": "{:g}", "Precio_Compra": "{:g}", "Stock": "{:d}"
+        "Precio": "{:.2f}", "Precio_Compra": "{:.2f}", "Stock": "{:d}"
     }), use_container_width=True, hide_index=True)
 
 if st.session_state.rol == "DUEÑO":
@@ -263,15 +275,16 @@ if st.session_state.rol == "DUEÑO":
             df_rep = df_rep_total[df_rep_total['Fecha'] == fecha_r]
             
             if not df_rep.empty:
+                # MODIFICADO: Forzamos Decimal en el DataFrame para cálculos de reporte exactos
                 for columna in ['Total', 'Precio_Compra', 'Cantidad']:
-                    df_rep[columna] = pd.to_numeric(df_rep[columna], errors='coerce').fillna(0)
+                    df_rep[columna] = df_rep[columna].apply(lambda x: Decimal(str(x)))
                 
                 df_rep['Inversion_F'] = df_rep['Precio_Compra'] * df_rep['Cantidad']
                 
                 def calcular_metodo(nombre_metodo):
                     filtrado = df_rep[df_rep['Metodo'].str.contains(nombre_metodo, na=False)]
-                    t_ventas = filtrado['Total'].sum()
-                    t_ganancia = t_ventas - filtrado['Inversion_F'].sum()
+                    t_ventas = filtrado['Total'].sum() if not filtrado.empty else Decimal('0.00')
+                    t_ganancia = t_ventas - (filtrado['Inversion_F'].sum() if not filtrado.empty else Decimal('0.00'))
                     return t_ventas, t_ganancia
                 
                 ef_v, ef_g = calcular_metodo("EFECTIVO")
@@ -279,13 +292,13 @@ if st.session_state.rol == "DUEÑO":
                 pl_v, pl_g = calcular_metodo("PLIN")
                 
                 c1, c2, c3 = st.columns(3)
-                c1.metric("💵 EFECTIVO", f"S/ {ef_v:g}", f"Gana: S/ {ef_g:g}")
-                c2.metric("🟣 YAPE", f"S/ {ya_v:g}", f"Gana: S/ {ya_g:g}")
-                c3.metric("🔵 PLIN", f"S/ {pl_v:g}", f"Gana: S/ {pl_g:g}")
+                c1.metric("💵 EFECTIVO", f"S/ {float(ef_v):.2f}", f"Gana: S/ {float(ef_g):.2f}")
+                c2.metric("🟣 YAPE", f"S/ {float(ya_v):.2f}", f"Gana: S/ {float(ya_g):.2f}")
+                c3.metric("🔵 PLIN", f"S/ {float(pl_v):.2f}", f"Gana: S/ {float(pl_g):.2f}")
                 
                 st.divider()
                 ganancia_total_dia = df_rep['Total'].sum() - df_rep['Inversion_F'].sum()
-                st.metric("📈 GANANCIA NETA TOTAL DEL DÍA", f"S/ {ganancia_total_dia:g}")
+                st.metric("📈 GANANCIA NETA TOTAL DEL DÍA", f"S/ {float(ganancia_total_dia):.2f}")
                 st.dataframe(df_rep[['Hora', 'Producto', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
             else:
                 st.info("No se registraron ventas en la fecha seleccionada.")
@@ -336,9 +349,10 @@ if st.session_state.rol == "DUEÑO":
                         if not df_inv[df_inv['Producto'] == p_nombre].empty:
                             st.error(f"❌ El producto '{p_nombre}' ya existe.")
                         else:
+                            # MODIFICADO: Guardamos como Decimal
                             tabla_stock.put_item(Item={
                                 'TenantID': st.session_state.tenant, 'Producto': p_nombre, 
-                                'Stock': int(p_stock), 'Precio': str(p_venta), 'Precio_Compra': str(p_costo)
+                                'Stock': int(p_stock), 'Precio': to_decimal(p_venta), 'Precio_Compra': to_decimal(p_costo)
                             })
                             registrar_kardex(p_nombre, p_stock, "ENTRADA (NUEVO)")
                             st.success("✅ ¡Producto Guardado!")
@@ -349,52 +363,35 @@ if st.session_state.rol == "DUEÑO":
             st.subheader("📂 Carga Masiva (Excel/CSV)")
             st.caption("Columnas: Producto, Precio_Compra, Precio, Stock")
             archivo_subido = st.file_uploader("Subir archivo", type=['xlsx', 'csv'], key="bulk_upload")
-            
             if archivo_subido:
                 try:
-                    # Carga inicial del archivo
                     df_bulk = pd.read_excel(archivo_subido) if archivo_subido.name.endswith('xlsx') else pd.read_csv(archivo_subido)
-                    
-                    # MEJORA: Normalizamos columnas para que no falle por mayúsculas/minúsculas o espacios
+                    # Normalizamos columnas
                     df_bulk.columns = [str(c).strip().title() for c in df_bulk.columns]
-                    columnas_necesarias = {'Producto', 'Precio_Compra', 'Precio', 'Stock'}
-                    
-                    if not columnas_necesarias.issubset(df_bulk.columns):
-                        st.error(f"❌ El archivo debe tener las columnas: {columnas_necesarias}")
-                    else:
-                        st.write("Vista previa:", df_bulk.head(3))
-                        if st.button("⚡ PROCESAR CARGA", use_container_width=True):
-                            barra_progreso = st.progress(0)
-                            exitos, errores = 0, 0
-                            
-                            for i, fila in df_bulk.iterrows():
-                                try:
-                                    p_bulk = str(fila['Producto']).strip().upper()
-                                    if not p_bulk or p_bulk == "NAN": continue
-                                    
-                                    # MEJORA: Validación de datos numéricos para que no rompa el bucle
-                                    costo_val = str(pd.to_numeric(fila['Precio_Compra'], errors='coerce') or 0.0)
-                                    precio_val = str(pd.to_numeric(fila['Precio'], errors='coerce') or 0.0)
-                                    stock_val = int(pd.to_numeric(fila['Stock'], errors='coerce') or 0)
-                                    
-                                    tabla_stock.put_item(Item={
-                                        'TenantID': st.session_state.tenant, 
-                                        'Producto': p_bulk, 
-                                        'Precio_Compra': costo_val, 
-                                        'Precio': precio_val, 
-                                        'Stock': stock_val
-                                    })
-                                    registrar_kardex(p_bulk, stock_val, "CARGA MASIVA")
-                                    exitos += 1
-                                except:
-                                    errores += 1
-                                barra_progreso.progress((i + 1) / len(df_bulk))
-                            
-                            st.success(f"✅ {exitos} Productos cargados. Errores: {errores}")
-                            time.sleep(2)
-                            st.rerun()
+                    st.write("Vista previa:", df_bulk.head(3))
+                    if st.button("⚡ PROCESAR CARGA", use_container_width=True):
+                        barra_progreso = st.progress(0)
+                        for i, fila in df_bulk.iterrows():
+                            p_bulk = str(fila['Producto']).upper()
+                            # MODIFICADO: Conversión segura a Decimal para carga masiva
+                            costo_val = to_decimal(pd.to_numeric(fila['Precio_Compra'], errors='coerce') or 0.0)
+                            precio_val = to_decimal(pd.to_numeric(fila['Precio'], errors='coerce') or 0.0)
+                            stock_val = int(pd.to_numeric(fila['Stock'], errors='coerce') or 0)
+
+                            tabla_stock.put_item(Item={
+                                'TenantID': st.session_state.tenant, 
+                                'Producto': p_bulk, 
+                                'Precio_Compra': costo_val, 
+                                'Precio': precio_val, 
+                                'Stock': stock_val
+                            })
+                            registrar_kardex(p_bulk, stock_val, "CARGA MASIVA")
+                            barra_progreso.progress((i + 1) / len(df_bulk))
+                        st.success(f"✅ {len(df_bulk)} Productos cargados.")
+                        time.sleep(2)
+                        st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Error al leer el archivo: {e}")
+                    st.error(f"Error al leer archivo: {e}")
 
     with tabs[5]: # MANTENIMIENTO
         st.subheader("🛠️ Gestión de Almacén")
@@ -424,10 +421,11 @@ if st.session_state.rol == "DUEÑO":
                 nuevo_c = st.number_input("Nuevo Costo:", value=float(df_inv.at[idx_m[0], 'Precio_Compra']))
                 nuevo_v = st.number_input("Nueva Venta:", value=float(df_inv.at[idx_m[0], 'Precio']))
                 if st.button("💾 GUARDAR CAMBIOS DE PRECIO"):
+                    # MODIFICADO: Actualización con Decimal
                     tabla_stock.update_item(
                         Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m},
                         UpdateExpression="SET Precio_Compra = :pc, Precio = :pv",
-                        ExpressionAttributeValues={':pc': str(nuevo_c), ':pv': str(nuevo_v)}
+                        ExpressionAttributeValues={':pc': to_decimal(nuevo_c), ':pv': to_decimal(nuevo_v)}
                     )
                     registrar_kardex(p_sel_m, 0, f"CAMBIO PRECIOS: C:{nuevo_c} V:{nuevo_v}")
                     st.success("✅ Precios actualizados.")
