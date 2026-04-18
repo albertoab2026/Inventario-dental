@@ -9,6 +9,7 @@ import time
 import re
 import urllib.parse
 from decimal import Decimal, ROUND_HALF_UP
+import io  # Necesario para el Excel
 
 # --- 0. CONFIGURACIÓN ---
 TABLA_STOCK = 'SaaS_Stock_Test'
@@ -110,7 +111,6 @@ if st.session_state.rol == "DUEÑO":
 tabs = st.tabs(lista_pestanas)
 
 with tabs[0]: # VENTA
-    # --- Mejora 1: Alerta visual para el vendedor si hay poco stock ---
     df_critico = df_inv[df_inv['Stock'] < 5].copy()
     if not df_critico.empty:
         st.warning(f"⚠️ ¡Atención! {len(df_critico)} productos tienen stock crítico (menos de 5 unidades).")
@@ -216,26 +216,34 @@ with tabs[0]: # VENTA
                 if st.button(f"✅ CONFIRMAR COBRO DE S/ {float(total_neto):.2f}", use_container_width=True):
                     f_v, h_v, uid_v = obtener_tiempo_peru()
                     for item_v in st.session_state.carrito:
-                        res_aws = tabla_stock.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant) & Key('Producto').eq(item_v['Producto']))
-                        items_stock = res_aws.get('Items', [])
-                        stock_real_aws = int(items_stock[0].get('Stock', 0)) if items_stock else 0
-                        if stock_real_aws < item_v['Cantidad']:
-                            st.error(f"❌ Error: {item_v['Producto']} se agotó hace un instante."); st.stop()
-                        
-                        # --- Mejora: Añadido Usuario para saber quién vendió ---
-                        tabla_ventas.put_item(Item={
-                            'TenantID': st.session_state.tenant, 
-                            'VentaID': f"V-{uid_v}", 
-                            'Fecha': f_v, 'Hora': h_v, 
-                            'Producto': item_v['Producto'], 
-                            'Cantidad': int(item_v['Cantidad']), 
-                            'Total': item_v['Subtotal'], 
-                            'Precio_Compra': item_v['Precio_Compra'], 
-                            'Metodo': metodo_p, 
-                            'Rebaja': to_decimal(rebaja_v),
-                            'Usuario': st.session_state.rol
-                        })
-                        tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': item_v['Producto']}, UpdateExpression="SET Stock = Stock - :s", ExpressionAttributeValues={':s': item_v['Cantidad']})
+                        # --- MEJORA ANTI-NEGATIVOS: ConditionExpression ---
+                        try:
+                            # Intentamos restar el stock solo si es mayor o igual a la cantidad pedida
+                            tabla_stock.update_item(
+                                Key={'TenantID': st.session_state.tenant, 'Producto': item_v['Producto']},
+                                UpdateExpression="SET Stock = Stock - :s",
+                                ConditionExpression="Stock >= :s",
+                                ExpressionAttributeValues={':s': item_v['Cantidad']}
+                            )
+                            
+                            # Si la actualización de stock fue exitosa, registramos la venta
+                            tabla_ventas.put_item(Item={
+                                'TenantID': st.session_state.tenant, 
+                                'VentaID': f"V-{uid_v}", 
+                                'Fecha': f_v, 'Hora': h_v, 
+                                'Producto': item_v['Producto'], 
+                                'Cantidad': int(item_v['Cantidad']), 
+                                'Total': item_v['Subtotal'], 
+                                'Precio_Compra': item_v['Precio_Compra'], 
+                                'Metodo': metodo_p, 
+                                'Rebaja': to_decimal(rebaja_v),
+                                'Usuario': st.session_state.rol
+                            })
+                        except dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
+                            # Si alguien vendió el producto en ese mismo instante y ya no hay stock:
+                            st.error(f"❌ ¡CRÍTICO! El stock de '{item_v['Producto']}' cambió justo ahora y ya no hay suficiente. Venta cancelada.")
+                            st.stop()
+
                     st.session_state.boleta = {'items': st.session_state.carrito, 't_neto': total_neto, 'rebaja': to_decimal(rebaja_v), 'metodo': metodo_p, 'fecha': f_v, 'hora': h_v}
                     st.session_state.carrito = []
                     st.session_state.confirmar = False
@@ -243,10 +251,25 @@ with tabs[0]: # VENTA
 
 with tabs[1]: # STOCK
     st.subheader("📦 Consulta de Almacén")
-    filtro_stock = st.text_input("🔍 Escriba para filtrar tabla:", key="f_stock_input").upper()
+    
+    # --- MEJORA: BOTÓN EXCEL AL LADO DEL FILTRO ---
+    col_filtro, col_excel = st.columns([3, 1])
+    with col_filtro:
+        filtro_stock = st.text_input("🔍 Escriba para filtrar tabla:", key="f_stock_input").upper()
+    with col_excel:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df_inv.to_excel(writer, index=False, sheet_name='Inventario')
+        st.download_button(
+            label="📥 Descargar Excel",
+            data=output.getvalue(),
+            file_name=f"Inventario_{st.session_state.tenant}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+
     df_mostrar = df_inv[df_inv['Producto'].str.contains(filtro_stock, na=False)]
     
-    # Mejora: Colores para stock crítico
     def estilo_filas(fila):
         if fila.Stock <= 0:
             return ['background-color: #721c24; color: white; font-weight: bold;'] * len(fila)
@@ -340,7 +363,6 @@ with tabs[2]:
 
 def registrar_kardex(producto_k, cantidad_k, tipo_k):
     f_k, h_k, uid_k = obtener_tiempo_peru()
-    # --- Mejora: Registro del Usuario que hizo el movimiento ---
     tabla_movs.put_item(Item={
         'TenantID': st.session_state.tenant, 
         'MovID': f"M-{uid_k}", 
