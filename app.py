@@ -235,7 +235,7 @@ with tabs[1]: # STOCK
     st.dataframe(df_mostrar.style.apply(estilo_filas, axis=1).format({"Precio": "{:.2f}", "Precio_Compra": "{:.2f}", "Stock": "{:d}"}), use_container_width=True, hide_index=True)
 
 if st.session_state.rol == "DUEÑO":
-    with tabs[2]: # REPORTES (PUNTO 4: INTELIGENCIA DE NEGOCIO)
+    with tabs[2]: # REPORTES ACTUALIZADO (PUNTO 4 + FIX TABLA MÓVIL)
         st.subheader("📊 Reporte de Inteligencia de Negocio")
         fecha_r = st.date_input("Día a consultar:", datetime.now(tz_peru), key="fecha_rep").strftime("%d/%m/%Y")
         res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant))
@@ -251,7 +251,7 @@ if st.session_state.rol == "DUEÑO":
                 
                 df_rep['Inversion_F'] = df_rep['Precio_Compra'] * df_rep['Cantidad']
                 
-                # --- CÁLCULOS PUNTO 4 ---
+                # --- CÁLCULOS KPI ---
                 total_venta_dia = df_rep['Total'].sum()
                 num_tickets = df_rep['VentaID'].nunique()
                 ticket_promedio = total_venta_dia / num_tickets if num_tickets > 0 else 0
@@ -285,7 +285,16 @@ if st.session_state.rol == "DUEÑO":
                 df_top = df_rep.groupby('Producto')['Cantidad'].sum().sort_values(ascending=False).head(5)
                 st.bar_chart(df_top)
 
-                st.dataframe(df_rep[['Hora', 'Producto', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
+                # TABLA CORREGIDA PARA MÓVIL (No se mueve)
+                st.dataframe(df_rep[['Hora', 'Producto', 'Total', 'Metodo']], 
+                             use_container_width=True, 
+                             hide_index=True,
+                             column_config={
+                                 "Hora": st.column_config.TextColumn("Hora", width="small"),
+                                 "Producto": st.column_config.TextColumn("Producto", width="medium"),
+                                 "Total": st.column_config.NumberColumn("Total", format="S/ %.2f", width="small"),
+                                 "Metodo": st.column_config.TextColumn("Método", width="small"),
+                             })
             else:
                 st.info("No hay ventas en esta fecha.")
         else:
