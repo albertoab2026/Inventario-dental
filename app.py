@@ -24,7 +24,7 @@ def to_decimal(f):
 def obtener_tiempo_peru():
     ahora = datetime.now(tz_peru)
     fecha = ahora.strftime("%d/%m/%Y")
-    hora = ahora.strftime("%H:%M:%S")
+    hora =趁ahora.strftime("%H:%M:%S")
     id_unico = ahora.strftime("%Y%m%d%H%M%S%f")
     return fecha, hora, id_unico
 
@@ -216,7 +216,20 @@ with tabs[0]: # VENTA
                         if stock_real_aws < item_v['Cantidad']:
                             st.error(f"❌ Error: {item_v['Producto']} se agotó hace un instante."); st.stop()
                         
-                        tabla_ventas.put_item(Item={'TenantID': st.session_state.tenant, 'VentaID': f"V-{uid_v}", 'Fecha': f_v, 'Hora': h_v, 'Producto': item_v['Producto'], 'Cantidad': int(item_v['Cantidad']), 'Total': item_v['Subtotal'], 'Precio_Compra': item_v['Precio_Compra'], 'Metodo': metodo_p, 'Rebaja': to_decimal(rebaja_v)})
+                        # MEJORA PUNTO 4: Registro de Usuario en Venta
+                        tabla_ventas.put_item(Item={
+                            'TenantID': st.session_state.tenant, 
+                            'VentaID': f"V-{uid_v}", 
+                            'Fecha': f_v, 
+                            'Hora': h_v, 
+                            'Producto': item_v['Producto'], 
+                            'Cantidad': int(item_v['Cantidad']), 
+                            'Total': item_v['Subtotal'], 
+                            'Precio_Compra': item_v['Precio_Compra'], 
+                            'Metodo': metodo_p, 
+                            'Rebaja': to_decimal(rebaja_v),
+                            'Usuario': st.session_state.rol # Quién hizo la venta
+                        })
                         tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': item_v['Producto']}, UpdateExpression="SET Stock = Stock - :s", ExpressionAttributeValues={':s': item_v['Cantidad']})
                     st.session_state.boleta = {'items': st.session_state.carrito, 't_neto': total_neto, 'rebaja': to_decimal(rebaja_v), 'metodo': metodo_p, 'fecha': f_v, 'hora': h_v}
                     st.session_state.carrito = []
@@ -225,6 +238,14 @@ with tabs[0]: # VENTA
 
 with tabs[1]: # STOCK
     st.subheader("📦 Consulta de Almacén")
+    
+    # MEJORA PUNTO 1: Alerta visual preventiva
+    bajo_stock = df_inv[df_inv['Stock'] < 5]
+    if not bajo_stock.empty:
+        st.warning(f"⚠️ **ALERTA:** Tienes {len(bajo_stock)} productos con stock bajo (menos de 5 unidades).")
+        if st.checkbox("Ver lista de reposición urgente"):
+            st.table(bajo_stock[['Producto', 'Stock']])
+
     filtro_stock = st.text_input("🔍 Escriba para filtrar tabla:", key="f_stock_input").upper()
     df_mostrar = df_inv[df_inv['Producto'].str.contains(filtro_stock, na=False)]
     def estilo_filas(fila):
@@ -235,7 +256,7 @@ with tabs[1]: # STOCK
         return [''] * len(fila)
     st.dataframe(df_mostrar.style.apply(estilo_filas, axis=1).format({"Precio": "{:.2f}", "Precio_Compra": "{:.2f}", "Stock": "{:d}"}), use_container_width=True, hide_index=True)
 
-# --- REPORTES ACTUALIZADO ---
+# --- REPORTES ---
 with tabs[2]: 
     st.subheader("📊 Reporte de Ventas e Inteligencia")
     
@@ -310,8 +331,8 @@ with tabs[2]:
                 df_top = df_rep.groupby('Producto')['Cantidad'].sum().sort_values(ascending=False).head(5)
                 st.bar_chart(df_top)
 
-            # ORDEN CRONOLÓGICO INVERSO EN VENTAS (Lo más nuevo arriba)
-            st.dataframe(df_rep.sort_values("Hora", ascending=False)[['Hora', 'Producto', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
+            # MOSTRAR USUARIO EN TABLA DE VENTAS
+            st.dataframe(df_rep.sort_values("Hora", ascending=False)[['Hora', 'Producto', 'Total', 'Metodo', 'Usuario' if 'Usuario' in df_rep.columns else 'Hora']], use_container_width=True, hide_index=True)
         else: st.info("No hay ventas en esta fecha.")
     else: st.info("Sin ventas registradas.")
 
@@ -325,14 +346,24 @@ if st.session_state.rol == "DUEÑO":
             df_hist_total = pd.DataFrame(items_movs_bruto)
             df_historial = df_hist_total[df_hist_total['Fecha'] == fecha_h]
             if not df_historial.empty:
-                # ORDEN CRONOLÓGICO INVERSO EN HISTORIAL (Lo más nuevo arriba)
-                st.dataframe(df_historial.sort_values("Hora", ascending=False)[['Hora', 'Producto', 'Cantidad', 'Tipo']], use_container_width=True, hide_index=True)
+                # MOSTRAR USUARIO EN HISTORIAL
+                st.dataframe(df_historial.sort_values("Hora", ascending=False)[['Hora', 'Producto', 'Cantidad', 'Tipo', 'Usuario' if 'Usuario' in df_historial.columns else 'Hora']], use_container_width=True, hide_index=True)
             else: st.info("Sin movimientos registrados hoy.")
         else: st.info("Historial vacío.")
 
+# MEJORA PUNTO 4: Función registrar_kardex ahora guarda el usuario logueado
 def registrar_kardex(producto_k, cantidad_k, tipo_k):
     f_k, h_k, uid_k = obtener_tiempo_peru()
-    tabla_movs.put_item(Item={'TenantID': st.session_state.tenant, 'MovID': f"M-{uid_k}", 'Fecha': f_k, 'Hora': h_k, 'Producto': producto_k, 'Cantidad': int(cantidad_k), 'Tipo': tipo_k})
+    tabla_movs.put_item(Item={
+        'TenantID': st.session_state.tenant, 
+        'MovID': f"M-{uid_k}", 
+        'Fecha': f_k, 
+        'Hora': h_k, 
+        'Producto': producto_k, 
+        'Cantidad': int(cantidad_k), 
+        'Tipo': tipo_k,
+        'Usuario': st.session_state.rol # Trazabilidad
+    })
 
 if st.session_state.rol == "DUEÑO":
     with tabs[4]: # CARGAR
