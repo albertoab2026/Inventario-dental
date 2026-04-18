@@ -102,9 +102,11 @@ def obtener_datos():
     return df[['Producto', 'Precio_Compra', 'Precio', 'Stock']].sort_values('Producto')
 
 df_inv = obtener_datos()
-lista_pestanas = ["🛒 VENTA", "📦 STOCK"]
+
+# --- CAMBIO: Empleado ahora ve Reportes para cerrar su caja ---
+lista_pestanas = ["🛒 VENTA", "📦 STOCK", "📊 REPORTES"]
 if st.session_state.rol == "DUEÑO":
-    lista_pestanas += ["📊 REPORTES", "📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."]
+    lista_pestanas += ["📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."]
 tabs = st.tabs(lista_pestanas)
 
 with tabs[0]: # VENTA
@@ -234,72 +236,74 @@ with tabs[1]: # STOCK
         return [''] * len(fila)
     st.dataframe(df_mostrar.style.apply(estilo_filas, axis=1).format({"Precio": "{:.2f}", "Precio_Compra": "{:.2f}", "Stock": "{:d}"}), use_container_width=True, hide_index=True)
 
-if st.session_state.rol == "DUEÑO":
-    with tabs[2]: # REPORTES ACTUALIZADO (PUNTO 4 + FIX TABLA MÓVIL)
-        st.subheader("📊 Reporte de Inteligencia de Negocio")
-        fecha_r = st.date_input("Día a consultar:", datetime.now(tz_peru), key="fecha_rep").strftime("%d/%m/%Y")
-        res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant))
-        datos_ventas_bruto = res_v.get('Items', [])
+# --- REPORTES ACTUALIZADO (Para Dueño y Empleado) ---
+with tabs[2]: 
+    st.subheader("📊 Reporte de Ventas y Cierre")
+    fecha_r = st.date_input("Día a consultar:", datetime.now(tz_peru), key="fecha_rep").strftime("%d/%m/%Y")
+    res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant))
+    datos_ventas_bruto = res_v.get('Items', [])
+    
+    if datos_ventas_bruto:
+        df_rep_total = pd.DataFrame(datos_ventas_bruto)
+        df_rep = df_rep_total[df_rep_total['Fecha'] == fecha_r]
         
-        if datos_ventas_bruto:
-            df_rep_total = pd.DataFrame(datos_ventas_bruto)
-            df_rep = df_rep_total[df_rep_total['Fecha'] == fecha_r]
+        if not df_rep.empty:
+            for columna in ['Total', 'Precio_Compra', 'Cantidad']:
+                df_rep[columna] = df_rep[columna].apply(lambda x: Decimal(str(x)))
             
-            if not df_rep.empty:
-                for columna in ['Total', 'Precio_Compra', 'Cantidad']:
-                    df_rep[columna] = df_rep[columna].apply(lambda x: Decimal(str(x)))
-                
-                df_rep['Inversion_F'] = df_rep['Precio_Compra'] * df_rep['Cantidad']
-                
-                # --- CÁLCULOS KPI ---
-                total_venta_dia = df_rep['Total'].sum()
-                num_tickets = df_rep['VentaID'].nunique()
-                ticket_promedio = total_venta_dia / num_tickets if num_tickets > 0 else 0
+            df_rep['Inversion_F'] = df_rep['Precio_Compra'] * df_rep['Cantidad']
+            total_venta_dia = df_rep['Total'].sum()
+            num_tickets = df_rep['VentaID'].nunique()
+            
+            kpi1, kpi2, kpi3 = st.columns(3)
+            kpi1.metric("💰 VENTA TOTAL", f"S/ {float(total_venta_dia):.2f}")
+            kpi2.metric("🎫 TICKETS", num_tickets)
+            if st.session_state.rol == "DUEÑO":
                 ganancia_total_dia = total_venta_dia - df_rep['Inversion_F'].sum()
-
-                # Dashboard Principal
-                kpi1, kpi2, kpi3 = st.columns(3)
-                kpi1.metric("💰 VENTA TOTAL", f"S/ {float(total_venta_dia):.2f}")
-                kpi2.metric("🎫 TICKET PROMEDIO", f"S/ {float(ticket_promedio):.2f}", help="Promedio que gasta cada cliente")
                 kpi3.metric("📈 GANANCIA NETA", f"S/ {float(ganancia_total_dia):.2f}")
+            else:
+                kpi3.metric("👤 USUARIO", st.session_state.rol)
 
-                st.divider()
+            st.divider()
 
-                def calcular_metodo(nombre_metodo):
-                    filtrado = df_rep[df_rep['Metodo'].str.contains(nombre_metodo, na=False)]
-                    t_ventas = filtrado['Total'].sum() if not filtrado.empty else Decimal('0.00')
-                    t_ganancia = t_ventas - (filtrado['Inversion_F'].sum() if not filtrado.empty else Decimal('0.00'))
-                    return t_ventas, t_ganancia
-                
-                ef_v, ef_g = calcular_metodo("EFECTIVO")
-                ya_v, ya_g = calcular_metodo("YAPE")
-                pl_v, pl_g = calcular_metodo("PLIN")
-                
-                c1, c2, c3 = st.columns(3)
-                c1.metric("💵 EFECTIVO", f"S/ {float(ef_v):.2f}", f"Gana: S/ {float(ef_g):.2f}")
-                c2.metric("🟣 YAPE", f"S/ {float(ya_v):.2f}", f"Gana: S/ {float(ya_g):.2f}")
-                c3.metric("🔵 PLIN", f"S/ {float(pl_v):.2f}", f"Gana: S/ {float(pl_g):.2f}")
-                
+            def calcular_metodo(nombre_metodo):
+                filtrado = df_rep[df_rep['Metodo'].str.contains(nombre_metodo, na=False)]
+                return filtrado['Total'].sum() if not filtrado.empty else Decimal('0.00')
+            
+            ef_v = calcular_metodo("EFECTIVO")
+            ya_v = calcular_metodo("YAPE")
+            pl_v = calcular_metodo("PLIN")
+            
+            c1, c2, c3 = st.columns(3)
+            c1.metric("💵 EFECTIVO", f"S/ {float(ef_v):.2f}")
+            c2.metric("🟣 YAPE", f"S/ {float(ya_v):.2f}")
+            c3.metric("🔵 PLIN", f"S/ {float(pl_v):.2f}")
+            
+            # --- BOTÓN DE CIERRE ---
+            st.divider()
+            tipo_cierre = "TOTAL" if st.session_state.rol == "DUEÑO" else "DE MI TURNO"
+            if st.button(f"🏁 GENERAR CIERRE {tipo_cierre}", use_container_width=True, type="primary"):
+                msg_wa = f"*CIERRE {tipo_cierre} - {st.session_state.tenant}*\n"
+                msg_wa += f"📅 Fecha: {fecha_r}\n👤 Por: {st.session_state.rol}\n"
+                msg_wa += f"--------------------------\n"
+                msg_wa += f"💵 Efectivo: S/ {float(ef_v):.2f}\n"
+                msg_wa += f"🟣 Yape: S/ {float(ya_v):.2f}\n"
+                msg_wa += f"🔵 Plin: S/ {float(pl_v):.2f}\n"
+                msg_wa += f"--------------------------\n"
+                msg_wa += f"💰 *TOTAL CAJA: S/ {float(total_venta_dia):.2f}*"
+                st.link_button("📲 Enviar Cierre por WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_wa)}", use_container_width=True)
+
+            if st.session_state.rol == "DUEÑO":
                 st.divider()
-                st.subheader("🔝 Top 5 Productos más vendidos")
+                st.subheader("🔝 Top 5 Productos")
                 df_top = df_rep.groupby('Producto')['Cantidad'].sum().sort_values(ascending=False).head(5)
                 st.bar_chart(df_top)
 
-                # TABLA CORREGIDA PARA MÓVIL (No se mueve)
-                st.dataframe(df_rep[['Hora', 'Producto', 'Total', 'Metodo']], 
-                             use_container_width=True, 
-                             hide_index=True,
-                             column_config={
-                                 "Hora": st.column_config.TextColumn("Hora", width="small"),
-                                 "Producto": st.column_config.TextColumn("Producto", width="medium"),
-                                 "Total": st.column_config.NumberColumn("Total", format="S/ %.2f", width="small"),
-                                 "Metodo": st.column_config.TextColumn("Método", width="small"),
-                             })
-            else:
-                st.info("No hay ventas en esta fecha.")
-        else:
-            st.info("Sin ventas registradas.")
+            st.dataframe(df_rep[['Hora', 'Producto', 'Total', 'Metodo']], use_container_width=True, hide_index=True)
+        else: st.info("No hay ventas en esta fecha.")
+    else: st.info("Sin ventas registradas.")
 
+if st.session_state.rol == "DUEÑO":
     with tabs[3]: # HISTORIAL
         st.subheader("📋 Historial de Movimientos")
         fecha_h = st.date_input("Fecha de movimientos:", datetime.now(tz_peru), key="fecha_hist").strftime("%d/%m/%Y")
@@ -310,10 +314,8 @@ if st.session_state.rol == "DUEÑO":
             df_historial = df_hist_total[df_hist_total['Fecha'] == fecha_h]
             if not df_historial.empty:
                 st.dataframe(df_historial.sort_values("Hora", ascending=False)[['Hora', 'Producto', 'Cantidad', 'Tipo']], use_container_width=True, hide_index=True)
-            else:
-                st.info("Sin movimientos registrados hoy.")
-        else:
-            st.info("Historial vacío.")
+            else: st.info("Sin movimientos registrados hoy.")
+        else: st.info("Historial vacío.")
 
 def registrar_kardex(producto_k, cantidad_k, tipo_k):
     f_k, h_k, uid_k = obtener_tiempo_peru()
