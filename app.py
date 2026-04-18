@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import boto3
-from datetime import datetime
+from datetime import datetime, timedelta  # Agregado timedelta para comparativas
 import pytz
 from boto3.dynamodb.conditions import Attr, Key
 from fpdf import FPDF
@@ -103,7 +103,6 @@ def obtener_datos():
 
 df_inv = obtener_datos()
 
-# --- CAMBIO: Empleado ahora ve Reportes para cerrar su caja ---
 lista_pestanas = ["🛒 VENTA", "📦 STOCK", "📊 REPORTES"]
 if st.session_state.rol == "DUEÑO":
     lista_pestanas += ["📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."]
@@ -236,16 +235,22 @@ with tabs[1]: # STOCK
         return [''] * len(fila)
     st.dataframe(df_mostrar.style.apply(estilo_filas, axis=1).format({"Precio": "{:.2f}", "Precio_Compra": "{:.2f}", "Stock": "{:d}"}), use_container_width=True, hide_index=True)
 
-# --- REPORTES ACTUALIZADO (Para Dueño y Empleado) ---
+# --- REPORTES ACTUALIZADO (INTELIGENCIA DE NEGOCIO) ---
 with tabs[2]: 
-    st.subheader("📊 Reporte de Ventas y Cierre")
-    fecha_r = st.date_input("Día a consultar:", datetime.now(tz_peru), key="fecha_rep").strftime("%d/%m/%Y")
+    st.subheader("📊 Reporte de Ventas e Inteligencia")
+    
+    # Manejo de fechas para comparativa (Lunes vs Lunes)
+    fecha_input = st.date_input("Día a consultar:", datetime.now(tz_peru), key="fecha_rep")
+    fecha_r = fecha_input.strftime("%d/%m/%Y")
+    fecha_hace_7 = (fecha_input - timedelta(days=7)).strftime("%d/%m/%Y")
+
     res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant))
     datos_ventas_bruto = res_v.get('Items', [])
     
     if datos_ventas_bruto:
         df_rep_total = pd.DataFrame(datos_ventas_bruto)
         df_rep = df_rep_total[df_rep_total['Fecha'] == fecha_r]
+        df_pasado = df_rep_total[df_rep_total['Fecha'] == fecha_hace_7]
         
         if not df_rep.empty:
             for columna in ['Total', 'Precio_Compra', 'Cantidad']:
@@ -254,10 +259,19 @@ with tabs[2]:
             df_rep['Inversion_F'] = df_rep['Precio_Compra'] * df_rep['Cantidad']
             total_venta_dia = df_rep['Total'].sum()
             num_tickets = df_rep['VentaID'].nunique()
-            
+            ticket_promedio = total_venta_dia / num_tickets if num_tickets > 0 else Decimal('0.00')
+
+            # Lógica de Delta (Cálculo del numerito verde/rojo)
+            if not df_pasado.empty:
+                total_pasado = df_pasado['Total'].apply(lambda x: Decimal(str(x))).sum()
+                delta_valor = f"S/ {float(total_venta_dia - total_pasado):.2f} vs semana pasada"
+            else:
+                delta_valor = "Iniciando historial..."
+
             kpi1, kpi2, kpi3 = st.columns(3)
-            kpi1.metric("💰 VENTA TOTAL", f"S/ {float(total_venta_dia):.2f}")
-            kpi2.metric("🎫 TICKETS", num_tickets)
+            kpi1.metric("💰 VENTA TOTAL", f"S/ {float(total_venta_dia):.2f}", delta=delta_valor)
+            kpi2.metric("🎫 TICKET PROMEDIO", f"S/ {float(ticket_promedio):.2f}", delta=f"{num_tickets} Tickets hoy")
+            
             if st.session_state.rol == "DUEÑO":
                 ganancia_total_dia = total_venta_dia - df_rep['Inversion_F'].sum()
                 kpi3.metric("📈 GANANCIA NETA", f"S/ {float(ganancia_total_dia):.2f}")
