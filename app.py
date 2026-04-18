@@ -110,6 +110,11 @@ if st.session_state.rol == "DUEÑO":
 tabs = st.tabs(lista_pestanas)
 
 with tabs[0]: # VENTA
+    # --- Mejora 1: Alerta visual para el vendedor si hay poco stock ---
+    df_critico = df_inv[df_inv['Stock'] < 5].copy()
+    if not df_critico.empty:
+        st.warning(f"⚠️ ¡Atención! {len(df_critico)} productos tienen stock crítico (menos de 5 unidades).")
+
     if st.session_state.boleta:
         st.snow()
         b = st.session_state.boleta
@@ -217,7 +222,7 @@ with tabs[0]: # VENTA
                         if stock_real_aws < item_v['Cantidad']:
                             st.error(f"❌ Error: {item_v['Producto']} se agotó hace un instante."); st.stop()
                         
-                        # --- Mejora: Añadido Usuario ---
+                        # --- Mejora: Añadido Usuario para saber quién vendió ---
                         tabla_ventas.put_item(Item={
                             'TenantID': st.session_state.tenant, 
                             'VentaID': f"V-{uid_v}", 
@@ -240,6 +245,8 @@ with tabs[1]: # STOCK
     st.subheader("📦 Consulta de Almacén")
     filtro_stock = st.text_input("🔍 Escriba para filtrar tabla:", key="f_stock_input").upper()
     df_mostrar = df_inv[df_inv['Producto'].str.contains(filtro_stock, na=False)]
+    
+    # Mejora: Colores para stock crítico
     def estilo_filas(fila):
         if fila.Stock <= 0:
             return ['background-color: #721c24; color: white; font-weight: bold;'] * len(fila)
@@ -261,7 +268,6 @@ with tabs[2]:
     
     if datos_ventas_bruto:
         df_rep_total = pd.DataFrame(datos_ventas_bruto)
-        # CORRECCIÓN: .copy() para evitar SettingWithCopyWarning y error de duplicados
         df_rep = df_rep_total[df_rep_total['Fecha'] == fecha_r].copy()
         df_pasado = df_rep_total[df_rep_total['Fecha'] == fecha_hace_7]
         
@@ -324,7 +330,6 @@ with tabs[2]:
                 df_top = df_rep.groupby('Producto')['Cantidad'].sum().sort_values(ascending=False).head(5)
                 st.bar_chart(df_top)
 
-            # --- CORRECCIÓN FINAL: Selección explícita para evitar duplicados ---
             cols_mostrar = ['Hora', 'Producto', 'Total', 'Metodo']
             if 'Usuario' in df_rep.columns:
                 cols_mostrar.append('Usuario')
@@ -335,7 +340,7 @@ with tabs[2]:
 
 def registrar_kardex(producto_k, cantidad_k, tipo_k):
     f_k, h_k, uid_k = obtener_tiempo_peru()
-    # --- Mejora: Añadido Usuario ---
+    # --- Mejora: Registro del Usuario que hizo el movimiento ---
     tabla_movs.put_item(Item={
         'TenantID': st.session_state.tenant, 
         'MovID': f"M-{uid_k}", 
@@ -356,7 +361,6 @@ if st.session_state.rol == "DUEÑO":
             df_hist_total = pd.DataFrame(items_movs_bruto)
             df_historial = df_hist_total[df_hist_total['Fecha'] == fecha_h]
             if not df_historial.empty:
-                # Mostrar Usuario si existe
                 cols_hist = ['Hora', 'Producto', 'Cantidad', 'Tipo']
                 if 'Usuario' in df_historial.columns:
                     cols_hist.append('Usuario')
