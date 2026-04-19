@@ -9,7 +9,7 @@ import time
 import re
 import urllib.parse
 from decimal import Decimal, ROUND_HALF_UP
-import io  # Necesario para el Excel
+import io # Necesario para el Excel
 
 # --- 0. CONFIGURACIÓN ---
 TABLA_STOCK = 'SaaS_Stock_Test'
@@ -31,7 +31,7 @@ def obtener_tiempo_peru():
 
 try:
     # Intento de conexión con secrets de Streamlit
-    dynamodb = boto3.resource('dynamodb', 
+    dynamodb = boto3.resource('dynamodb',
                               region_name=st.secrets["aws"]["aws_region"],
                               aws_access_key_id=st.secrets["aws"]["aws_access_key_id"],
                               aws_secret_access_key=st.secrets["aws"]["aws_secret_access_key"])
@@ -61,20 +61,20 @@ if not st.session_state.auth:
     local_seleccionado = st.selectbox("📍 Seleccione su Negocio:", nombres_negocios)
     clave_ingresada = st.text_input("🔑 Contraseña:", type="password")
     clave_ingresada = clave_ingresada.strip()[:30]
-    
+
     col_dueño, col_empleado = st.columns(2)
-    
+
     def intentar_login(tipo_usuario):
         if not re.match("^[A-Za-z0-9]*$", clave_ingresada):
             time.sleep(2)
             st.error("❌ No se permiten símbolos raros.")
             return
-        
+
         if tipo_usuario == "DUEÑO":
             clave_correcta = st.secrets["auth_multi"][local_seleccionado]
         else:
             clave_correcta = st.secrets["auth_multi"].get(f"{local_seleccionado}_emp")
-            
+
         if clave_ingresada == str(clave_correcta):
             st.session_state.auth = True
             st.session_state.tenant = local_seleccionado
@@ -119,7 +119,7 @@ with tabs[0]: # VENTA
         st.snow()
         b = st.session_state.boleta
         st.success("✅ VENTA REALIZADA CON ÉXITO")
-        
+
         st.markdown(f"""<div style="background-color:white;color:black;padding:20px;border:2px solid #333;max-width:350px;margin:auto;font-family:monospace;">
             <h3 style="text-align:center;margin:0;">{st.session_state.tenant}</h3>
             <p style="text-align:center;margin:0;">{b['fecha']} {b['hora']}</p><hr>
@@ -127,15 +127,17 @@ with tabs[0]: # VENTA
             <hr>
             <div style="display:flex;justify-content:space-between;"><span>MÉTODO:</span><span>{b['metodo']}</span></div>
             <div style="display:flex;justify-content:space-between;color:red;font-size:12px;"><span>REBAJA:</span><span>- S/{float(b['rebaja']):.2f}</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:18px;"><b>NETO:</b><b>S/{float(b['t_neto']):.2f}</b></div></div>""", unsafe_allow_html=True)
-        
-        st.write("") 
+            <div style="display:flex;justify-content:space-between;font-size:18px;"><b>NETO:</b><b>S/{float(b['t_neto']):.2f}</b></div>
+            <p style="text-align:center;font-size:10px;margin-top:10px;">*Documento de control interno*</p></div>""", unsafe_allow_html=True)
 
-        texto_wa = f"*RECIBO - {st.session_state.tenant}*\n"
+        st.write("")
+
+        texto_wa = f"*COMPROBANTE DE VENTA - {st.session_state.tenant}*\n"
         texto_wa += f"Fecha: {b['fecha']} {b['hora']}\n---\n"
         for i in b['items']:
             texto_wa += f"{i['Cantidad']}x {i['Producto']} - S/{float(i['Subtotal']):.2f}\n"
-        texto_wa += f"---\n*TOTAL NETO: S/{float(b['t_neto']):.2f}*\nMetodo: {b['metodo']}"
+        texto_wa += f"---\n*TOTAL NETO: S/{float(b['t_neto']):.2f}*\nMetodo: {b['metodo']}\n"
+        texto_wa += f"_*No válido como comprobante tributario*_"
         wa_url = f"https://wa.me/?text={urllib.parse.quote(texto_wa)}"
         st.link_button("📲 Enviar reporte por WhatsApp", wa_url, use_container_width=True)
 
@@ -156,9 +158,12 @@ with tabs[0]: # VENTA
             pdf.cell(90, 10, txt=f"Rebaja: -S/ {float(b['rebaja']):.2f}", ln=True, align='R')
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(190, 10, txt=f"TOTAL NETO: S/ {float(b['t_neto']):.2f}", ln=True, align='R')
-            
-            pdf_bytes = pdf.output(dest='S').encode('latin-1', 'ignore') 
-            st.download_button(label="📥 Descargar Boleta PDF", data=pdf_bytes, file_name=f"Boleta_{b['fecha'].replace('/','-')}.pdf", mime="application/pdf", use_container_width=True)
+            pdf.ln(10)
+            pdf.set_font("Arial", 'I', 8)
+            pdf.cell(190, 10, txt="Documento de control interno - No valido como comprobante tributario", ln=True, align='C')
+
+            pdf_bytes = pdf.output(dest='S').encode('latin-1', 'ignore')
+            st.download_button(label="📥 Descargar Comprobante PDF", data=pdf_bytes, file_name=f"Comprobante_{b['fecha'].replace('/','-')}.pdf", mime="application/pdf", use_container_width=True)
         except Exception as e:
             st.error(f"Error PDF: {e}")
 
@@ -180,7 +185,7 @@ with tabs[0]: # VENTA
         seleccion_formateada = col_sel.selectbox("Seleccionar Producto:", opciones_formateadas, index=0 if opciones_formateadas else None, key="sel_v_smart")
         p_seleccionado = mapping_nombres.get(seleccion_formateada) if seleccion_formateada else None
         cantidad_v = col_cant.number_input("Cant:", min_value=1, value=1, key=f"cant_{p_seleccionado}")
-        
+
         if p_seleccionado:
             datos_p = df_inv[df_inv['Producto'] == p_seleccionado].iloc[0]
             en_el_carro = sum(item['Cantidad'] for item in st.session_state.carrito if item['Producto'] == p_seleccionado)
@@ -189,7 +194,7 @@ with tabs[0]: # VENTA
                 st.error("⚠️ Este producto no tiene stock físico.")
             else:
                 st.info(f"💡 Seleccionado: {p_seleccionado} | Disponible: {disponible_ahora}")
-            
+
             if st.button("➕ Añadir al Carrito", use_container_width=True):
                 if cantidad_v <= disponible_ahora:
                     p_v_dec = to_decimal(datos_p.Precio)
@@ -208,10 +213,10 @@ with tabs[0]: # VENTA
             total_bruto = sum(item['Subtotal'] for item in st.session_state.carrito)
             total_neto = max(Decimal('0.00'), total_bruto - to_decimal(rebaja_v))
             st.markdown(f"<h1 style='text-align:center; color:#2ecc71;'>S/ {float(total_neto):.2f}</h1>", unsafe_allow_html=True)
-            
+
             if st.button("🚀 FINALIZAR VENTA", use_container_width=True, type="primary"):
                 st.session_state.confirmar = True
-            
+
             if st.session_state.confirmar:
                 if st.button(f"✅ CONFIRMAR COBRO DE S/ {float(total_neto):.2f}", use_container_width=True):
                     f_v, h_v, uid_v = obtener_tiempo_peru()
@@ -225,17 +230,17 @@ with tabs[0]: # VENTA
                                 ConditionExpression="Stock >= :s",
                                 ExpressionAttributeValues={':s': item_v['Cantidad']}
                             )
-                            
+
                             # Si la actualización de stock fue exitosa, registramos la venta
                             tabla_ventas.put_item(Item={
-                                'TenantID': st.session_state.tenant, 
-                                'VentaID': f"V-{uid_v}", 
-                                'Fecha': f_v, 'Hora': h_v, 
-                                'Producto': item_v['Producto'], 
-                                'Cantidad': int(item_v['Cantidad']), 
-                                'Total': item_v['Subtotal'], 
-                                'Precio_Compra': item_v['Precio_Compra'], 
-                                'Metodo': metodo_p, 
+                                'TenantID': st.session_state.tenant,
+                                'VentaID': f"V-{uid_v}",
+                                'Fecha': f_v, 'Hora': h_v,
+                                'Producto': item_v['Producto'],
+                                'Cantidad': int(item_v['Cantidad']),
+                                'Total': item_v['Subtotal'],
+                                'Precio_Compra': item_v['Precio_Compra'],
+                                'Metodo': metodo_p,
                                 'Rebaja': to_decimal(rebaja_v),
                                 'Usuario': st.session_state.rol
                             })
@@ -251,7 +256,7 @@ with tabs[0]: # VENTA
 
 with tabs[1]: # STOCK
     st.subheader("📦 Consulta de Almacén")
-    
+
     # --- MEJORA: BOTÓN EXCEL AL LADO DEL FILTRO ---
     col_filtro, col_excel = st.columns([3, 1])
     with col_filtro:
@@ -269,7 +274,7 @@ with tabs[1]: # STOCK
         )
 
     df_mostrar = df_inv[df_inv['Producto'].str.contains(filtro_stock, na=False)]
-    
+
     def estilo_filas(fila):
         if fila.Stock <= 0:
             return ['background-color: #721c24; color: white; font-weight: bold;'] * len(fila)
@@ -279,25 +284,25 @@ with tabs[1]: # STOCK
     st.dataframe(df_mostrar.style.apply(estilo_filas, axis=1).format({"Precio": "{:.2f}", "Precio_Compra": "{:.2f}", "Stock": "{:d}"}), use_container_width=True, hide_index=True)
 
 # --- REPORTES CORREGIDO ---
-with tabs[2]: 
+with tabs[2]:
     st.subheader("📊 Reporte de Ventas e Inteligencia")
-    
+
     fecha_input = st.date_input("Día a consultar:", datetime.now(tz_peru), key="fecha_rep")
     fecha_r = fecha_input.strftime("%d/%m/%Y")
     fecha_hace_7 = (fecha_input - timedelta(days=7)).strftime("%d/%m/%Y")
 
     res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant))
     datos_ventas_bruto = res_v.get('Items', [])
-    
+
     if datos_ventas_bruto:
         df_rep_total = pd.DataFrame(datos_ventas_bruto)
         df_rep = df_rep_total[df_rep_total['Fecha'] == fecha_r].copy()
         df_pasado = df_rep_total[df_rep_total['Fecha'] == fecha_hace_7]
-        
+
         if not df_rep.empty:
             for columna in ['Total', 'Precio_Compra', 'Cantidad']:
                 df_rep[columna] = df_rep[columna].apply(lambda x: Decimal(str(x)))
-            
+
             df_rep['Inversion_F'] = df_rep['Precio_Compra'] * df_rep['Cantidad']
             total_venta_dia = df_rep['Total'].sum()
             num_tickets = df_rep['VentaID'].nunique()
@@ -312,7 +317,7 @@ with tabs[2]:
             kpi1, kpi2, kpi3 = st.columns(3)
             kpi1.metric("💰 VENTA TOTAL", f"S/ {float(total_venta_dia):.2f}", delta=delta_valor)
             kpi2.metric("🎫 TICKET PROMEDIO", f"S/ {float(ticket_promedio):.2f}", delta=f"{num_tickets} Tickets hoy")
-            
+
             if st.session_state.rol == "DUEÑO":
                 ganancia_total_dia = total_venta_dia - df_rep['Inversion_F'].sum()
                 kpi3.metric("📈 GANANCIA NETA", f"S/ {float(ganancia_total_dia):.2f}")
@@ -324,16 +329,16 @@ with tabs[2]:
             def calcular_metodo(nombre_metodo):
                 filtrado = df_rep[df_rep['Metodo'].str.contains(nombre_metodo, na=False)]
                 return filtrado['Total'].sum() if not filtrado.empty else Decimal('0.00')
-            
+
             ef_v = calcular_metodo("EFECTIVO")
             ya_v = calcular_metodo("YAPE")
             pl_v = calcular_metodo("PLIN")
-            
+
             c1, c2, c3 = st.columns(3)
             c1.metric("💵 EFECTIVO", f"S/ {float(ef_v):.2f}")
             c2.metric("🟣 YAPE", f"S/ {float(ya_v):.2f}")
             c3.metric("🔵 PLIN", f"S/ {float(pl_v):.2f}")
-            
+
             st.divider()
             tipo_cierre = "TOTAL" if st.session_state.rol == "DUEÑO" else "DE MI TURNO"
             if st.button(f"🏁 GENERAR CIERRE {tipo_cierre}", use_container_width=True, type="primary"):
@@ -356,7 +361,7 @@ with tabs[2]:
             cols_mostrar = ['Hora', 'Producto', 'Total', 'Metodo']
             if 'Usuario' in df_rep.columns:
                 cols_mostrar.append('Usuario')
-            
+
             st.dataframe(df_rep.sort_values("Hora", ascending=False)[cols_mostrar], use_container_width=True, hide_index=True)
         else: st.info("No hay ventas en esta fecha.")
     else: st.info("Sin ventas registradas.")
@@ -364,11 +369,11 @@ with tabs[2]:
 def registrar_kardex(producto_k, cantidad_k, tipo_k):
     f_k, h_k, uid_k = obtener_tiempo_peru()
     tabla_movs.put_item(Item={
-        'TenantID': st.session_state.tenant, 
-        'MovID': f"M-{uid_k}", 
-        'Fecha': f_k, 'Hora': h_k, 
-        'Producto': producto_k, 
-        'Cantidad': int(cantidad_k), 
+        'TenantID': st.session_state.tenant,
+        'MovID': f"M-{uid_k}",
+        'Fecha': f_k, 'Hora': h_k,
+        'Producto': producto_k,
+        'Cantidad': int(cantidad_k),
         'Tipo': tipo_k,
         'Usuario': st.session_state.rol
     })
