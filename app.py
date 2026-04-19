@@ -126,13 +126,13 @@ with tabs[0]: # VENTA
             {''.join([f'<div style="display:flex;justify-content:space-between;"><span>{i["Cantidad"]}x {i["Producto"]}</span><span>S/{float(i["Subtotal"]):.2f}</span></div>' for i in b['items']])}
             <hr>
             <div style="display:flex;justify-content:space-between;"><span>MÉTODO:</span><span>{b['metodo']}</span></div>
-            <div style="display:flex;justify-content:space-between;color:red;font-size:12px;"><span>REBAJA:</span><span>- S/{float(b['rebaja']):.2f}</span></div>
+            <div style="display:flex;justify-content:space-between;color:red;font-size:12px;"><span>DESCUENTO:</span><span>- S/{float(b['rebaja']):.2f}</span></div>
             <div style="display:flex;justify-content:space-between;font-size:18px;"><b>NETO:</b><b>S/{float(b['t_neto']):.2f}</b></div>
             <p style="text-align:center;font-size:10px;margin-top:10px;">*Documento de control interno*</p></div>""", unsafe_allow_html=True)
 
         st.write("")
 
-        texto_wa = f"*COMPROBANTE DE VENTA - {st.session_state.tenant}*\n"
+        texto_wa = f"*TICKET DE VENTA - {st.session_state.tenant}*\n"
         texto_wa += f"Fecha: {b['fecha']} {b['hora']}\n---\n"
         for i in b['items']:
             texto_wa += f"{i['Cantidad']}x {i['Producto']} - S/{float(i['Subtotal']):.2f}\n"
@@ -155,7 +155,7 @@ with tabs[0]: # VENTA
             pdf.ln(5)
             metodo_limpio = b['metodo'].replace("💵 ", "").replace("🟣 ", "").replace("🔵 ", "")
             pdf.cell(100, 10, txt=f"Metodo de Pago: {metodo_limpio}")
-            pdf.cell(90, 10, txt=f"Rebaja: -S/ {float(b['rebaja']):.2f}", ln=True, align='R')
+            pdf.cell(90, 10, txt=f"Descuento: -S/ {float(b['rebaja']):.2f}", ln=True, align='R')
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(190, 10, txt=f"TOTAL NETO: S/ {float(b['t_neto']):.2f}", ln=True, align='R')
             pdf.ln(10)
@@ -209,7 +209,7 @@ with tabs[0]: # VENTA
                 st.session_state.carrito = []
                 st.rerun()
             metodo_p = st.radio("Forma de Pago:", ["💵 EFECTIVO", "🟣 YAPE", "🔵 PLIN"], horizontal=True)
-            rebaja_v = st.number_input("💸 Rebaja S/:", min_value=0.0, value=0.0, key="rebaja_v")
+            rebaja_v = st.number_input("💸 Descuento S/:", min_value=0.0, value=0.0, key="rebaja_v")
             total_bruto = sum(item['Subtotal'] for item in st.session_state.carrito)
             total_neto = max(Decimal('0.00'), total_bruto - to_decimal(rebaja_v))
             st.markdown(f"<h1 style='text-align:center; color:#2ecc71;'>S/ {float(total_neto):.2f}</h1>", unsafe_allow_html=True)
