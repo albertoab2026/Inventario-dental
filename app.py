@@ -142,28 +142,44 @@ with tabs[0]: # VENTA
         st.link_button("📲 Enviar reporte por WhatsApp", wa_url, use_container_width=True)
 
         try:
-            pdf = FPDF()
+            # CAMBIO: PDF AHORA EN 80MM PARA TIQUETERA
+            pdf = FPDF(orientation='P', unit='mm', format=(80, 200))
             pdf.add_page()
-            pdf.set_font("Arial", 'B', 16)
-            pdf.cell(190, 10, txt=str(st.session_state.tenant), ln=True, align='C')
-            pdf.set_font("Arial", size=10)
-            pdf.cell(190, 10, txt=f"Fecha: {b['fecha']} | Hora: {b['hora']}", ln=True, align='C')
-            pdf.ln(5); pdf.cell(190, 0, ln=True, border='H'); pdf.ln(5)
-            for i in b['items']:
-                pdf.cell(100, 10, txt=f"{i['Cantidad']}x {i['Producto']}")
-                pdf.cell(90, 10, txt=f"S/ {float(i['Subtotal']):.2f}", ln=True, align='R')
-            pdf.ln(5)
-            metodo_limpio = b['metodo'].replace("💵 ", "").replace("🟣 ", "").replace("🔵 ", "")
-            pdf.cell(100, 10, txt=f"Metodo de Pago: {metodo_limpio}")
-            pdf.cell(90, 10, txt=f"Descuento: -S/ {float(b['rebaja']):.2f}", ln=True, align='R')
+            pdf.set_margins(3, 3, 3)
+            pdf.set_auto_page_break(auto=True, margin=3)
+
+            # Encabezado
             pdf.set_font("Arial", 'B', 12)
-            pdf.cell(190, 10, txt=f"TOTAL NETO: S/ {float(b['t_neto']):.2f}", ln=True, align='R')
-            pdf.ln(10)
-            pdf.set_font("Arial", 'I', 8)
-            pdf.cell(190, 10, txt="Documento de control interno - No valido como comprobante tributario", ln=True, align='C')
+            pdf.cell(74, 6, txt=str(st.session_state.tenant)[:30], ln=True, align='C')
+            pdf.set_font("Arial", size=8)
+            pdf.cell(74, 4, txt=f"{b['fecha']} {b['hora']}", ln=True, align='C')
+            pdf.cell(74, 2, txt="-" * 42, ln=True, align='C')
+
+            # Productos
+            pdf.set_font("Arial", size=9)
+            for i in b['items']:
+                nombre_corto = i['Producto'][:20]
+                pdf.cell(50, 5, txt=f"{i['Cantidad']}x {nombre_corto}")
+                pdf.cell(24, 5, txt=f"S/{float(i['Subtotal']):.2f}", ln=True, align='R')
+
+            pdf.cell(74, 2, txt="-" * 42, ln=True, align='C')
+
+            # Totales
+            pdf.set_font("Arial", size=8)
+            metodo_limpio = b['metodo'].replace("💵 ", "").replace("🟣 ", "").replace("🔵 ", "")
+            pdf.cell(50, 4, txt=f"Pago: {metodo_limpio}")
+            pdf.cell(24, 4, txt=f"Desc: -S/{float(b['rebaja']):.2f}", ln=True, align='R')
+
+            pdf.set_font("Arial", 'B', 10)
+            pdf.cell(74, 6, txt=f"TOTAL: S/ {float(b['t_neto']):.2f}", ln=True, align='C')
+
+            # Pie legal
+            pdf.set_font("Arial", 'I', 7)
+            pdf.cell(74, 4, txt="Documento de control interno", ln=True, align='C')
+            pdf.cell(74, 3, txt="No valido como comprobante SUNAT", ln=True, align='C')
 
             pdf_bytes = pdf.output(dest='S').encode('latin-1', 'ignore')
-            st.download_button(label="📥 Descargar Comprobante PDF", data=pdf_bytes, file_name=f"Comprobante_{b['fecha'].replace('/','-')}.pdf", mime="application/pdf", use_container_width=True)
+            st.download_button(label="📥 Descargar Ticket PDF 80mm", data=pdf_bytes, file_name=f"Ticket_{b['fecha'].replace('/','-')}.pdf", mime="application/pdf", use_container_width=True)
         except Exception as e:
             st.error(f"Error PDF: {e}")
 
