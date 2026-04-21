@@ -16,6 +16,10 @@ TABLA_STOCK = 'SaaS_Stock_Test'
 TABLA_VENTAS = 'SaaS_Ventas_Test'
 TABLA_MOVS = 'SaaS_Movimientos_Test'
 
+# === NUEVOS CANDADOS ANTI-FACTURA AMAZON ===
+MAX_STOCK_POR_PRODUCTO = 500 # Límite de unidades por producto
+MAX_PRODUCTOS_TOTALES = 1500 # 750 medicinas x CAJA+UNIDAD = sobrado
+
 st.set_page_config(page_title="NEXUS BALLARTA SaaS", layout="wide", page_icon="🚀")
 tz_peru = pytz.timezone('America/Lima')
 
@@ -41,6 +45,19 @@ try:
 except Exception as e:
     st.error(f"Error conexión AWS: {e}")
     st.stop()
+
+# === NUEVA FUNCIÓN: CONTAR PRODUCTOS EN DYNAMODB ===
+def contarProductosEnBD():
+    """Cuenta cuántos productos hay en total para el tenant actual. Usa Select=COUNT pa' que sea barato."""
+    try:
+        respuesta = tabla_stock.query(
+            KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant),
+            Select='COUNT'
+        )
+        return respuesta.get('Count', 0)
+    except Exception as e:
+        st.error(f"Error contando productos: {e}")
+        return 9999 # Si falla, bloquea por seguridad
 
 if 'auth' not in st.session_state:
     st.session_state.auth = False
@@ -411,43 +428,63 @@ if st.session_state.rol == "DUEÑO":
             else: st.info("Sin movimientos registrados hoy.")
         else: st.info("Historial vacío.")
 
-    with tabs[4]: # CARGAR
+    with tabs[4]: # CARGAR - AQUÍ ESTÁN LOS CANDADOS
         col_individual, col_masiva = st.columns(2)
         with col_individual:
             st.subheader("📥 Registro Individual")
+            st.caption(f"Límite Plan Básico: {MAX_PRODUCTOS_TOTALES} productos | {MAX_STOCK_POR_PRODUCTO} stock máximo")
             with st.form("formulario_carga"):
                 p_nombre = st.text_input("NOMBRE DEL PRODUCTO").upper()
-                p_stock = st.number_input("STOCK INICIAL", min_value=1)
+                p_stock = st.number_input("STOCK INICIAL", min_value=1, max_value=MAX_STOCK_POR_PRODUCTO)
                 p_costo = st.number_input("PRECIO COSTO (COMPRA)", min_value=0.0)
                 p_venta = st.number_input("PRECIO VENTA", min_value=0.0)
                 if st.form_submit_button("🚀 GUARDAR PRODUCTO"):
                     if p_nombre:
-                        if not df_inv[df_inv['Producto'] == p_nombre].empty:
-                            st.error(f"❌ El producto '{p_nombre}' ya existe.")
+                        # CANDADO 1: STOCK MÁXIMO 500
+                        if p_stock > MAX_STOCK_POR_PRODUCTO:
+                            st.error(f"❌ Máximo {MAX_STOCK_POR_PRODUCTO} unidades por producto en Plan Básico.")
+                        # CANDADO 2: VERIFICAR SI YA EXISTE
+                        elif not df_inv[df_inv['Producto'] == p_nombre].empty:
+                            st.error(f"❌ El producto '{p_nombre}' ya existe. Usa MANTENIMIENTO para reponer.")
                         else:
-                            tabla_stock.put_item(Item={'TenantID': st.session_state.tenant, 'Producto': p_nombre, 'Stock': int(p_stock), 'Precio': to_decimal(p_venta), 'Precio_Compra': to_decimal(p_costo)})
-                            registrar_kardex(p_nombre, p_stock, "ENTRADA (NUEVO)")
-                            st.success("✅ ¡Guardado!"); time.sleep(2); st.rerun()
+                            # CANDADO 3: MÁXIMO 1500 PRODUCTOS TOTAL
+                            total_actual = contarProductosEnBD()
+                            if total_actual >= MAX_PRODUCTOS_TOTALES:
+                                st.error(f"❌ Llegaste al límite de {MAX_PRODUCTOS_TOTALES} productos del Plan Básico.\n\nPara inventario ilimitado, actualiza a NEXUS PRO S/200 mensuales.")
+                            else:
+                                tabla_stock.put_item(Item={'TenantID': st.session_state.tenant, 'Producto': p_nombre, 'Stock': int(p_stock), 'Precio': to_decimal(p_venta), 'Precio_Compra': to_decimal(p_costo)})
+                                registrar_kardex(p_nombre, p_stock, "ENTRADA (NUEVO)")
+                                st.success(f"✅ ¡Guardado! Te quedan {MAX_PRODUCTOS_TOTALES - total_actual - 1} espacios."); time.sleep(2); st.rerun()
         with col_masiva:
             st.subheader("📂 Carga Masiva (Excel/CSV)")
-            st.caption("Columnas: Producto, Precio_Compra, Precio, Stock")
+            st.caption(f"Columnas: Producto, Precio_Compra, Precio, Stock | Límite: {MAX_PRODUCTOS_TOTALES} productos")
             archivo_subido = st.file_uploader("Subir archivo", type=['xlsx', 'csv'], key="bulk_upload")
             if archivo_subido:
                 try:
                     df_bulk = pd.read_excel(archivo_subido) if archivo_subido.name.endswith('xlsx') else pd.read_csv(archivo_subido)
                     df_bulk.columns = [str(c).strip().title() for c in df_bulk.columns]
                     st.write("Vista previa:", df_bulk.head(3))
-                    if st.button("⚡ PROCESAR CARGA", use_container_width=True):
-                        barra_progreso = st.progress(0)
-                        for i, fila in df_bulk.iterrows():
-                            p_bulk = str(fila['Producto']).upper()
-                            costo_val = to_decimal(pd.to_numeric(fila['Precio_Compra'], errors='coerce') or 0.0)
-                            precio_val = to_decimal(pd.to_numeric(fila['Precio'], errors='coerce') or 0.0)
-                            stock_val = int(pd.to_numeric(fila['Stock'], errors='coerce') or 0)
-                            tabla_stock.put_item(Item={'TenantID': st.session_state.tenant, 'Producto': p_bulk, 'Precio_Compra': costo_val, 'Precio': precio_val, 'Stock': stock_val})
-                            registrar_kardex(p_bulk, stock_val, "CARGA MASIVA")
-                            barra_progreso.progress((i + 1) / len(df_bulk))
-                        st.success("✅ Carga finalizada"); time.sleep(2); st.rerun()
+
+                    # VALIDAR CANDADOS ANTES DE PROCESAR
+                    total_actual = contarProductosEnBD()
+                    espacios_libres = MAX_PRODUCTOS_TOTALES - total_actual
+
+                    if len(df_bulk) > espacios_libres:
+                        st.error(f"❌ Tu archivo tiene {len(df_bulk)} productos pero solo te quedan {espacios_libres} espacios.\n\nLímite Plan Básico: {MAX_PRODUCTOS_TOTALES} productos totales.")
+                    elif df_bulk['Stock'].max() > MAX_STOCK_POR_PRODUCTO:
+                        st.error(f"❌ Hay productos con stock mayor a {MAX_STOCK_POR_PRODUCTO}. Corrige tu Excel.")
+                    else:
+                        if st.button("⚡ PROCESAR CARGA", use_container_width=True):
+                            barra_progreso = st.progress(0)
+                            for i, fila in df_bulk.iterrows():
+                                p_bulk = str(fila['Producto']).upper()
+                                costo_val = to_decimal(pd.to_numeric(fila['Precio_Compra'], errors='coerce') or 0.0)
+                                precio_val = to_decimal(pd.to_numeric(fila['Precio'], errors='coerce') or 0.0)
+                                stock_val = int(pd.to_numeric(fila['Stock'], errors='coerce') or 0)
+                                tabla_stock.put_item(Item={'TenantID': st.session_state.tenant, 'Producto': p_bulk, 'Precio_Compra': costo_val, 'Precio': precio_val, 'Stock': stock_val})
+                                registrar_kardex(p_bulk, stock_val, "CARGA MASIVA")
+                                barra_progreso.progress((i + 1) / len(df_bulk))
+                            st.success(f"✅ Carga finalizada. Productos cargados: {len(df_bulk)}"); time.sleep(2); st.rerun()
                 except Exception as e: st.error(f"Error archivo: {e}")
 
     with tabs[5]: # MANTENIMIENTO
@@ -459,12 +496,16 @@ if st.session_state.rol == "DUEÑO":
             p_sel_m = st.selectbox("Confirmar Producto:", lista_m, key="sel_mant_final")
             idx_m = df_inv[df_inv['Producto'] == p_sel_m].index
             if opcion_m == "➕ REPONER STOCK":
-                cantidad_ingreso = st.number_input("Ingreso:", min_value=1)
+                cantidad_ingreso = st.number_input("Ingreso:", min_value=1, max_value=MAX_STOCK_POR_PRODUCTO)
                 if st.button("✅ ACTUALIZAR"):
                     nuevo_stock_m = int(df_inv.at[idx_m[0], 'Stock'] + cantidad_ingreso)
-                    tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': nuevo_stock_m})
-                    registrar_kardex(p_sel_m, cantidad_ingreso, f"REPOSICIÓN (+{cantidad_ingreso})")
-                    st.success("✅ Actualizado"); time.sleep(2); st.rerun()
+                    # CANDADO: No pasar de 500 ni sumando
+                    if nuevo_stock_m > MAX_STOCK_POR_PRODUCTO:
+                        st.error(f"❌ No puedes superar {MAX_STOCK_POR_PRODUCTO} unidades por producto. Stock actual: {df_inv.at[idx_m[0], 'Stock']}")
+                    else:
+                        tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': nuevo_stock_m})
+                        registrar_kardex(p_sel_m, cantidad_ingreso, f"REPOSICIÓN (+{cantidad_ingreso})")
+                        st.success("✅ Actualizado"); time.sleep(2); st.rerun()
             elif opcion_m == "📝 MODIFICAR PRECIOS":
                 nuevo_c = st.number_input("Nuevo Costo:", value=float(df_inv.at[idx_m[0], 'Precio_Compra']))
                 nuevo_v = st.number_input("Nueva Venta:", value=float(df_inv.at[idx_m[0], 'Precio']))
@@ -480,6 +521,7 @@ if st.session_state.rol == "DUEÑO":
 with st.sidebar:
     st.title(f"🏢 {st.session_state.tenant}")
     st.write(f"Usuario: **{st.session_state.rol}**")
+    st.caption(f"Plan: Básico | Límite: {len(df_inv)}/{MAX_PRODUCTOS_TOTALES} productos")
     if st.button("🔴 CERRAR SESIÓN"):
         st.session_state.auth = False
         st.rerun()
