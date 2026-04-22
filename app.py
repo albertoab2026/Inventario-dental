@@ -12,10 +12,11 @@ from decimal import Decimal, ROUND_HALF_UP
 import io # Necesario para el Excel
 
 # --- 0. CONFIGURACIÓN ---
-TABLA_STOCK = 'SaaS_Stock_Test'
-TABLA_VENTAS = 'SaaS_Ventas_Test'
-TABLA_MOVS = 'SaaS_Movimientos_Test'
-TABLA_TENANTS = 'NEXUS_TENANTS' # ← TABLA DE PLANES
+# PARCHE 3: TABLAS AHORA VIENEN DE SECRETS
+TABLA_STOCK = st.secrets["tablas"]["stock"]
+TABLA_VENTAS = st.secrets["tablas"]["ventas"]
+TABLA_MOVS = st.secrets["tablas"]["movs"]
+TABLA_TENANTS = st.secrets["tablas"]["tenants"]
 
 st.set_page_config(page_title="NEXUS BALLARTA SaaS", layout="wide", page_icon="🚀")
 tz_peru = pytz.timezone('America/Lima')
@@ -39,9 +40,11 @@ try:
     tabla_stock = dynamodb.Table(TABLA_STOCK)
     tabla_ventas = dynamodb.Table(TABLA_VENTAS)
     tabla_movs = dynamodb.Table(TABLA_MOVS)
-    tabla_tenants = dynamodb.Table(TABLA_TENANTS) # ← NUEVA
+    tabla_tenants = dynamodb.Table(TABLA_TENANTS)
 except Exception as e:
-    st.error(f"Error conexión AWS: {e}")
+    # PARCHE 2: ERROR MUDO
+    st.error("Error de sistema. Contacta a soporte.")
+    print(f"ERROR AWS CONEXION: {e}")
     st.stop()
 
 # === CONTAR PRODUCTOS EN DYNAMODB ===
@@ -54,7 +57,9 @@ def contarProductosEnBD():
         )
         return respuesta.get('Count', 0)
     except Exception as e:
-        st.error(f"Error contando productos: {e}")
+        # PARCHE 2: ERROR MUDO
+        st.error("Error de sistema. Contacta a soporte.")
+        print(f"ERROR CONTEO: {e}")
         return 9999 # Si falla, bloquea por seguridad
 
 # === FUNCIÓN CON MODO LECTURA AUTOMÁTICO ===
@@ -89,7 +94,9 @@ def obtener_limites_tenant():
 
             return max_prod, max_stock, plan
     except Exception as e:
-        st.error(f"Error cargando tu plan: {e}")
+        # PARCHE 2: ERROR MUDO
+        st.error("Error de sistema. Contacta a soporte.")
+        print(f"ERROR PLAN: {e}")
         st.stop()
     return 1500, 500, 'BASICO' # Valores por defecto si falla
 
@@ -107,9 +114,25 @@ if 'confirmar' not in st.session_state:
     st.session_state.confirmar = False
 if 'modo_lectura' not in st.session_state:
     st.session_state.modo_lectura = False
+# PARCHE 1: VARIABLES ANTI FUERZA BRUTA
+if 'intentos_fallidos' not in st.session_state:
+    st.session_state.intentos_fallidos = 0
+if 'tiempo_bloqueo' not in st.session_state:
+    st.session_state.tiempo_bloqueo = None
 
 if not st.session_state.auth:
     st.markdown("<h1 style='text-align: center; color: #3498db;'>🚀 NEXUS BALLARTA SaaS</h1>", unsafe_allow_html=True)
+
+    # PARCHE 1: CHEQUEO DE BLOQUEO ANTES DE MOSTRAR LOGIN
+    if st.session_state.tiempo_bloqueo:
+        if datetime.now(tz_peru) < st.session_state.tiempo_bloqueo:
+            tiempo_restante = (st.session_state.tiempo_bloqueo - datetime.now(tz_peru)).seconds
+            st.error(f"❌ Demasiados intentos fallidos. Espera {tiempo_restante} segundos.")
+            st.stop()
+        else:
+            st.session_state.intentos_fallidos = 0
+            st.session_state.tiempo_bloqueo = None
+
     nombres_negocios = [k for k in st.secrets["auth_multi"].keys() if not k.endswith("_emp")]
     local_seleccionado = st.selectbox("📍 Seleccione su Negocio:", nombres_negocios)
     clave_ingresada = st.text_input("🔑 Contraseña:", type="password")
@@ -132,10 +155,17 @@ if not st.session_state.auth:
             st.session_state.auth = True
             st.session_state.tenant = local_seleccionado
             st.session_state.rol = tipo_usuario
+            st.session_state.intentos_fallidos = 0 # PARCHE 1: Resetea si entra bien
             st.rerun()
         else:
+            # PARCHE 1: SUMA INTENTO FALLIDO
+            st.session_state.intentos_fallidos += 1
+            if st.session_state.intentos_fallidos >= 5:
+                st.session_state.tiempo_bloqueo = datetime.now(tz_peru) + timedelta(minutes=5)
+                st.error("❌ Demasiados intentos. Bloqueado por 5 minutos.")
+                st.stop()
             time.sleep(2)
-            st.error(f"❌ Contraseña de {tipo_usuario} incorrecta")
+            st.error(f"❌ Contraseña de {tipo_usuario} incorrecta. Intentos: {st.session_state.intentos_fallidos}/5")
 
     if col_dueño.button("🔓 DUEÑO", use_container_width=True):
         intentar_login("DUEÑO")
@@ -243,7 +273,9 @@ with tabs[0]: # VENTA
             pdf_bytes = pdf.output(dest='S').encode('latin-1', 'ignore')
             st.download_button(label="📥 Descargar Ticket PDF 80mm", data=pdf_bytes, file_name=f"Ticket_{b['fecha'].replace('/','-')}.pdf", mime="application/pdf", use_container_width=True)
         except Exception as e:
-            st.error(f"Error PDF: {e}")
+            # PARCHE 2: ERROR MUDO
+            st.error("Error de sistema. Contacta a soporte.")
+            print(f"ERROR PDF: {e}")
 
         if st.button("⬅️ NUEVA VENTA", use_container_width=True):
             st.session_state.boleta = None
@@ -527,7 +559,10 @@ if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura',
                                 registrar_kardex(p_bulk, stock_val, "CARGA MASIVA")
                                 barra_progreso.progress((i + 1) / len(df_bulk))
                             st.success(f"✅ Carga finalizada. Productos cargados: {len(df_bulk)}"); time.sleep(2); st.rerun()
-                except Exception as e: st.error(f"Error archivo: {e}")
+                except Exception as e:
+                    # PARCHE 2: ERROR MUDO
+                    st.error("Error de sistema. Contacta a soporte.")
+                    print(f"ERROR CARGA: {e}")
 
     with tabs[5]: # MANTENIMIENTO
         st.subheader("🛠️ Gestión de Almacén")
@@ -550,24 +585,4 @@ if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura',
                         st.success("✅ Actualizado"); time.sleep(2); st.rerun()
             elif opcion_m == "📝 MODIFICAR PRECIOS":
                 nuevo_c = st.number_input("Nuevo Costo:", value=float(df_inv.at[idx_m[0], 'Precio_Compra']))
-                nuevo_v = st.number_input("Nueva Venta:", value=float(df_inv.at[idx_m[0], 'Precio']))
-                if st.button("💾 GUARDAR"):
-                    tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m}, UpdateExpression="SET Precio_Compra = :pc, Precio = :pv", ExpressionAttributeValues={':pc': to_decimal(nuevo_c), ':pv': to_decimal(nuevo_v)})
-                    registrar_kardex(p_sel_m, 0, f"CAMBIO PRECIOS")
-                    st.success("✅ Guardado"); time.sleep(2); st.rerun()
-            else:
-                if st.button(f"🗑️ ELIMINAR {p_sel_m}"):
-                    tabla_stock.delete_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m})
-                    registrar_kardex(p_sel_m, 0, "BORRADO"); st.warning("Eliminado"); time.sleep(2); st.rerun()
-
-with st.sidebar:
-    st.title(f"🏢 {st.session_state.tenant}")
-    st.write(f"Usuario: **{st.session_state.rol}**")
-
-    # NUEVO: MUESTRA EL PLAN CON EMOJI
-    emoji_plan = {"BASICO": "🔵", "PRO": "🟣", "PREMIUM": "🟡"}.get(PLAN_ACTUAL, "⚪")
-    st.caption(f"{emoji_plan} **Plan {PLAN_ACTUAL}** | Límite: {len(df_inv)}/{MAX_PRODUCTOS_TOTALES} productos")
-
-    if st.button("🔴 CERRAR SESIÓN"):
-        st.session_state.auth = False
-        st.rerun()
+                nuevo
