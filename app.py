@@ -62,6 +62,19 @@ def contarProductosEnBD():
         print(f"ERROR CONTEO: {e}")
         return 9999 # Si falla, bloquea por seguridad
 
+def obtener_datos():
+    respuesta = tabla_stock.query(
+        KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant)
+    )
+    items = respuesta.get('Items', [])
+    df = pd.DataFrame(items)
+    if df.empty:
+        return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
+    df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0).astype(int)
+    df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0.0)
+    df['Precio_Compra'] = pd.to_numeric(df['Precio_Compra'], errors='coerce').fillna(0.0)
+    return df[['Producto', 'Precio_Compra', 'Precio', 'Stock']].sort_values('Producto')
+
 # === FUNCIÓN CON MODO LECTURA AUTOMÁTICO ===
 def obtener_limites_tenant():
     """Lee Plan, límites y activa modo lectura si está pasado"""
@@ -173,19 +186,6 @@ if not st.session_state.auth:
         intentar_login("EMPLEADO")
     st.stop()
 
-def obtener_datos():
-    respuesta = tabla_stock.query(
-        KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant)
-    )
-    items = respuesta.get('Items', [])
-    df = pd.DataFrame(items)
-    if df.empty:
-        return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
-    df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0).astype(int)
-    df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0.0)
-    df['Precio_Compra'] = pd.to_numeric(df['Precio_Compra'], errors='coerce').fillna(0.0)
-    return df[['Producto', 'Precio_Compra', 'Precio', 'Stock']].sort_values('Producto')
-
 # === CANDADOS DINÁMICOS POR PLAN - SE CARGAN DESPUÉS DEL LOGIN ===
 MAX_PRODUCTOS_TOTALES, MAX_STOCK_POR_PRODUCTO, PLAN_ACTUAL = obtener_limites_tenant()
 df_inv = obtener_datos()
@@ -201,7 +201,6 @@ if st.session_state.rol == "DUEÑO":
     else:
         lista_pestanas += ["📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."]
 tabs = st.tabs(lista_pestanas)
-
 with tabs[0]: # VENTA
     df_critico = df_inv[df_inv['Stock'] < 5].copy()
     if not df_critico.empty:
@@ -483,8 +482,7 @@ def registrar_kardex(producto_k, cantidad_k, tipo_k):
         'Tipo': tipo_k,
         'Usuario': st.session_state.rol
     })
-
-if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
+    if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
     with tabs[3]: # HISTORIAL
         st.subheader("📋 Historial de Movimientos")
         fecha_h = st.date_input("Fecha de movimientos:", datetime.now(tz_peru), key="fecha_hist").strftime("%d/%m/%Y")
@@ -585,4 +583,24 @@ if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura',
                         st.success("✅ Actualizado"); time.sleep(2); st.rerun()
             elif opcion_m == "📝 MODIFICAR PRECIOS":
                 nuevo_c = st.number_input("Nuevo Costo:", value=float(df_inv.at[idx_m[0], 'Precio_Compra']))
-                nuevo
+                nuevo_v = st.number_input("Nueva Venta:", value=float(df_inv.at[idx_m[0], 'Precio']))
+                if st.button("💾 GUARDAR"):
+                    tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m}, UpdateExpression="SET Precio_Compra = :pc, Precio = :pv", ExpressionAttributeValues={':pc': to_decimal(nuevo_c), ':pv': to_decimal(nuevo_v)})
+                    registrar_kardex(p_sel_m, 0, f"CAMBIO PRECIOS")
+                    st.success("✅ Guardado"); time.sleep(2); st.rerun()
+            else:
+                if st.button(f"🗑️ ELIMINAR {p_sel_m}"):
+                    tabla_stock.delete_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m})
+                    registrar_kardex(p_sel_m, 0, "BORRADO"); st.warning("Eliminado"); time.sleep(2); st.rerun()
+
+with st.sidebar:
+    st.title(f"🏢 {st.session_state.tenant}")
+    st.write(f"Usuario: **{st.session_state.rol}**")
+
+    # NUEVO: MUESTRA EL PLAN CON EMOJI
+    emoji_plan = {"BASICO": "🔵", "PRO": "🟣", "PREMIUM": "🟡"}.get(PLAN_ACTUAL, "⚪")
+    st.caption(f"{emoji_plan} **Plan {PLAN_ACTUAL}** | Límite: {len(df_inv)}/{MAX_PRODUCTOS_TOTALES} productos")
+
+    if st.button("🔴 CERRAR SESIÓN"):
+        st.session_state.auth = False
+        st.rerun()
