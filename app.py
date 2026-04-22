@@ -62,14 +62,35 @@ def contarProductosEnBD():
         print(f"ERROR CONTEO: {e}")
         return 9999 # Si falla, bloquea por seguridad
 
+# PARCHE 4: PAGINACIÓN + CACHE
+@st.cache_data(ttl=60)  # Cache 1 minuto, evita leer DynamoDB a cada rato
 def obtener_datos():
-    respuesta = tabla_stock.query(
-        KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant)
-    )
-    items = respuesta.get('Items', [])
+    items = []
+    last_key = None
+    
+    # Trae de 500 en 500 hasta 2000 max, suficiente pa' cualquier bodega
+    while len(items) < 2000:
+        if last_key:
+            respuesta = tabla_stock.query(
+                KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant),
+                Limit=500,
+                ExclusiveStartKey=last_key
+            )
+        else:
+            respuesta = tabla_stock.query(
+                KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant),
+                Limit=500
+            )
+        
+        items.extend(respuesta.get('Items', []))
+        last_key = respuesta.get('LastEvaluatedKey')
+        if not last_key:
+            break
+    
     df = pd.DataFrame(items)
     if df.empty:
         return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
+    
     df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0).astype(int)
     df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0.0)
     df['Precio_Compra'] = pd.to_numeric(df['Precio_Compra'], errors='coerce').fillna(0.0)
@@ -119,6 +140,8 @@ if 'rol' not in st.session_state:
     st.session_state.rol = None
 if 'tenant' not in st.session_state:
     st.session_state.tenant = None
+if 'usuario' not in st.session_state:  # PARCHE 5: NOMBRE VENDEDOR
+    st.session_state.usuario = None
 if 'carrito' not in st.session_state:
     st.session_state.carrito = []
 if 'boleta' not in st.session_state:
@@ -168,6 +191,8 @@ if not st.session_state.auth:
             st.session_state.auth = True
             st.session_state.tenant = local_seleccionado
             st.session_state.rol = tipo_usuario
+            if tipo_usuario == "DUEÑO":  # PARCHE 5
+                st.session_state.usuario = "DUEÑO"
             st.session_state.intentos_fallidos = 0 # PARCHE 1: Resetea si entra bien
             st.rerun()
         else:
@@ -182,8 +207,20 @@ if not st.session_state.auth:
 
     if col_dueño.button("🔓 DUEÑO", use_container_width=True):
         intentar_login("DUEÑO")
-    if col_empleado.button("🧑‍💼 EMPLEADO", use_container_width=True):
-        intentar_login("EMPLEADO")
+    
+    # PARCHE 5: NOMBRE EMPLEADO
+    with col_empleado:
+        nombre_emp = st.text_input("👤 Nombre vendedor:", key="nombre_emp_login", placeholder="Ej: JUAN", max_chars=20)
+        if st.button("🧑‍💼 EMPLEADO", use_container_width=True):
+            if nombre_emp:
+                nombre_emp = nombre_emp.upper().strip()
+                if not re.match("^[A-Z0-9 ]*$", nombre_emp):
+                    st.error("❌ Solo letras y números en el nombre.")
+                else:
+                    st.session_state.usuario = nombre_emp
+                    intentar_login("EMPLEADO")
+            else:
+                st.warning("Pon tu nombre pa' entrar como empleado")
     st.stop()
 
 # === CANDADOS DINÁMICOS POR PLAN - SE CARGAN DESPUÉS DEL LOGIN ===
@@ -201,7 +238,6 @@ if st.session_state.rol == "DUEÑO":
     else:
         lista_pestanas += ["📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."]
 tabs = st.tabs(lista_pestanas)
-
 with tabs[0]: # VENTA
     df_critico = df_inv[df_inv['Stock'] < 5].copy()
     if not df_critico.empty:
@@ -350,7 +386,7 @@ with tabs[0]: # VENTA
                                 'Precio_Compra': item_v['Precio_Compra'],
                                 'Metodo': metodo_p,
                                 'Rebaja': to_decimal(rebaja_v),
-                                'Usuario': st.session_state.rol
+                                'Usuario': st.session_state.usuario # PARCHE 5: YA NO ES "EMPLEADO" GENERICO
                             })
                         except dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
                             st.error(f"❌ ¡CRÍTICO! El stock de '{item_v['Producto']}' cambió justo ahora y ya no hay suficiente. Venta cancelada.")
@@ -427,7 +463,7 @@ with tabs[2]:
                 ganancia_total_dia = total_venta_dia - df_rep['Inversion_F'].sum()
                 kpi3.metric("📈 GANANCIA NETA", f"S/ {float(ganancia_total_dia):.2f}")
             else:
-                kpi3.metric("👤 USUARIO", st.session_state.rol)
+                kpi3.metric("👤 USUARIO", st.session_state.usuario) # PARCHE 5
 
             st.divider()
 
@@ -448,7 +484,7 @@ with tabs[2]:
             tipo_cierre = "TOTAL" if st.session_state.rol == "DUEÑO" else "DE MI TURNO"
             if st.button(f"🏁 GENERAR CIERRE {tipo_cierre}", use_container_width=True, type="primary"):
                 msg_wa = f"*CIERRE {tipo_cierre} - {st.session_state.tenant}*\n"
-                msg_wa += f"📅 Fecha: {fecha_r}\n👤 Por: {st.session_state.rol}\n"
+                msg_wa += f"📅 Fecha: {fecha_r}\n👤 Por: {st.session_state.usuario}\n" # PARCHE 5
                 msg_wa += f"--------------------------\n"
                 msg_wa += f"💵 Efectivo: S/ {float(ef_v):.2f}\n"
                 msg_wa += f"🟣 Yape: S/ {float(ya_v):.2f}\n"
@@ -480,7 +516,7 @@ def registrar_kardex(producto_k, cantidad_k, tipo_k):
         'Producto': producto_k,
         'Cantidad': int(cantidad_k),
         'Tipo': tipo_k,
-        'Usuario': st.session_state.rol
+        'Usuario': st.session_state.usuario # PARCHE 5
     })
 
 if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
@@ -589,7 +625,7 @@ if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura',
 
 with st.sidebar:
     st.title(f"🏢 {st.session_state.tenant}")
-    st.write(f"Usuario: **{st.session_state.rol}**")
+    st.write(f"Usuario: **{st.session_state.usuario}**") # PARCHE 5: Muestra nombre real
 
     emoji_plan = {"BASICO": "🔵", "PRO": "🟣", "PREMIUM": "🟡"}.get(PLAN_ACTUAL, "⚪")
     st.caption(f"{emoji_plan} **Plan {PLAN_ACTUAL}** | Límite: {len(df_inv)}/{MAX_PRODUCTOS_TOTALES} productos")
