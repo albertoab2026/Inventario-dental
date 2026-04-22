@@ -209,8 +209,8 @@ if not st.session_state.auth:
         intentar_login("DUEÑO")
     
     # PARCHE 5: NOMBRE EMPLEADO
-    with col_empleado:
-        # PARCHE 5 V2: NOMBRE EMPLEADO QUE SÍ FUNCIONA
+        with col_empleado:
+        # PARCHE 5 V2: NOMBRE EMPLEADO CON INDENTACIÓN CORRECTA
         if 'nombre_emp_temp' not in st.session_state:
             st.session_state.nombre_emp_temp = ""
         
