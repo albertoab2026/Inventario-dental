@@ -201,6 +201,7 @@ if st.session_state.rol == "DUEÑO":
     else:
         lista_pestanas += ["📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."]
 tabs = st.tabs(lista_pestanas)
+
 with tabs[0]: # VENTA
     df_critico = df_inv[df_inv['Stock'] < 5].copy()
     if not df_critico.empty:
@@ -359,8 +360,7 @@ with tabs[0]: # VENTA
                     st.session_state.carrito = []
                     st.session_state.confirmar = False
                     st.rerun()
-
-with tabs[1]: # STOCK
+                    with tabs[1]: # STOCK
     st.subheader("📦 Consulta de Almacén")
 
     col_filtro, col_excel = st.columns([3, 1])
@@ -482,7 +482,8 @@ def registrar_kardex(producto_k, cantidad_k, tipo_k):
         'Tipo': tipo_k,
         'Usuario': st.session_state.rol
     })
-    if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
+
+if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
     with tabs[3]: # HISTORIAL
         st.subheader("📋 Historial de Movimientos")
         fecha_h = st.date_input("Fecha de movimientos:", datetime.now(tz_peru), key="fecha_hist").strftime("%d/%m/%Y")
@@ -503,23 +504,19 @@ def registrar_kardex(producto_k, cantidad_k, tipo_k):
         col_individual, col_masiva = st.columns(2)
         with col_individual:
             st.subheader("📥 Registro Individual")
-            # NUEVO: Muestra el plan con emoji
             st.info(f"📦 **Plan {PLAN_ACTUAL}**: {MAX_PRODUCTOS_TOTALES} productos | {MAX_STOCK_POR_PRODUCTO} stock máximo por producto")
             with st.form("formulario_carga"):
                 p_nombre = st.text_input("NOMBRE DEL PRODUCTO").upper()
-                p_stock = st.number_input("STOCK INICIAL", min_value=1) # ← SIN max_value
+                p_stock = st.number_input("STOCK INICIAL", min_value=1)
                 p_costo = st.number_input("PRECIO COSTO (COMPRA)", min_value=0.0)
                 p_venta = st.number_input("PRECIO VENTA", min_value=0.0)
                 if st.form_submit_button("🚀 GUARDAR PRODUCTO"):
                     if p_nombre:
-                        # CANDADO 1: STOCK MÁXIMO DEL PLAN
                         if p_stock > MAX_STOCK_POR_PRODUCTO:
                             st.error(f"❌ Tu plan permite máximo {MAX_STOCK_POR_PRODUCTO} unidades por producto.")
-                        # CANDADO 2: VERIFICAR SI YA EXISTE
                         elif not df_inv[df_inv['Producto'] == p_nombre].empty:
                             st.error(f"❌ El producto '{p_nombre}' ya existe. Usa MANTENIMIENTO para reponer.")
                         else:
-                            # CANDADO 3: MÁXIMO PRODUCTOS DEL PLAN
                             total_actual = contarProductosEnBD()
                             if total_actual >= MAX_PRODUCTOS_TOTALES:
                                 st.error(f"❌ Llegaste al límite de {MAX_PRODUCTOS_TOTALES} productos de tu plan.\n\nPara más capacidad, actualiza tu plan.")
@@ -537,7 +534,6 @@ def registrar_kardex(producto_k, cantidad_k, tipo_k):
                     df_bulk.columns = [str(c).strip().title() for c in df_bulk.columns]
                     st.write("Vista previa:", df_bulk.head(3))
 
-                    # VALIDAR CANDADOS ANTES DE PROCESAR
                     total_actual = contarProductosEnBD()
                     espacios_libres = MAX_PRODUCTOS_TOTALES - total_actual
 
@@ -558,7 +554,6 @@ def registrar_kardex(producto_k, cantidad_k, tipo_k):
                                 barra_progreso.progress((i + 1) / len(df_bulk))
                             st.success(f"✅ Carga finalizada. Productos cargados: {len(df_bulk)}"); time.sleep(2); st.rerun()
                 except Exception as e:
-                    # PARCHE 2: ERROR MUDO
                     st.error("Error de sistema. Contacta a soporte.")
                     print(f"ERROR CARGA: {e}")
 
@@ -571,10 +566,9 @@ def registrar_kardex(producto_k, cantidad_k, tipo_k):
             p_sel_m = st.selectbox("Confirmar Producto:", lista_m, key="sel_mant_final")
             idx_m = df_inv[df_inv['Producto'] == p_sel_m].index
             if opcion_m == "➕ REPONER STOCK":
-                cantidad_ingreso = st.number_input("Ingreso:", min_value=1) # ← SIN max_value
+                cantidad_ingreso = st.number_input("Ingreso:", min_value=1)
                 if st.button("✅ ACTUALIZAR"):
                     nuevo_stock_m = int(df_inv.at[idx_m[0], 'Stock'] + cantidad_ingreso)
-                    # CANDADO: No pasar el límite del plan ni sumando
                     if nuevo_stock_m > MAX_STOCK_POR_PRODUCTO:
                         st.error(f"❌ Tu plan no permite superar {MAX_STOCK_POR_PRODUCTO} unidades por producto. Stock actual: {df_inv.at[idx_m[0], 'Stock']}")
                     else:
@@ -597,7 +591,6 @@ with st.sidebar:
     st.title(f"🏢 {st.session_state.tenant}")
     st.write(f"Usuario: **{st.session_state.rol}**")
 
-    # NUEVO: MUESTRA EL PLAN CON EMOJI
     emoji_plan = {"BASICO": "🔵", "PRO": "🟣", "PREMIUM": "🟡"}.get(PLAN_ACTUAL, "⚪")
     st.caption(f"{emoji_plan} **Plan {PLAN_ACTUAL}** | Límite: {len(df_inv)}/{MAX_PRODUCTOS_TOTALES} productos")
 
