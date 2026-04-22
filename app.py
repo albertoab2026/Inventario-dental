@@ -44,9 +44,9 @@ except Exception as e:
     st.error(f"Error conexión AWS: {e}")
     st.stop()
 
-# === FUNCIÓN NUEVA: LEER LÍMITES DEL PLAN DESDE DYNAMODB ===
+# === FUNCIÓN ACTUALIZADA: AHORA DEVUELVE TAMBIÉN EL NOMBRE DEL PLAN ===
 def obtener_limites_tenant():
-    """Lee los límites de MaxProductos y MaxStock desde la tabla NEXUS_TENANTS"""
+    """Lee Plan, MaxProductos y MaxStock desde NEXUS_TENANTS"""
     try:
         respuesta = tabla_tenants.get_item(Key={'TenantID': st.session_state.tenant})
         if 'Item' in respuesta:
@@ -55,11 +55,12 @@ def obtener_limites_tenant():
             if item.get('Estado')!= 'ACTIVO':
                 st.error("Tu plan está suspendido o vencido. Contacta a soporte para reactivar.")
                 st.stop()
-            return int(item['MaxProductos']), int(item['MaxStock'])
+            # Devuelve los 3 valores: Plan, MaxProductos, MaxStock
+            return int(item['MaxProductos']), int(item['MaxStock']), item.get('Plan', 'BASICO')
     except Exception as e:
         st.error(f"Error cargando tu plan: {e}")
         st.stop()
-    return 1500, 500 # Valores por defecto si falla
+    return 1500, 500, 'BASICO' # Valores por defecto si falla
 
 # === CONTAR PRODUCTOS EN DYNAMODB ===
 def contarProductosEnBD():
@@ -123,7 +124,7 @@ if not st.session_state.auth:
     st.stop()
 
 # === CANDADOS DINÁMICOS POR PLAN - SE CARGAN DESPUÉS DEL LOGIN ===
-MAX_PRODUCTOS_TOTALES, MAX_STOCK_POR_PRODUCTO = obtener_limites_tenant()
+MAX_PRODUCTOS_TOTALES, MAX_STOCK_POR_PRODUCTO, PLAN_ACTUAL = obtener_limites_tenant()
 
 def obtener_datos():
     respuesta = tabla_stock.query(
@@ -446,7 +447,8 @@ if st.session_state.rol == "DUEÑO":
         col_individual, col_masiva = st.columns(2)
         with col_individual:
             st.subheader("📥 Registro Individual")
-            st.caption(f"Límite de tu plan: {MAX_PRODUCTOS_TOTALES} productos | {MAX_STOCK_POR_PRODUCTO} stock máximo")
+            # NUEVO: Muestra el plan con emoji
+            st.info(f"📦 **Plan {PLAN_ACTUAL}**: {MAX_PRODUCTOS_TOTALES} productos | {MAX_STOCK_POR_PRODUCTO} stock máximo por producto")
             with st.form("formulario_carga"):
                 p_nombre = st.text_input("NOMBRE DEL PRODUCTO").upper()
                 p_stock = st.number_input("STOCK INICIAL", min_value=1) # ← SIN max_value
@@ -535,7 +537,11 @@ if st.session_state.rol == "DUEÑO":
 with st.sidebar:
     st.title(f"🏢 {st.session_state.tenant}")
     st.write(f"Usuario: **{st.session_state.rol}**")
-    st.caption(f"Plan activo | Límite: {len(df_inv)}/{MAX_PRODUCTOS_TOTALES} productos")
+
+    # NUEVO: MUESTRA EL PLAN CON EMOJI
+    emoji_plan = {"BASICO": "🔵", "PRO": "🟣", "PREMIUM": "🟡"}.get(PLAN_ACTUAL, "⚪")
+    st.caption(f"{emoji_plan} **Plan {PLAN_ACTUAL}** | Límite: {len(df_inv)}/{MAX_PRODUCTOS_TOTALES} productos")
+
     if st.button("🔴 CERRAR SESIÓN"):
         st.session_state.auth = False
         st.rerun()
