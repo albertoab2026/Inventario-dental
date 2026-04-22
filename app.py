@@ -360,7 +360,7 @@ with tabs[0]: # VENTA
                     st.session_state.carrito = []
                     st.session_state.confirmar = False
                     st.rerun()
-                    with tabs[1]: # STOCK
+with tabs[1]: # STOCK
     st.subheader("📦 Consulta de Almacén")
 
     col_filtro, col_excel = st.columns([3, 1])
