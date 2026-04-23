@@ -485,8 +485,20 @@ with tabs[1]: # STOCK
         elif fila.Stock < 5:
             return ['color: #ff4b4b; font-weight: bold;'] * len(fila)
         return [''] * len(fila)
-    st.dataframe(df_mostrar.style.apply(estilo_filas, axis=1).format({"Precio": "{:.2f}", "Precio_Compra": "{:.2f}", "Stock": "{:d}"}), use_container_width=True, hide_index=True)
-# --- REPORTES ---
+
+    # PARCHE: COLUMN_CONFIG PA' QUE NO SE MUEVA EN CELULAR
+    st.dataframe(
+        df_mostrar.style.apply(estilo_filas, axis=1).format({"Precio": "{:.2f}", "Precio_Compra": "{:.2f}", "Stock": "{:d}"}),
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Producto": st.column_config.TextColumn("Producto", width="medium"),
+            "Precio_Compra": st.column_config.NumberColumn("Costo", format="S/ %.2f", width="small"),
+            "Precio": st.column_config.NumberColumn("Venta", format="S/ %.2f", width="small"),
+            "Stock": st.column_config.NumberColumn("Stock", width="small"),
+        }
+    )
+ # --- REPORTES ---
 with tabs[2]:
     st.subheader("📊 Reporte de Ventas e Inteligencia")
 
@@ -525,7 +537,7 @@ with tabs[2]:
                 ganancia_total_dia = total_venta_dia - df_rep['Inversion_F'].sum()
                 kpi3.metric("📈 GANANCIA NETA", f"S/ {float(ganancia_total_dia):.2f}")
             else:
-                kpi3.metric("👤 USUARIO", st.session_state.usuario) # PARCHE 5
+                kpi3.metric("👤 USUARIO", st.session_state.usuario)
 
             st.divider()
 
@@ -543,7 +555,7 @@ with tabs[2]:
             c3.metric("🔵 PLIN", f"S/ {float(pl_v):.2f}")
 
             st.divider()
-            # PARCHE 7: CIERRE CON AUDITORÍA + BLOQUEO POST-CIERRE
+            # PARCHE 7: CIERRE CON AUDITORÍA + BLOQUEO POST-CIERRE + FIX WHATSAPP
             f_hoy, _, _ = obtener_tiempo_peru()
 
             # 1. Revisa si hoy ya tiene cierre
@@ -562,13 +574,12 @@ with tabs[2]:
                     venta_post_cierre = True
                     total_post = ventas_post['Total'].sum()
                     st.error(f"🚨 POST-CIERRE: Hay S/{float(total_post):.2f} vendidos DESPUÉS del último cierre de hoy a las {ultimo_cierre_hora}.")
-                    usuario_turno_actual = ventas_post['Usuario'].iloc[-1] # Dueño de la última venta post-cierre
+                    usuario_turno_actual = ventas_post['Usuario'].iloc[-1]
 
-            # 3. BOTÓN DE CIERRE
+            # 3. BOTÓN DE CIERRE - SIN RERUN PA' QUE SALGA EL WHATSAPP
             if not cierres_hoy or venta_post_cierre:
                 tipo_cierre = "CIERRE POST-CIERRE" if venta_post_cierre else "CIERRE TURNO"
                 if st.button(f"🏁 GENERAR {tipo_cierre}", use_container_width=True, type="primary"):
-                    # Registra con AUDITORÍA: quién cierra y de quién es la caja
                     registrar_cierre(
                         total_cierre=total_venta_dia,
                         usuario_turno=usuario_turno_actual,
@@ -590,7 +601,7 @@ with tabs[2]:
                         msg_wa += f"\n⚠️ *INCLUYE VENTAS POST-CIERRE*"
 
                     st.link_button("📲 Enviar Cierre por WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_wa)}", use_container_width=True)
-                    st.rerun()
+                    # st.rerun() <- QUITADO PA' QUE NO DESAPAREZCA EL BOTÓN
             else:
                 ultimo = cierres_hoy[-1]
                 st.success(f"✅ Día {f_hoy} cerrado a las {ultimo['Hora']}. Caja de: {ultimo['UsuarioTurno']}. Cerrado por: {ultimo['UsuarioCierre']}")
@@ -601,7 +612,6 @@ with tabs[2]:
                 st.subheader("🔐 PANEL DUEÑO - CIERRE REMOTO")
 
                 if not cierres_hoy:
-                    # Calcula total del día aunque no estés en REPORTES
                     res_v_all = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant))
                     df_total = pd.DataFrame(res_v_all.get('Items', []))
                     if not df_total.empty:
@@ -613,8 +623,6 @@ with tabs[2]:
 
                     if total_hoy > 0:
                         st.error(f"🚨 OJO: Hoy {f_hoy} hay S/{float(total_hoy):.2f} vendido y NADIE CERRÓ CAJA.")
-
-                        # Detecta de quién es la caja sin cerrar
                         usuario_deudor = df_hoy_v['Usuario'].iloc[-1] if not df_hoy_v.empty else "EMPLEADO"
                         st.warning(f"Caja pendiente de: {usuario_deudor}")
 
@@ -645,7 +653,19 @@ with tabs[2]:
             if 'Usuario' in df_rep.columns:
                 cols_mostrar.append('Usuario')
 
-            st.dataframe(df_rep.sort_values("Hora", ascending=False)[cols_mostrar], use_container_width=True, hide_index=True)
+            # PARCHE: COLUMN_CONFIG PA' QUE NO SE MUEVA EN CELULAR
+            st.dataframe(
+                df_rep.sort_values("Hora", ascending=False)[cols_mostrar],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Hora": st.column_config.TextColumn("Hora", width="small"),
+                    "Producto": st.column_config.TextColumn("Producto", width="medium"),
+                    "Total": st.column_config.NumberColumn("Total", format="S/ %.2f", width="small"),
+                    "Metodo": st.column_config.TextColumn("Método", width="small"),
+                    "Usuario": st.column_config.TextColumn("Usuario", width="small"),
+                }
+            )
         else: st.info("No hay ventas en esta fecha.")
     else: st.info("Sin ventas registradas.")
 
@@ -658,7 +678,7 @@ def registrar_kardex(producto_k, cantidad_k, tipo_k):
         'Producto': producto_k,
         'Cantidad': int(cantidad_k),
         'Tipo': tipo_k,
-        'Usuario': st.session_state.usuario # PARCHE 5
+        'Usuario': st.session_state.usuario
     })
 
 if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
@@ -674,11 +694,22 @@ if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura',
                 cols_hist = ['Hora', 'Producto', 'Cantidad', 'Tipo']
                 if 'Usuario' in df_historial.columns:
                     cols_hist.append('Usuario')
-                st.dataframe(df_historial.sort_values("Hora", ascending=False)[cols_hist], use_container_width=True, hide_index=True)
+                st.dataframe(
+                    df_historial.sort_values("Hora", ascending=False)[cols_hist],
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Hora": st.column_config.TextColumn("Hora", width="small"),
+                        "Producto": st.column_config.TextColumn("Producto", width="medium"),
+                        "Cantidad": st.column_config.NumberColumn("Cant", width="small"),
+                        "Tipo": st.column_config.TextColumn("Tipo", width="medium"),
+                        "Usuario": st.column_config.TextColumn("Usuario", width="small"),
+                    }
+                )
             else: st.info("Sin movimientos registrados hoy.")
         else: st.info("Historial vacío.")
 
-    with tabs[4]: # CARGAR - CANDADOS DINÁMICOS PARCHADOS
+    with tabs[4]: # CARGAR
         col_individual, col_masiva = st.columns(2)
         with col_individual:
             st.subheader("📥 Registro Individual")
@@ -767,20 +798,19 @@ if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura',
 
 with st.sidebar:
     st.title(f"🏢 {st.session_state.tenant}")
-    st.write(f"Usuario: **{st.session_state.usuario}**") # PARCHE 5: Muestra nombre real
+    st.write(f"Usuario: **{st.session_state.usuario}")
 
     emoji_plan = {"BASICO": "🔵", "PRO": "🟣", "PREMIUM": "🟡"}.get(PLAN_ACTUAL, "⚪")
     st.caption(f"{emoji_plan} **Plan {PLAN_ACTUAL}** | Límite: {len(df_inv)}/{MAX_PRODUCTOS_TOTALES} productos")
 
     if st.button("🔴 CERRAR SESIÓN"):
-        # PARCHE 5 V4: LIMPIAR TODO AL SALIR
         st.session_state.auth = False
         st.session_state.rol = None
         st.session_state.tenant = None
         st.session_state.usuario = None
-        st.session_state.nombre_emp_temp = "" # ESTA LÍNEA ARREGLA LO DE LEANDRO
+        st.session_state.nombre_emp_temp = ""
         st.session_state.carrito = []
         st.session_state.boleta = None
         st.session_state.confirmar = False
-        st.session_state.verifico_cierre = False # PARCHE 7
-        st.rerun()    
+        st.session_state.verifico_cierre = False
+        st.rerun()   
