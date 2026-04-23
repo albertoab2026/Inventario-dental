@@ -9,15 +9,14 @@ import time
 import re
 import urllib.parse
 from decimal import Decimal, ROUND_HALF_UP
-import io # Necesario para el Excel
+import io
 
 # --- 0. CONFIGURACIÓN ---
-# PARCHE 3: TABLAS AHORA VIENEN DE SECRETS
 TABLA_STOCK = st.secrets["tablas"]["stock"]
 TABLA_VENTAS = st.secrets["tablas"]["ventas"]
 TABLA_MOVS = st.secrets["tablas"]["movs"]
 TABLA_TENANTS = st.secrets["tablas"]["tenants"]
-TABLA_CIERRES = st.secrets["tablas"]["cierres"] # PARCHE 7: TABLA CIERRES
+TABLA_CIERRES = st.secrets["tablas"]["cierres"]
 
 st.set_page_config(page_title="NEXUS BALLARTA SaaS", layout="wide", page_icon="🚀")
 tz_peru = pytz.timezone('America/Lima')
@@ -33,7 +32,6 @@ def obtener_tiempo_peru():
     return fecha, hora, id_unico
 
 try:
-    # Intento de conexión con secrets de Streamlit
     dynamodb = boto3.resource('dynamodb',
                               region_name=st.secrets["aws"]["aws_region"],
                               aws_access_key_id=st.secrets["aws"]["aws_access_key_id"],
@@ -42,48 +40,42 @@ try:
     tabla_ventas = dynamodb.Table(TABLA_VENTAS)
     tabla_movs = dynamodb.Table(TABLA_MOVS)
     tabla_tenants = dynamodb.Table(TABLA_TENANTS)
-    tabla_cierres = dynamodb.Table(TABLA_CIERRES) # PARCHE 7
+    tabla_cierres = dynamodb.Table(TABLA_CIERRES)
 except Exception as e:
-    # PARCHE 2: ERROR MUDO
     st.error("Error de sistema. Contacta a soporte.")
     print(f"ERROR AWS CONEXION: {e}")
     st.stop()
 
-# PARCHE 7: FUNCIONES DE CIERRE CON AUDITORÍA
 def registrar_cierre(total_cierre, usuario_turno, tipo_turno, usuario_cierre):
     f_c, h_c, uid_c = obtener_tiempo_peru()
     tabla_cierres.put_item(Item={
         'TenantID': st.session_state.tenant,
         'CierreID': f"C-{uid_c}",
-        'Fecha': f_c, 
+        'Fecha': f_c,
         'Hora': h_c,
-        'UsuarioTurno': usuario_turno,  # De quién es la plata
-        'UsuarioCierre': usuario_cierre,  # Quién apretó el botón
+        'UsuarioTurno': usuario_turno,
+        'UsuarioCierre': usuario_cierre,
         'Total': to_decimal(total_cierre),
         'Tipo': tipo_turno
     })
     st.session_state.caja_cerrada = True
     st.session_state.ultimo_cierre = {
-        'id': f"C-{uid_c}", 
-        'hora': h_c, 
+        'id': f"C-{uid_c}",
+        'hora': h_c,
         'usuario_turno': usuario_turno,
         'usuario_cierre': usuario_cierre
     }
 
 def verificar_cierre_tardio():
-    """Corre al iniciar. Si ayer hubo ventas sin cierre, auto-cierra con fecha de ayer."""
     f_hoy, h_hoy, _ = obtener_tiempo_peru()
     ayer = (datetime.now(tz_peru) - timedelta(days=1)).strftime("%d/%m/%Y")
-    
-    # Busca ventas de ayer
+
     res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant))
     ventas_ayer = [v for v in res_v.get('Items', []) if v['Fecha'] == ayer]
-    
-    # Busca cierres de ayer
+
     res_c = tabla_cierres.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant))
     cierres_ayer = [c for c in res_c.get('Items', []) if c['Fecha'] == ayer]
-    
-    # Si hubo venta pero 0 cierres = AUTO-CIERRE
+
     if ventas_ayer and not cierres_ayer:
         total_pendiente = sum([Decimal(str(v['Total'])) for v in ventas_ayer])
         usuario_deudor = ventas_ayer[-1]['Usuario'] if ventas_ayer else "NADIE"
@@ -92,9 +84,7 @@ def verificar_cierre_tardio():
         return total_pendiente
     return None
 
-# === CONTAR PRODUCTOS EN DYNAMODB ===
 def contarProductosEnBD():
-    """Cuenta cuántos productos hay en total para el tenant actual. Usa Select=COUNT pa' que sea barato."""
     try:
         respuesta = tabla_stock.query(
             KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant),
@@ -102,18 +92,15 @@ def contarProductosEnBD():
         )
         return respuesta.get('Count', 0)
     except Exception as e:
-        # PARCHE 2: ERROR MUDO
         st.error("Error de sistema. Contacta a soporte.")
         print(f"ERROR CONTEO: {e}")
-        return 9999 # Si falla, bloquea por seguridad
+        return 9999
 
-# PARCHE 4: PAGINACIÓN + CACHE
-@st.cache_data(ttl=60)  # Cache 1 minuto, evita leer DynamoDB a cada rato
+@st.cache_data(ttl=60)
 def obtener_datos():
     items = []
     last_key = None
-    
-    # Trae de 500 en 500 hasta 2000 max, suficiente pa' cualquier bodega
+
     while len(items) < 2000:
         if last_key:
             respuesta = tabla_stock.query(
@@ -126,29 +113,26 @@ def obtener_datos():
                 KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant),
                 Limit=500
             )
-        
+
         items.extend(respuesta.get('Items', []))
         last_key = respuesta.get('LastEvaluatedKey')
         if not last_key:
             break
-    
+
     df = pd.DataFrame(items)
     if df.empty:
         return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
-    
+
     df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0).astype(int)
     df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0.0)
     df['Precio_Compra'] = pd.to_numeric(df['Precio_Compra'], errors='coerce').fillna(0.0)
     return df[['Producto', 'Precio_Compra', 'Precio', 'Stock']].sort_values('Producto')
 
-# === FUNCIÓN CON MODO LECTURA AUTOMÁTICO ===
 def obtener_limites_tenant():
-    """Lee Plan, límites y activa modo lectura si está pasado"""
     try:
         respuesta = tabla_tenants.get_item(Key={'TenantID': st.session_state.tenant})
         if 'Item' in respuesta:
             item = respuesta['Item']
-            # Si está suspendido, bloquea todo
             if item.get('Estado')!= 'ACTIVO':
                 st.error("Tu plan está suspendido o vencido. Contacta a soporte para reactivar.")
                 st.stop()
@@ -157,14 +141,10 @@ def obtener_limites_tenant():
             max_stock = int(item['MaxStock'])
             plan = item.get('Plan', 'BASICO')
 
-            # CHEQUEO DE MODO LECTURA: ¿Está pasado de su plan?
             total_actual = contarProductosEnBD()
-
-            # Sacamos el stock máximo actual
             df_temp = obtener_datos()
             stock_max_actual = int(df_temp['Stock'].max()) if not df_temp.empty else 0
 
-            # ACTIVAR MODO LECTURA SI SE PASA
             if total_actual > max_prod or stock_max_actual > max_stock:
                 st.session_state.modo_lectura = True
                 st.session_state.mensaje_lectura = f"⚠️ MODO LECTURA: Tienes {total_actual}/{max_prod} productos y stock máximo de {stock_max_actual}/{max_stock}. Solo puedes VENDER hasta regularizar tu plan {plan}."
@@ -173,11 +153,10 @@ def obtener_limites_tenant():
 
             return max_prod, max_stock, plan
     except Exception as e:
-        # PARCHE 2: ERROR MUDO
         st.error("Error de sistema. Contacta a soporte.")
         print(f"ERROR PLAN: {e}")
         st.stop()
-    return 1500, 500, 'BASICO' # Valores por defecto si falla
+    return 1500, 500, 'BASICO'
 
 if 'auth' not in st.session_state:
     st.session_state.auth = False
@@ -185,9 +164,9 @@ if 'rol' not in st.session_state:
     st.session_state.rol = None
 if 'tenant' not in st.session_state:
     st.session_state.tenant = None
-if 'usuario' not in st.session_state:  # PARCHE 5: NOMBRE VENDEDOR
+if 'usuario' not in st.session_state:
     st.session_state.usuario = None
-if 'nombre_emp_temp' not in st.session_state:  # PARCHE 5 V3
+if 'nombre_emp_temp' not in st.session_state:
     st.session_state.nombre_emp_temp = ""
 if 'carrito' not in st.session_state:
     st.session_state.carrito = []
@@ -197,21 +176,19 @@ if 'confirmar' not in st.session_state:
     st.session_state.confirmar = False
 if 'modo_lectura' not in st.session_state:
     st.session_state.modo_lectura = False
-# PARCHE 1: VARIABLES ANTI FUERZA BRUTA
 if 'intentos_fallidos' not in st.session_state:
     st.session_state.intentos_fallidos = 0
 if 'tiempo_bloqueo' not in st.session_state:
     st.session_state.tiempo_bloqueo = None
-# PARCHE 7: VARIABLES CIERRE
 if 'caja_cerrada' not in st.session_state:
     st.session_state.caja_cerrada = False
 if 'ultimo_cierre' not in st.session_state:
     st.session_state.ultimo_cierre = None
 
+# ===== LOGIN NUEVO CON FORMATO [TENANT] =====
 if not st.session_state.auth:
     st.markdown("<h1 style='text-align: center; color: #3498db;'>🚀 NEXUS BALLARTA SaaS</h1>", unsafe_allow_html=True)
 
-    # PARCHE 1: CHEQUEO DE BLOQUEO ANTES DE MOSTRAR LOGIN
     if st.session_state.tiempo_bloqueo:
         if datetime.now(tz_peru) < st.session_state.tiempo_bloqueo:
             tiempo_restante = (st.session_state.tiempo_bloqueo - datetime.now(tz_peru)).seconds
@@ -221,76 +198,65 @@ if not st.session_state.auth:
             st.session_state.intentos_fallidos = 0
             st.session_state.tiempo_bloqueo = None
 
-    nombres_negocios = [k for k in st.secrets["auth_multi"].keys() if not k.endswith("_emp")]
-    local_seleccionado = st.selectbox("📍 Seleccione su Negocio:", nombres_negocios)
-    clave_ingresada = st.text_input("🔑 Contraseña:", type="password")
-    clave_ingresada = clave_ingresada.strip()[:30]
+    usuario_input = st.text_input("👤 Usuario:", key="login_user").strip()
+    clave_input = st.text_input("🔑 Contraseña:", type="password", key="login_pass").strip()[:30]
 
     col_dueño, col_empleado = st.columns(2)
 
-    def intentar_login(tipo_usuario):
-        if not re.match("^[A-Za-z0-9]*$", clave_ingresada):
+    def intentar_login():
+        if not re.match("^[A-Za-z0-9]*$", clave_input):
             time.sleep(2)
             st.error("❌ No se permiten símbolos raros.")
-            return
+            return False
 
-        if tipo_usuario == "DUEÑO":
-            clave_correcta = st.secrets["auth_multi"][local_seleccionado]
-        else:
-            clave_correcta = st.secrets["auth_multi"].get(f"{local_seleccionado}_emp")
+        tenants = [k for k in st.secrets if k!= "tablas" and k!= "aws" and not k.endswith("_emp")]
 
-        if clave_ingresada == str(clave_correcta):
-            st.session_state.auth = True
-            st.session_state.tenant = local_seleccionado
-            st.session_state.rol = tipo_usuario
-            if tipo_usuario == "DUEÑO":  # PARCHE 5
+        for t in tenants:
+            # Login ADMIN
+            if st.secrets[t]["usuario"] == usuario_input and st.secrets[t]["clave"] == clave_input:
+                st.session_state.auth = True
+                st.session_state.tenant = t.replace("_", " ")
+                st.session_state.rol = "DUEÑO"
                 st.session_state.usuario = "DUEÑO"
-            st.session_state.intentos_fallidos = 0 # PARCHE 1: Resetea si entra bien
-            st.rerun()
-        else:
-            # PARCHE 1: SUMA INTENTO FALLIDO
-            st.session_state.intentos_fallidos += 1
-            if st.session_state.intentos_fallidos >= 5:
-                st.session_state.tiempo_bloqueo = datetime.now(tz_peru) + timedelta(minutes=5)
-                st.error("❌ Demasiados intentos. Bloqueado por 5 minutos.")
-                st.stop()
-            time.sleep(2)
-            st.error(f"❌ Contraseña de {tipo_usuario} incorrecta. Intentos: {st.session_state.intentos_fallidos}/5")
+                st.session_state.intentos_fallidos = 0
+                st.rerun()
 
-    if col_dueño.button("🔓 DUEÑO", use_container_width=True):
-        intentar_login("DUEÑO")
-    
-    # PARCHE 5 V3: NOMBRE EMPLEADO ARREGLADO - SIN WITH DENTRO DE WITH
-    with col_empleado:
-        st.session_state.nombre_emp_temp = st.text_input(
-            "👤 Tu nombre:", 
-            value=st.session_state.nombre_emp_temp,
-            key="input_nombre_emp",
-            placeholder="Ej: JUAN",
-            max_chars=20
-        ).upper().strip()
-        
-        if st.button("🧑‍💼 EMPLEADO", use_container_width=True):
-            if not st.session_state.nombre_emp_temp:
-                st.warning("Pon tu nombre pa' entrar como empleado")
-            elif not re.match("^[A-Z0-9 ]*$", st.session_state.nombre_emp_temp):
-                st.error("❌ Solo letras y números en el nombre.")
-            else:
-                st.session_state.usuario = st.session_state.nombre_emp_temp
-                intentar_login("EMPLEADO")
+            # Login EMPLEADO
+            t_emp = f"{t}_emp"
+            if t_emp in st.secrets:
+                if st.secrets[t_emp]["usuario"] == usuario_input and st.secrets[t_emp]["clave"] == clave_input:
+                    st.session_state.auth = True
+                    st.session_state.tenant = t.replace("_", " ")
+                    st.session_state.rol = "EMPLEADO"
+                    st.session_state.usuario = usuario_input
+                    st.session_state.intentos_fallidos = 0
+                    st.rerun()
+
+        # Si no encontró nada
+        st.session_state.intentos_fallidos += 1
+        if st.session_state.intentos_fallidos >= 5:
+            st.session_state.tiempo_bloqueo = datetime.now(tz_peru) + timedelta(minutes=5)
+            st.error("❌ Demasiados intentos. Bloqueado por 5 minutos.")
+            st.stop()
+        time.sleep(2)
+        st.error(f"❌ Usuario o clave incorrecta. Intentos: {st.session_state.intentos_fallidos}/5")
+        return False
+
+    if col_dueño.button("🔓 ENTRAR", use_container_width=True):
+        intentar_login()
+
     st.stop()
-
 # PARCHE 7: CHEQUEO DE CIERRE TARDÍO AL INICIAR APP
 if st.session_state.auth and 'verifico_cierre' not in st.session_state:
     with st.spinner('Verificando cierres pendientes...'):
         verificar_cierre_tardio()
     st.session_state.verifico_cierre = True
 
-# === CANDADOS DINÁMICOS POR PLAN - SE CARGAN DESPUÉS DEL LOGIN ===
+# === CANDADOS DINÁMICOS POR PLAN ===
 MAX_PRODUCTOS_TOTALES, MAX_STOCK_POR_PRODUCTO, PLAN_ACTUAL = obtener_limites_tenant()
 df_inv = obtener_datos()
 
-# === AVISO DE MODO LECTURA SI ESTÁ PASADO ===
+# === AVISO DE MODO LECTURA ===
 if st.session_state.get('modo_lectura', False):
     st.warning(st.session_state.mensaje_lectura)
 
@@ -333,20 +299,17 @@ with tabs[0]: # VENTA
         st.link_button("📲 Enviar reporte por WhatsApp", wa_url, use_container_width=True)
 
         try:
-            # PDF EN 80MM PARA TIQUETERA
             pdf = FPDF(orientation='P', unit='mm', format=(80, 200))
             pdf.add_page()
             pdf.set_margins(3, 3, 3)
             pdf.set_auto_page_break(auto=True, margin=3)
 
-            # Encabezado
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(74, 6, txt=str(st.session_state.tenant)[:30], ln=True, align='C')
             pdf.set_font("Arial", size=8)
             pdf.cell(74, 4, txt=f"{b['fecha']} {b['hora']}", ln=True, align='C')
             pdf.cell(74, 2, txt="-" * 42, ln=True, align='C')
 
-            # Productos
             pdf.set_font("Arial", size=9)
             for i in b['items']:
                 nombre_corto = i['Producto'][:20]
@@ -355,7 +318,6 @@ with tabs[0]: # VENTA
 
             pdf.cell(74, 2, txt="-" * 42, ln=True, align='C')
 
-            # Totales
             pdf.set_font("Arial", size=8)
             metodo_limpio = b['metodo'].replace("💵 ", "").replace("🟣 ", "").replace("🔵 ", "")
             pdf.cell(50, 4, txt=f"Pago: {metodo_limpio}")
@@ -364,7 +326,6 @@ with tabs[0]: # VENTA
             pdf.set_font("Arial", 'B', 10)
             pdf.cell(74, 6, txt=f"TOTAL: S/ {float(b['t_neto']):.2f}", ln=True, align='C')
 
-            # Pie legal
             pdf.set_font("Arial", 'I', 7)
             pdf.cell(74, 4, txt="Documento de control interno", ln=True, align='C')
             pdf.cell(74, 3, txt="No valido como comprobante SUNAT", ln=True, align='C')
@@ -372,7 +333,6 @@ with tabs[0]: # VENTA
             pdf_bytes = pdf.output(dest='S').encode('latin-1', 'ignore')
             st.download_button(label="📥 Descargar Ticket PDF 80mm", data=pdf_bytes, file_name=f"Ticket_{b['fecha'].replace('/','-')}.pdf", mime="application/pdf", use_container_width=True)
         except Exception as e:
-            # PARCHE 2: ERROR MUDO
             st.error("Error de sistema. Contacta a soporte.")
             print(f"ERROR PDF: {e}")
 
@@ -430,7 +390,6 @@ with tabs[0]: # VENTA
                 if st.button(f"✅ CONFIRMAR COBRO DE S/ {float(total_neto):.2f}", use_container_width=True):
                     f_v, h_v, uid_v = obtener_tiempo_peru()
                     for item_v in st.session_state.carrito:
-                        # --- MEJORA ANTI-NEGATIVOS: ConditionExpression ---
                         try:
                             tabla_stock.update_item(
                                 Key={'TenantID': st.session_state.tenant, 'Producto': item_v['Producto']},
@@ -449,7 +408,7 @@ with tabs[0]: # VENTA
                                 'Precio_Compra': item_v['Precio_Compra'],
                                 'Metodo': metodo_p,
                                 'Rebaja': to_decimal(rebaja_v),
-                                'Usuario': st.session_state.usuario # PARCHE 5: YA NO ES "EMPLEADO" GENERICO
+                                'Usuario': st.session_state.usuario
                             })
                         except dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
                             st.error(f"❌ ¡CRÍTICO! El stock de '{item_v['Producto']}' cambió justo ahora y ya no hay suficiente. Venta cancelada.")
@@ -459,6 +418,7 @@ with tabs[0]: # VENTA
                     st.session_state.carrito = []
                     st.session_state.confirmar = False
                     st.rerun()
+
 with tabs[1]: # STOCK
     st.subheader("📦 Consulta de Almacén")
 
@@ -486,7 +446,6 @@ with tabs[1]: # STOCK
             return ['color: #ff4b4b; font-weight: bold;'] * len(fila)
         return [''] * len(fila)
 
-    # PARCHE: COLUMN_CONFIG PA' QUE NO SE MUEVA EN CELULAR
     st.dataframe(
         df_mostrar.style.apply(estilo_filas, axis=1).format({"Precio": "{:.2f}", "Precio_Compra": "{:.2f}", "Stock": "{:d}"}),
         use_container_width=True,
@@ -498,8 +457,8 @@ with tabs[1]: # STOCK
             "Stock": st.column_config.NumberColumn("Stock", width="small"),
         }
     )
- # --- REPORTES ---
-with tabs[2]:
+
+with tabs[2]: # REPORTES
     st.subheader("📊 Reporte de Ventas e Inteligencia")
 
     fecha_input = st.date_input("Día a consultar:", datetime.now(tz_peru), key="fecha_rep")
@@ -555,16 +514,13 @@ with tabs[2]:
             c3.metric("🔵 PLIN", f"S/ {float(pl_v):.2f}")
 
             st.divider()
-            # PARCHE 7: CIERRE CON AUDITORÍA + BLOQUEO POST-CIERRE + FIX WHATSAPP
             f_hoy, _, _ = obtener_tiempo_peru()
 
-            # 1. Revisa si hoy ya tiene cierre
             res_cierres_hoy = tabla_cierres.query(
                 KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant)
             )
             cierres_hoy = [c for c in res_cierres_hoy.get('Items', []) if c['Fecha'] == f_hoy]
 
-            # 2. Revisa si hay ventas POST-CIERRE
             venta_post_cierre = False
             usuario_turno_actual = st.session_state.usuario
             if cierres_hoy:
@@ -576,7 +532,6 @@ with tabs[2]:
                     st.error(f"🚨 POST-CIERRE: Hay S/{float(total_post):.2f} vendidos DESPUÉS del último cierre de hoy a las {ultimo_cierre_hora}.")
                     usuario_turno_actual = ventas_post['Usuario'].iloc[-1]
 
-            # 3. BOTÓN DE CIERRE - SIN RERUN PA' QUE SALGA EL WHATSAPP
             if not cierres_hoy or venta_post_cierre:
                 tipo_cierre = "CIERRE POST-CIERRE" if venta_post_cierre else "CIERRE TURNO"
                 if st.button(f"🏁 GENERAR {tipo_cierre}", use_container_width=True, type="primary"):
@@ -601,12 +556,10 @@ with tabs[2]:
                         msg_wa += f"\n⚠️ *INCLUYE VENTAS POST-CIERRE*"
 
                     st.link_button("📲 Enviar Cierre por WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_wa)}", use_container_width=True)
-                    # st.rerun() <- QUITADO PA' QUE NO DESAPAREZCA EL BOTÓN
             else:
                 ultimo = cierres_hoy[-1]
                 st.success(f"✅ Día {f_hoy} cerrado a las {ultimo['Hora']}. Caja de: {ultimo['UsuarioTurno']}. Cerrado por: {ultimo['UsuarioCierre']}")
 
-            # PARCHE 7: PANEL DUEÑO - CIERRE REMOTO 24/7
             if st.session_state.rol == "DUEÑO":
                 st.divider()
                 st.subheader("🔐 PANEL DUEÑO - CIERRE REMOTO")
@@ -653,7 +606,6 @@ with tabs[2]:
             if 'Usuario' in df_rep.columns:
                 cols_mostrar.append('Usuario')
 
-            # PARCHE: COLUMN_CONFIG PA' QUE NO SE MUEVA EN CELULAR
             st.dataframe(
                 df_rep.sort_values("Hora", ascending=False)[cols_mostrar],
                 use_container_width=True,
@@ -668,7 +620,6 @@ with tabs[2]:
             )
         else: st.info("No hay ventas en esta fecha.")
     else: st.info("Sin ventas registradas.")
-
 def registrar_kardex(producto_k, cantidad_k, tipo_k):
     f_k, h_k, uid_k = obtener_tiempo_peru()
     tabla_movs.put_item(Item={
@@ -798,7 +749,7 @@ if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura',
 
 with st.sidebar:
     st.title(f"🏢 {st.session_state.tenant}")
-    st.write(f"Usuario: **{st.session_state.usuario}")
+    st.write(f"Usuario: **{st.session_state.usuario}**")
 
     emoji_plan = {"BASICO": "🔵", "PRO": "🟣", "PREMIUM": "🟡"}.get(PLAN_ACTUAL, "⚪")
     st.caption(f"{emoji_plan} **Plan {PLAN_ACTUAL}** | Límite: {len(df_inv)}/{MAX_PRODUCTOS_TOTALES} productos")
@@ -813,4 +764,4 @@ with st.sidebar:
         st.session_state.boleta = None
         st.session_state.confirmar = False
         st.session_state.verifico_cierre = False
-        st.rerun()   
+        st.rerun()
