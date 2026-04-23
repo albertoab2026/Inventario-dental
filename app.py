@@ -17,6 +17,7 @@ TABLA_STOCK = st.secrets["tablas"]["stock"]
 TABLA_VENTAS = st.secrets["tablas"]["ventas"]
 TABLA_MOVS = st.secrets["tablas"]["movs"]
 TABLA_TENANTS = st.secrets["tablas"]["tenants"]
+TABLA_CIERRES = st.secrets["tablas"]["cierres"] # PARCHE 7: TABLA CIERRES
 
 st.set_page_config(page_title="NEXUS BALLARTA SaaS", layout="wide", page_icon="🚀")
 tz_peru = pytz.timezone('America/Lima')
@@ -41,11 +42,55 @@ try:
     tabla_ventas = dynamodb.Table(TABLA_VENTAS)
     tabla_movs = dynamodb.Table(TABLA_MOVS)
     tabla_tenants = dynamodb.Table(TABLA_TENANTS)
+    tabla_cierres = dynamodb.Table(TABLA_CIERRES) # PARCHE 7
 except Exception as e:
     # PARCHE 2: ERROR MUDO
     st.error("Error de sistema. Contacta a soporte.")
     print(f"ERROR AWS CONEXION: {e}")
     st.stop()
+
+# PARCHE 7: FUNCIONES DE CIERRE CON AUDITORÍA
+def registrar_cierre(total_cierre, usuario_turno, tipo_turno, usuario_cierre):
+    f_c, h_c, uid_c = obtener_tiempo_peru()
+    tabla_cierres.put_item(Item={
+        'TenantID': st.session_state.tenant,
+        'CierreID': f"C-{uid_c}",
+        'Fecha': f_c, 
+        'Hora': h_c,
+        'UsuarioTurno': usuario_turno,  # De quién es la plata
+        'UsuarioCierre': usuario_cierre,  # Quién apretó el botón
+        'Total': to_decimal(total_cierre),
+        'Tipo': tipo_turno
+    })
+    st.session_state.caja_cerrada = True
+    st.session_state.ultimo_cierre = {
+        'id': f"C-{uid_c}", 
+        'hora': h_c, 
+        'usuario_turno': usuario_turno,
+        'usuario_cierre': usuario_cierre
+    }
+
+def verificar_cierre_tardio():
+    """Corre al iniciar. Si ayer hubo ventas sin cierre, auto-cierra con fecha de ayer."""
+    f_hoy, h_hoy, _ = obtener_tiempo_peru()
+    ayer = (datetime.now(tz_peru) - timedelta(days=1)).strftime("%d/%m/%Y")
+    
+    # Busca ventas de ayer
+    res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant))
+    ventas_ayer = [v for v in res_v.get('Items', []) if v['Fecha'] == ayer]
+    
+    # Busca cierres de ayer
+    res_c = tabla_cierres.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant))
+    cierres_ayer = [c for c in res_c.get('Items', []) if c['Fecha'] == ayer]
+    
+    # Si hubo venta pero 0 cierres = AUTO-CIERRE
+    if ventas_ayer and not cierres_ayer:
+        total_pendiente = sum([Decimal(str(v['Total'])) for v in ventas_ayer])
+        usuario_deudor = ventas_ayer[-1]['Usuario'] if ventas_ayer else "NADIE"
+        registrar_cierre(total_pendiente, usuario_deudor, "CIERRE TARDÍO", "SISTEMA")
+        st.warning(f"🚨 AUTO-CIERRE: Día {ayer} se cerró con S/{float(total_pendiente):.2f} porque nadie lo hizo.")
+        return total_pendiente
+    return None
 
 # === CONTAR PRODUCTOS EN DYNAMODB ===
 def contarProductosEnBD():
@@ -157,6 +202,11 @@ if 'intentos_fallidos' not in st.session_state:
     st.session_state.intentos_fallidos = 0
 if 'tiempo_bloqueo' not in st.session_state:
     st.session_state.tiempo_bloqueo = None
+# PARCHE 7: VARIABLES CIERRE
+if 'caja_cerrada' not in st.session_state:
+    st.session_state.caja_cerrada = False
+if 'ultimo_cierre' not in st.session_state:
+    st.session_state.ultimo_cierre = None
 
 if not st.session_state.auth:
     st.markdown("<h1 style='text-align: center; color: #3498db;'>🚀 NEXUS BALLARTA SaaS</h1>", unsafe_allow_html=True)
@@ -229,6 +279,12 @@ if not st.session_state.auth:
                 st.session_state.usuario = st.session_state.nombre_emp_temp
                 intentar_login("EMPLEADO")
     st.stop()
+
+# PARCHE 7: CHEQUEO DE CIERRE TARDÍO AL INICIAR APP
+if st.session_state.auth and 'verifico_cierre' not in st.session_state:
+    with st.spinner('Verificando cierres pendientes...'):
+        verificar_cierre_tardio()
+    st.session_state.verifico_cierre = True
 
 # === CANDADOS DINÁMICOS POR PLAN - SE CARGAN DESPUÉS DEL LOGIN ===
 MAX_PRODUCTOS_TOTALES, MAX_STOCK_POR_PRODUCTO, PLAN_ACTUAL = obtener_limites_tenant()
@@ -430,7 +486,6 @@ with tabs[1]: # STOCK
             return ['color: #ff4b4b; font-weight: bold;'] * len(fila)
         return [''] * len(fila)
     st.dataframe(df_mostrar.style.apply(estilo_filas, axis=1).format({"Precio": "{:.2f}", "Precio_Compra": "{:.2f}", "Stock": "{:d}"}), use_container_width=True, hide_index=True)
-
 # --- REPORTES ---
 with tabs[2]:
     st.subheader("📊 Reporte de Ventas e Inteligencia")
@@ -488,17 +543,97 @@ with tabs[2]:
             c3.metric("🔵 PLIN", f"S/ {float(pl_v):.2f}")
 
             st.divider()
-            tipo_cierre = "TOTAL" if st.session_state.rol == "DUEÑO" else "DE MI TURNO"
-            if st.button(f"🏁 GENERAR CIERRE {tipo_cierre}", use_container_width=True, type="primary"):
-                msg_wa = f"*CIERRE {tipo_cierre} - {st.session_state.tenant}*\n"
-                msg_wa += f"📅 Fecha: {fecha_r}\n👤 Por: {st.session_state.usuario}\n" # PARCHE 5
-                msg_wa += f"--------------------------\n"
-                msg_wa += f"💵 Efectivo: S/ {float(ef_v):.2f}\n"
-                msg_wa += f"🟣 Yape: S/ {float(ya_v):.2f}\n"
-                msg_wa += f"🔵 Plin: S/ {float(pl_v):.2f}\n"
-                msg_wa += f"--------------------------\n"
-                msg_wa += f"💰 *TOTAL CAJA: S/ {float(total_venta_dia):.2f}*"
-                st.link_button("📲 Enviar Cierre por WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_wa)}", use_container_width=True)
+            # PARCHE 7: CIERRE CON AUDITORÍA + BLOQUEO POST-CIERRE
+            f_hoy, _, _ = obtener_tiempo_peru()
+
+            # 1. Revisa si hoy ya tiene cierre
+            res_cierres_hoy = tabla_cierres.query(
+                KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant)
+            )
+            cierres_hoy = [c for c in res_cierres_hoy.get('Items', []) if c['Fecha'] == f_hoy]
+
+            # 2. Revisa si hay ventas POST-CIERRE
+            venta_post_cierre = False
+            usuario_turno_actual = st.session_state.usuario
+            if cierres_hoy:
+                ultimo_cierre_hora = max([c['Hora'] for c in cierres_hoy])
+                ventas_post = df_rep[df_rep['Hora'] > ultimo_cierre_hora]
+                if not ventas_post.empty:
+                    venta_post_cierre = True
+                    total_post = ventas_post['Total'].sum()
+                    st.error(f"🚨 POST-CIERRE: Hay S/{float(total_post):.2f} vendidos DESPUÉS del último cierre de hoy a las {ultimo_cierre_hora}.")
+                    usuario_turno_actual = ventas_post['Usuario'].iloc[-1] # Dueño de la última venta post-cierre
+
+            # 3. BOTÓN DE CIERRE
+            if not cierres_hoy or venta_post_cierre:
+                tipo_cierre = "CIERRE POST-CIERRE" if venta_post_cierre else "CIERRE TURNO"
+                if st.button(f"🏁 GENERAR {tipo_cierre}", use_container_width=True, type="primary"):
+                    # Registra con AUDITORÍA: quién cierra y de quién es la caja
+                    registrar_cierre(
+                        total_cierre=total_venta_dia,
+                        usuario_turno=usuario_turno_actual,
+                        tipo_turno=tipo_cierre,
+                        usuario_cierre=st.session_state.usuario
+                    )
+
+                    msg_wa = f"*CIERRE {tipo_cierre} - {st.session_state.tenant}*\n"
+                    msg_wa += f"📅 Fecha: {fecha_r}\n"
+                    msg_wa += f"👤 Caja de: {usuario_turno_actual}\n"
+                    msg_wa += f"🔐 Cerrado por: {st.session_state.usuario}\n"
+                    msg_wa += f"--------------------------\n"
+                    msg_wa += f"💵 Efectivo: S/ {float(ef_v):.2f}\n"
+                    msg_wa += f"🟣 Yape: S/ {float(ya_v):.2f}\n"
+                    msg_wa += f"🔵 Plin: S/ {float(pl_v):.2f}\n"
+                    msg_wa += f"--------------------------\n"
+                    msg_wa += f"💰 *TOTAL: S/ {float(total_venta_dia):.2f}*"
+                    if venta_post_cierre:
+                        msg_wa += f"\n⚠️ *INCLUYE VENTAS POST-CIERRE*"
+
+                    st.link_button("📲 Enviar Cierre por WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_wa)}", use_container_width=True)
+                    st.rerun()
+            else:
+                ultimo = cierres_hoy[-1]
+                st.success(f"✅ Día {f_hoy} cerrado a las {ultimo['Hora']}. Caja de: {ultimo['UsuarioTurno']}. Cerrado por: {ultimo['UsuarioCierre']}")
+
+            # PARCHE 7: PANEL DUEÑO - CIERRE REMOTO 24/7
+            if st.session_state.rol == "DUEÑO":
+                st.divider()
+                st.subheader("🔐 PANEL DUEÑO - CIERRE REMOTO")
+
+                if not cierres_hoy:
+                    # Calcula total del día aunque no estés en REPORTES
+                    res_v_all = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant))
+                    df_total = pd.DataFrame(res_v_all.get('Items', []))
+                    if not df_total.empty:
+                        df_total['Total'] = df_total['Total'].apply(lambda x: Decimal(str(x)))
+                        df_hoy_v = df_total[df_total['Fecha'] == f_hoy]
+                        total_hoy = df_hoy_v['Total'].sum() if not df_hoy_v.empty else Decimal('0.00')
+                    else:
+                        total_hoy = Decimal('0.00')
+
+                    if total_hoy > 0:
+                        st.error(f"🚨 OJO: Hoy {f_hoy} hay S/{float(total_hoy):.2f} vendido y NADIE CERRÓ CAJA.")
+
+                        # Detecta de quién es la caja sin cerrar
+                        usuario_deudor = df_hoy_v['Usuario'].iloc[-1] if not df_hoy_v.empty else "EMPLEADO"
+                        st.warning(f"Caja pendiente de: {usuario_deudor}")
+
+                        if st.button("🏁 CERRAR DÍA AHORA DESDE CELULAR", type="primary", use_container_width=True):
+                            registrar_cierre(
+                                total_cierre=total_hoy,
+                                usuario_turno=usuario_deudor,
+                                tipo_turno="CIERRE REMOTO",
+                                usuario_cierre=st.session_state.usuario
+                            )
+                            st.success(f"Día {f_hoy} cerrado remotamente. Queda fichado que {st.session_state.usuario} cerró la caja de {usuario_deudor}.")
+                            st.balloons()
+                            time.sleep(2)
+                            st.rerun()
+                    else:
+                        st.info("✅ No hay ventas hoy. Nada que cerrar.")
+                else:
+                    u_cierre = cierres_hoy[-1]
+                    st.success(f"✅ Día {f_hoy} ya cerrado a las {u_cierre['Hora']} por {u_cierre['UsuarioCierre']}. Caja de: {u_cierre['UsuarioTurno']}")
 
             if st.session_state.rol == "DUEÑO":
                 st.divider()
@@ -643,8 +778,9 @@ with st.sidebar:
         st.session_state.rol = None
         st.session_state.tenant = None
         st.session_state.usuario = None
-        st.session_state.nombre_emp_temp = ""  # ESTA LÍNEA ARREGLA LO DE LEANDRO
+        st.session_state.nombre_emp_temp = "" # ESTA LÍNEA ARREGLA LO DE LEANDRO
         st.session_state.carrito = []
         st.session_state.boleta = None
         st.session_state.confirmar = False
-        st.rerun()
+        st.session_state.verifico_cierre = False # PARCHE 7
+        st.rerun()    
