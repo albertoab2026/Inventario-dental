@@ -306,14 +306,18 @@ with tabs[0]: # VENTA
 
         st.write("")
 
-        texto_wa = f"*TICKET DE VENTA - {st.session_state.tenant}*\n"
-        texto_wa += f"Fecha: {b['fecha']} {b['hora']}\n---\n"
-        for i in b['items']:
-            texto_wa += f"{i['Cantidad']}x {i['Producto']} - S/{float(i['Subtotal']):.2f}\n"
-        texto_wa += f"---\n*TOTAL NETO: S/{float(b['t_neto']):.2f}*\nMetodo: {b['metodo']}\n"
-        texto_wa += f"_*No válido como comprobante tributario*_"
-        wa_url = f"https://wa.me/?text={urllib.parse.quote(texto_wa)}"
-        st.link_button("📲 Enviar reporte por WhatsApp", wa_url, use_container_width=True)
+        # === PARCHE: WHATSAPP SOLO PRO Y PREMIUM ===
+        if PLAN_ACTUAL in ["PRO", "PREMIUM"]:
+            texto_wa = f"*TICKET DE VENTA - {st.session_state.tenant}*\n"
+            texto_wa += f"Fecha: {b['fecha']} {b['hora']}\n---\n"
+            for i in b['items']:
+                texto_wa += f"{i['Cantidad']}x {i['Producto']} - S/{float(i['Subtotal']):.2f}\n"
+            texto_wa += f"---\n*TOTAL NETO: S/{float(b['t_neto']):.2f}*\nMetodo: {b['metodo']}\n"
+            texto_wa += f"_*No válido como comprobante tributario*_"
+            wa_url = f"https://wa.me/?text={urllib.parse.quote(texto_wa)}"
+            st.link_button("📲 Enviar reporte por WhatsApp", wa_url, use_container_width=True)
+        else:
+            st.info("🔒 Enviar por WhatsApp solo disponible en planes PRO y PREMIUM")
 
         try:
             pdf = FPDF(orientation='P', unit='mm', format=(80, 200))
@@ -552,20 +556,23 @@ with tabs[2]: # REPORTES
                         usuario_cierre=st.session_state.usuario
                     )
 
-                    msg_wa = f"*CIERRE {tipo_cierre} - {st.session_state.tenant}*\n"
-                    msg_wa += f"📅 Fecha: {fecha_r}\n"
-                    msg_wa += f"👤 Caja de: {usuario_turno_actual}\n"
-                    msg_wa += f"🔐 Cerrado por: {st.session_state.usuario}\n"
-                    msg_wa += f"--------------------------\n"
-                    msg_wa += f"💵 Efectivo: S/ {float(ef_v):.2f}\n"
-                    msg_wa += f"🟣 Yape: S/ {float(ya_v):.2f}\n"
-                    msg_wa += f"🔵 Plin: S/ {float(pl_v):.2f}\n"
-                    msg_wa += f"--------------------------\n"
-                    msg_wa += f"💰 *TOTAL: S/ {float(total_venta_dia):.2f}*"
-                    if venta_post_cierre:
-                        msg_wa += f"\n⚠️ *INCLUYE VENTAS POST-CIERRE*"
-
-                    st.link_button("📲 Enviar Cierre por WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_wa)}", use_container_width=True)
+                    # === PARCHE: WHATSAPP SOLO PRO Y PREMIUM ===
+                    if PLAN_ACTUAL in ["PRO", "PREMIUM"]:
+                        msg_wa = f"*CIERRE {tipo_cierre} - {st.session_state.tenant}*\n"
+                        msg_wa += f"📅 Fecha: {fecha_r}\n"
+                        msg_wa += f"👤 Caja de: {usuario_turno_actual}\n"
+                        msg_wa += f"🔐 Cerrado por: {st.session_state.usuario}\n"
+                        msg_wa += f"--------------------------\n"
+                        msg_wa += f"💵 Efectivo: S/ {float(ef_v):.2f}\n"
+                        msg_wa += f"🟣 Yape: S/ {float(ya_v):.2f}\n"
+                        msg_wa += f"🔵 Plin: S/ {float(pl_v):.2f}\n"
+                        msg_wa += f"--------------------------\n"
+                        msg_wa += f"💰 *TOTAL: S/ {float(total_venta_dia):.2f}*"
+                        if venta_post_cierre:
+                            msg_wa += f"\n⚠️ *INCLUYE VENTAS POST-CIERRE*"
+                        st.link_button("📲 Enviar Cierre por WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_wa)}", use_container_width=True)
+                    else:
+                        st.warning("🔒 Enviar por WhatsApp solo disponible en planes PRO y PREMIUM. Actualiza tu plan.")
             else:
                 ultimo = cierres_hoy[-1]
                 st.success(f"✅ Día {f_hoy} cerrado a las {ultimo['Hora']}. Caja de: {ultimo['UsuarioTurno']}. Cerrado por: {ultimo['UsuarioCierre']}")
