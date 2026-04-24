@@ -184,8 +184,7 @@ if 'caja_cerrada' not in st.session_state:
     st.session_state.caja_cerrada = False
 if 'ultimo_cierre' not in st.session_state:
     st.session_state.ultimo_cierre = None
-
-# ===== LOGIN NUEVO CON FORMATO [TENANT] =====
+ # ===== LOGIN NUEVO CON NOMBRE EMPLEADO =====
 if not st.session_state.auth:
     st.markdown("<h1 style='text-align: center; color: #3498db;'>🚀 NEXUS BALLARTA SaaS</h1>", unsafe_allow_html=True)
 
@@ -198,52 +197,73 @@ if not st.session_state.auth:
             st.session_state.intentos_fallidos = 0
             st.session_state.tiempo_bloqueo = None
 
-    usuario_input = st.text_input("👤 Usuario:", key="login_user").strip()
+    # Saca solo los tenants admin, sin _emp ni tablas ni aws
+    tenants_admin = [k for k in st.secrets if k not in ["tablas", "aws"] and not k.endswith("_emp")]
+    tenant_seleccionado = st.selectbox("📍 Seleccione su Negocio:", [t.replace("_", " ") for t in tenants_admin])
+    tenant_key = tenant_seleccionado.replace(" ", "_")
+
     clave_input = st.text_input("🔑 Contraseña:", type="password", key="login_pass").strip()[:30]
 
     col_dueño, col_empleado = st.columns(2)
 
-    def intentar_login():
+    def intentar_login(tipo_usuario, nombre_emp=None):
         if not re.match("^[A-Za-z0-9]*$", clave_input):
             time.sleep(2)
             st.error("❌ No se permiten símbolos raros.")
-            return False
+            return
 
-        tenants = [k for k in st.secrets if k!= "tablas" and k!= "aws" and not k.endswith("_emp")]
+        if tipo_usuario == "DUEÑO":
+            if tenant_key in st.secrets:
+                clave_correcta = st.secrets[tenant_key]["clave"]
+                usuario_correcto = "DUEÑO"
+            else:
+                st.error("Negocio no configurado en secrets.")
+                return
+        else: # EMPLEADO
+            tenant_emp_key = f"{tenant_key}_emp"
+            if tenant_emp_key in st.secrets:
+                clave_correcta = st.secrets[tenant_emp_key]["clave"]
+                usuario_correcto = nombre_emp # <- ACÁ USAMOS EL NOMBRE QUE PUSO
+            else:
+                st.error("Este negocio no tiene empleado configurado.")
+                return
 
-        for t in tenants:
-            # Login ADMIN
-            if st.secrets[t]["usuario"] == usuario_input and st.secrets[t]["clave"] == clave_input:
-                st.session_state.auth = True
-                st.session_state.tenant = t.replace("_", " ")
-                st.session_state.rol = "DUEÑO"
-                st.session_state.usuario = "DUEÑO"
-                st.session_state.intentos_fallidos = 0
-                st.rerun()
+        if clave_input == str(clave_correcta):
+            st.session_state.auth = True
+            st.session_state.tenant = tenant_seleccionado
+            st.session_state.rol = tipo_usuario
+            st.session_state.usuario = usuario_correcto
+            st.session_state.intentos_fallidos = 0
+            st.rerun()
+        else:
+            st.session_state.intentos_fallidos += 1
+            if st.session_state.intentos_fallidos >= 5:
+                st.session_state.tiempo_bloqueo = datetime.now(tz_peru) + timedelta(minutes=5)
+                st.error("❌ Demasiados intentos. Bloqueado por 5 minutos.")
+                st.stop()
+            time.sleep(2)
+            st.error(f"❌ Contraseña de {tipo_usuario} incorrecta. Intentos: {st.session_state.intentos_fallidos}/5")
 
-            # Login EMPLEADO
-            t_emp = f"{t}_emp"
-            if t_emp in st.secrets:
-                if st.secrets[t_emp]["usuario"] == usuario_input and st.secrets[t_emp]["clave"] == clave_input:
-                    st.session_state.auth = True
-                    st.session_state.tenant = t.replace("_", " ")
-                    st.session_state.rol = "EMPLEADO"
-                    st.session_state.usuario = usuario_input
-                    st.session_state.intentos_fallidos = 0
-                    st.rerun()
+    if col_dueño.button("🔓 DUEÑO", use_container_width=True):
+        intentar_login("DUEÑO")
 
-        # Si no encontró nada
-        st.session_state.intentos_fallidos += 1
-        if st.session_state.intentos_fallidos >= 5:
-            st.session_state.tiempo_bloqueo = datetime.now(tz_peru) + timedelta(minutes=5)
-            st.error("❌ Demasiados intentos. Bloqueado por 5 minutos.")
-            st.stop()
-        time.sleep(2)
-        st.error(f"❌ Usuario o clave incorrecta. Intentos: {st.session_state.intentos_fallidos}/5")
-        return False
+    with col_empleado:
+        nombre_emp = st.text_input(
+            "👤 Tu nombre:",
+            value=st.session_state.nombre_emp_temp,
+            key="input_nombre_emp",
+            placeholder="Ej: JUAN",
+            max_chars=20
+        ).upper().strip()
 
-    if col_dueño.button("🔓 ENTRAR", use_container_width=True):
-        intentar_login()
+        if st.button("🧑‍💼 EMPLEADO", use_container_width=True):
+            if not nombre_emp:
+                st.warning("Pon tu nombre pa' entrar como empleado")
+            elif not re.match("^[A-Z0-9 ]*$", nombre_emp):
+                st.error("❌ Solo letras y números en el nombre.")
+            else:
+                st.session_state.nombre_emp_temp = nombre_emp
+                intentar_login("EMPLEADO", nombre_emp)
 
     st.stop()
 # PARCHE 7: CHEQUEO DE CIERRE TARDÍO AL INICIAR APP
@@ -764,4 +784,4 @@ with st.sidebar:
         st.session_state.boleta = None
         st.session_state.confirmar = False
         st.session_state.verifico_cierre = False
-        st.rerun()
+        st.rerun()        
