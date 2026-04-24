@@ -67,14 +67,26 @@ def registrar_cierre(total_cierre, usuario_turno, tipo_turno, usuario_cierre):
     }
 
 def verificar_cierre_tardio():
+    # SOLO CORRE DESPUÉS DE LAS 1AM PARA EVITAR CAGADAS
+    hora_actual = datetime.now(tz_peru).hour
+    if hora_actual < 1:
+        return None
+    
     f_hoy, h_hoy, _ = obtener_tiempo_peru()
     ayer = (datetime.now(tz_peru) - timedelta(days=1)).strftime("%d/%m/%Y")
 
-    res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant))
-    ventas_ayer = [v for v in res_v.get('Items', []) if v['Fecha'] == ayer]
+    # === PARCHE: FILTRAR POR FECHA EN EL QUERY, NO EN PYTHON ===
+    res_v = tabla_ventas.query(
+        KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant),
+        FilterExpression=Attr('Fecha').eq(ayer)
+    )
+    ventas_ayer = res_v.get('Items', [])
 
-    res_c = tabla_cierres.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant))
-    cierres_ayer = [c for c in res_c.get('Items', []) if c['Fecha'] == ayer]
+    res_c = tabla_cierres.query(
+        KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant),
+        FilterExpression=Attr('Fecha').eq(ayer)
+    )
+    cierres_ayer = res_c.get('Items', [])
 
     if ventas_ayer and not cierres_ayer:
         total_pendiente = sum([Decimal(str(v['Total'])) for v in ventas_ayer])
