@@ -19,8 +19,12 @@ TABLA_TENANTS = st.secrets["tablas"]["tenants"]
 TABLA_CIERRES = st.secrets["tablas"]["cierres"]
 
 st.set_page_config(page_title="NEXUS BALLARTA SaaS", layout="wide", page_icon="🚀")
-tz_peru = pytz.timezone('America/Lima')
 
+# === BORRAR CACHE A LA FUERZA ===
+st.cache_data.clear()
+st.cache_resource.clear()
+
+tz_peru = pytz.timezone('America/Lima')
 def to_decimal(f):
     return Decimal(str(f)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
