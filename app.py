@@ -184,7 +184,7 @@ if 'caja_cerrada' not in st.session_state:
     st.session_state.caja_cerrada = False
 if 'ultimo_cierre' not in st.session_state:
     st.session_state.ultimo_cierre = None
- # ===== LOGIN NUEVO CON NOMBRE EMPLEADO =====
+# ===== LOGIN NUEVO CON NOMBRE EMPLEADO =====
 if not st.session_state.auth:
     st.markdown("<h1 style='text-align: center; color: #3498db;'>🚀 NEXUS BALLARTA SaaS</h1>", unsafe_allow_html=True)
 
@@ -197,7 +197,6 @@ if not st.session_state.auth:
             st.session_state.intentos_fallidos = 0
             st.session_state.tiempo_bloqueo = None
 
-    # Saca solo los tenants admin, sin _emp ni tablas ni aws
     tenants_admin = [k for k in st.secrets if k not in ["tablas", "aws"] and not k.endswith("_emp")]
     tenant_seleccionado = st.selectbox("📍 Seleccione su Negocio:", [t.replace("_", " ") for t in tenants_admin])
     tenant_key = tenant_seleccionado.replace(" ", "_")
@@ -219,11 +218,11 @@ if not st.session_state.auth:
             else:
                 st.error("Negocio no configurado en secrets.")
                 return
-        else: # EMPLEADO
+        else:
             tenant_emp_key = f"{tenant_key}_emp"
             if tenant_emp_key in st.secrets:
                 clave_correcta = st.secrets[tenant_emp_key]["clave"]
-                usuario_correcto = nombre_emp # <- ACÁ USAMOS EL NOMBRE QUE PUSO
+                usuario_correcto = nombre_emp
             else:
                 st.error("Este negocio no tiene empleado configurado.")
                 return
@@ -266,17 +265,15 @@ if not st.session_state.auth:
                 intentar_login("EMPLEADO", nombre_emp)
 
     st.stop()
-# PARCHE 7: CHEQUEO DE CIERRE TARDÍO AL INICIAR APP
+
 if st.session_state.auth and 'verifico_cierre' not in st.session_state:
     with st.spinner('Verificando cierres pendientes...'):
         verificar_cierre_tardio()
     st.session_state.verifico_cierre = True
 
-# === CANDADOS DINÁMICOS POR PLAN ===
 MAX_PRODUCTOS_TOTALES, MAX_STOCK_POR_PRODUCTO, PLAN_ACTUAL = obtener_limites_tenant()
 df_inv = obtener_datos()
 
-# === AVISO DE MODO LECTURA ===
 if st.session_state.get('modo_lectura', False):
     st.warning(st.session_state.mensaje_lectura)
 
@@ -323,33 +320,26 @@ with tabs[0]: # VENTA
             pdf.add_page()
             pdf.set_margins(3, 3, 3)
             pdf.set_auto_page_break(auto=True, margin=3)
-
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(74, 6, txt=str(st.session_state.tenant)[:30], ln=True, align='C')
             pdf.set_font("Arial", size=8)
             pdf.cell(74, 4, txt=f"{b['fecha']} {b['hora']}", ln=True, align='C')
             pdf.cell(74, 2, txt="-" * 42, ln=True, align='C')
-
             pdf.set_font("Arial", size=9)
             for i in b['items']:
                 nombre_corto = i['Producto'][:20]
                 pdf.cell(50, 5, txt=f"{i['Cantidad']}x {nombre_corto}")
                 pdf.cell(24, 5, txt=f"S/{float(i['Subtotal']):.2f}", ln=True, align='R')
-
             pdf.cell(74, 2, txt="-" * 42, ln=True, align='C')
-
             pdf.set_font("Arial", size=8)
             metodo_limpio = b['metodo'].replace("💵 ", "").replace("🟣 ", "").replace("🔵 ", "")
             pdf.cell(50, 4, txt=f"Pago: {metodo_limpio}")
             pdf.cell(24, 4, txt=f"Desc: -S/{float(b['rebaja']):.2f}", ln=True, align='R')
-
             pdf.set_font("Arial", 'B', 10)
             pdf.cell(74, 6, txt=f"TOTAL: S/ {float(b['t_neto']):.2f}", ln=True, align='C')
-
             pdf.set_font("Arial", 'I', 7)
             pdf.cell(74, 4, txt="Documento de control interno", ln=True, align='C')
             pdf.cell(74, 3, txt="No valido como comprobante SUNAT", ln=True, align='C')
-
             pdf_bytes = pdf.output(dest='S').encode('latin-1', 'ignore')
             st.download_button(label="📥 Descargar Ticket PDF 80mm", data=pdf_bytes, file_name=f"Ticket_{b['fecha'].replace('/','-')}.pdf", mime="application/pdf", use_container_width=True)
         except Exception as e:
@@ -417,7 +407,6 @@ with tabs[0]: # VENTA
                                 ConditionExpression="Stock >= :s",
                                 ExpressionAttributeValues={':s': item_v['Cantidad']}
                             )
-
                             tabla_ventas.put_item(Item={
                                 'TenantID': st.session_state.tenant,
                                 'VentaID': f"V-{uid_v}",
@@ -441,7 +430,6 @@ with tabs[0]: # VENTA
 
 with tabs[1]: # STOCK
     st.subheader("📦 Consulta de Almacén")
-
     col_filtro, col_excel = st.columns([3, 1])
     with col_filtro:
         filtro_stock = st.text_input("🔍 Escriba para filtrar tabla:", key="f_stock_input").upper()
@@ -477,7 +465,6 @@ with tabs[1]: # STOCK
             "Stock": st.column_config.NumberColumn("Stock", width="small"),
         }
     )
-
 with tabs[2]: # REPORTES
     st.subheader("📊 Reporte de Ventas e Inteligencia")
 
@@ -502,14 +489,17 @@ with tabs[2]: # REPORTES
             num_tickets = df_rep['VentaID'].nunique()
             ticket_promedio = total_venta_dia / num_tickets if num_tickets > 0 else Decimal('0.00')
 
+            # === PARCHE: DELTA ARREGLADO PA' FLECHA ROJA/VERDE ===
             if not df_pasado.empty:
                 total_pasado = df_pasado['Total'].apply(lambda x: Decimal(str(x))).sum()
-                delta_valor = f"S/ {float(total_venta_dia - total_pasado):.2f} vs semana pasada"
+                delta_num = float(total_venta_dia - total_pasado)
             else:
-                delta_valor = "Iniciando historial..."
+                delta_num = None
 
             kpi1, kpi2, kpi3 = st.columns(3)
-            kpi1.metric("💰 VENTA TOTAL", f"S/ {float(total_venta_dia):.2f}", delta=delta_valor)
+            kpi1.metric("💰 VENTA TOTAL", f"S/ {float(total_venta_dia):.2f}", delta=delta_num)
+            if delta_num is not None:
+                st.caption("vs semana pasada")
             kpi2.metric("🎫 TICKET PROMEDIO", f"S/ {float(ticket_promedio):.2f}", delta=f"{num_tickets} Tickets hoy")
 
             if st.session_state.rol == "DUEÑO":
