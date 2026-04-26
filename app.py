@@ -597,19 +597,61 @@ with tabs[2]:
         else:
             st.info("No hay ventas en ese rango de fechas.")
 with tabs[3]:
+with tabs[3]:
     if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
         st.subheader("📋 Historial de Movimientos - Kardex")
-        res_movs = tabla_movs.query(
-            KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant),
-            ScanIndexForward=False,
-            Limit=200
-        )
-        movs = res_movs.get('Items', [])
-        if movs:
-            df_movs = pd.DataFrame(movs)
-            st.dataframe(df_movs[['Fecha', 'Hora', 'Producto', 'Cantidad', 'Tipo', 'Usuario']], use_container_width=True)
+
+        # === FILTROS NUEVOS ===
+        col_f1, col_f2, col_f3 = st.columns(3)
+        with col_f1:
+            fecha_inicio_h = st.date_input("Desde:", value=datetime.now(tz_peru).date() - timedelta(days=30), key="hist_desde")
+        with col_f2:
+            fecha_fin_h = st.date_input("Hasta:", value=datetime.now(tz_peru).date(), key="hist_hasta")
+        with col_f3:
+            buscar_prod_h = st.text_input("🔍 Producto:", key="hist_buscar").upper()
+
+        if st.button("🔎 BUSCAR MOVIMIENTOS", use_container_width=True, type="primary"):
+            # Scan con filtro de fecha
+            res_movs = tabla_movs.query(
+                KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant),
+                FilterExpression=Attr('Fecha').between(
+                    fecha_inicio_h.strftime('%d/%m/%Y'),
+                    fecha_fin_h.strftime('%d/%m/%Y')
+                ),
+                ScanIndexForward=False,
+                Limit=500
+            )
+            movs = res_movs.get('Items', [])
+
+            if movs:
+                df_movs = pd.DataFrame(movs)
+                # Filtro por producto si escribió algo
+                if buscar_prod_h:
+                    df_movs = df_movs[df_movs['Producto'].str.contains(buscar_prod_h)]
+
+                if not df_movs.empty:
+                    st.success(f"Encontrados: {len(df_movs)} movimientos")
+                    st.dataframe(
+                        df_movs[['Fecha', 'Hora', 'Producto', 'Cantidad', 'Tipo', 'Usuario']],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                    # Descargar CSV
+                    csv = df_movs.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        "📥 Descargar CSV",
+                        csv,
+                        f"Kardex_{fecha_inicio_h}_{fecha_fin_h}.csv",
+                        "text/csv",
+                        use_container_width=True
+                    )
+                else:
+                    st.info("No hay movimientos de ese producto en esas fechas.")
+            else:
+                st.info("No hay movimientos en ese rango de fechas.")
         else:
-            st.info("No hay movimientos registrados.")
+            st.caption("Selecciona fechas y dale BUSCAR MOVIMIENTOS")
 
 # === ESTA ES LA PESTAÑA QUE TENÍA EL ERROR - YA ARREGLADA ===
 with tabs[4]:
