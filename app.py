@@ -172,7 +172,8 @@ def obtener_datos():
     df['Precio_Compra'] = pd.to_numeric(df['Precio_Compra'], errors='coerce').fillna(0.0)
     return df[['Producto', 'Precio_Compra', 'Precio', 'Stock']].sort_values('Producto')
 
-def registrar_kardex(producto_k, cantidad_k, tipo_k):
+# === KARDEX PARCHADO: GUARDA TOTAL Y PRECIO_COMPRA ===
+def registrar_kardex(producto_k, cantidad_k, tipo_k, total_k=0, precio_compra_k=0):
     f_k, h_k, uid_k = obtener_tiempo_peru()
     fecha_iso = datetime.now(tz_peru).strftime("%Y-%m-%d")
     tabla_movs.put_item(Item={
@@ -183,6 +184,8 @@ def registrar_kardex(producto_k, cantidad_k, tipo_k):
         'FechaISO': fecha_iso,
         'Producto': producto_k,
         'Cantidad': int(cantidad_k),
+        'Total': to_decimal(total_k),
+        'Precio_Compra': to_decimal(precio_compra_k),
         'Tipo': tipo_k,
         'Usuario': st.session_state.usuario
     })
@@ -234,6 +237,14 @@ def obtener_limites_tenant():
         st.error("Error de sistema leyendo tu plan. Contacta a soporte.")
         print(f"ERROR PLAN: {e}")
         st.stop()
+
+# === FUNCIÓN WHATSAPP PARCHADA: LEE CAMPO WhatsApp ===
+def tiene_whatsapp_habilitado():
+    try:
+        tenant_data = tabla_tenants.get_item(Key={'TenantID': st.session_state.tenant}).get('Item', {})
+        return tenant_data.get('WhatsApp', False) or PLAN_ACTUAL in ["PRO", "PREMIUM"]
+    except:
+        return PLAN_ACTUAL in ["PRO", "PREMIUM"]
 
 if 'auth' not in st.session_state:
     st.session_state.auth = False
@@ -403,7 +414,7 @@ with tabs[0]:
             <div style="display:flex;justify-content:space-between;font-size:18px;"><b>NETO:</b><b>S/{float(b['t_neto']):.2f}</b></div>
             <p style="text-align:center;font-size:10px;margin-top:10px;">*Documento de control interno*</p></div>""", unsafe_allow_html=True)
         st.write("")
-        if PLAN_ACTUAL in ["PRO", "PREMIUM"]:
+        if tiene_whatsapp_habilitado():
             texto_wa = f"*TICKET DE VENTA - {st.session_state.tenant}*\n"
             texto_wa += f"Fecha: {b['fecha']} {b['hora']}\n---\n"
             for i in b['items']:
@@ -413,7 +424,7 @@ with tabs[0]:
             wa_url = f"https://wa.me/?text={urllib.parse.quote(texto_wa)}"
             st.link_button("📲 Enviar reporte por WhatsApp", wa_url, use_container_width=True)
         else:
-            st.info("🔒 Enviar por WhatsApp solo disponible en planes PRO y PREMIUM")
+            st.info("🔒 Enviar por WhatsApp solo disponible en planes PRO/PREMIUM o con WhatsApp habilitado")
         try:
             pdf = FPDF(orientation='P', unit='mm', format=(80, 200))
             pdf.add_page()
@@ -512,7 +523,8 @@ with tabs[0]:
                                 'Rebaja': to_decimal(rebaja_v),
                                 'Usuario': st.session_state.usuario
                             })
-                            registrar_kardex(item_v['Producto'], item_v['Cantidad'], "VENTA")
+                            # === KARDEX PARCHADO CON TOTAL ===
+                            registrar_kardex(item_v['Producto'], item_v['Cantidad'], "VENTA", item_v['Subtotal'], item_v['Precio_Compra'])
                         except dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
                             st.error(f"❌ ¡CRÍTICO! El stock de '{item_v['Producto']}' cambió justo ahora y ya no hay suficiente. Venta cancelada.")
                             st.stop()
@@ -548,7 +560,6 @@ with tabs[1]:
             hide_index=True
         )
 
-        # === DESCARGAR EXCEL ===
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             df_filtrado.to_excel(writer, sheet_name='Inventario', index=False)
@@ -568,7 +579,7 @@ with tabs[1]:
     else:
         st.info("No hay productos en inventario. Usa CARGAR para subir tu Excel.")
 
-# === TAB 2: REPORTES COMO LA FOTO + SEPARADO YAPE/PLIN ===
+# === TAB 2: REPORTES COMO LA FOTO + YAPE/PLIN SEPARADOS ===
 with tabs[2]:
     if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
         st.subheader("Día a consultar:")
@@ -602,20 +613,16 @@ with tabs[2]:
 
                 if not df_ventas.empty:
                     df_ventas['Cantidad'] = pd.to_numeric(df_ventas['Cantidad'])
-                    df_ventas['Total'] = pd.to_numeric(df_ventas['Total']) if 'Total' in df_ventas.columns else df_ventas['Cantidad']
+                    df_ventas['Total'] = pd.to_numeric(df_ventas['Total']) if 'Total' in df_ventas.columns else 0
                     df_ventas['Precio_Compra'] = pd.to_numeric(df_ventas['Precio_Compra']) if 'Precio_Compra' in df_ventas.columns else 0
                     
                     # === MÉTRICAS COMO LA FOTO ===
-                    venta_total = df_ventas['Total'].sum() if 'Total' in df_ventas.columns else 0
+                    venta_total = df_ventas['Total'].sum()
                     tickets = len(df_ventas)
                     ticket_promedio = venta_total / tickets if tickets > 0 else 0
                     
-                    # Ganancia = Total - Costo
-                    if 'Precio_Compra' in df_ventas.columns:
-                        costo_total = (df_ventas['Precio_Compra'] * df_ventas['Cantidad']).sum()
-                        ganancia = venta_total - costo_total
-                    else:
-                        ganancia = 0
+                    costo_total = (df_ventas['Precio_Compra'] * df_ventas['Cantidad']).sum()
+                    ganancia = venta_total - costo_total
                     
                     # === VENTA TOTAL ===
                     st.markdown("### 💰 VENTA TOTAL")
@@ -634,7 +641,8 @@ with tabs[2]:
                         total_semana = sum([float(m.get('Total', 0)) for m in ventas_semana])
                         diferencia = venta_total - total_semana
                         color = "#2ecc71" if diferencia >= 0 else "#e74c3c"
-                        st.markdown(f"<div style='background:{color};color:white;padding:4px 12px;border-radius:20px;display:inline-block;font-size:14px;'>↑ S/ {diferencia:.2f} vs semana pasada</div>", unsafe_allow_html=True)
+                        simbolo = "↑" if diferencia >= 0 else "↓"
+                        st.markdown(f"<div style='background:{color};color:white;padding:4px 12px;border-radius:20px;display:inline-block;font-size:14px;'>{simbolo} S/ {abs(diferencia):.2f} vs semana pasada</div>", unsafe_allow_html=True)
                     except:
                         pass
                     
@@ -699,7 +707,6 @@ with tabs[3]:
             st.write("")
             btn_buscar_hist = st.button("🔎 BUSCAR MOVIMIENTOS", use_container_width=True, type="primary")
 
-        # === DESCARGAR KARDEX COMPLETO DEL MES ===
         with st.expander("📥 DESCARGAR KARDEX COMPLETO"):
             col_d1, col_d2 = st.columns(2)
             with col_d1:
@@ -837,12 +844,12 @@ with tabs[4]:
                                         'Precio': precio_val,
                                         'Stock': stock_val
                                     })
-                                    productos_ok.append({'Producto': p_bulk, 'Stock': stock_val})
+                                    productos_ok.append({'Producto': p_bulk, 'Stock': stock_val, 'Precio': precio_val, 'Precio_Compra': costo_val})
                                 except Exception as e_item:
                                     errores.append(f"Fila {i+2}: {fila.get('Producto', 'SIN_NOMBRE')} - {str(e_item)}")
                                 barra_progreso.progress((i + 1) / total_items)
                         for item_ok in productos_ok:
-                            registrar_kardex(item_ok['Producto'], item_ok['Stock'], "CARGA MASIVA")
+                            registrar_kardex(item_ok['Producto'], item_ok['Stock'], "CARGA MASIVA", item_ok['Precio'] * item_ok['Stock'], item_ok['Precio_Compra'])
                         items_ok = len(productos_ok)
                         if errores:
                             st.error(f"⚠️ Carga parcial: {items_ok}/{total_items} productos guardados")
@@ -868,7 +875,6 @@ with tabs[5]:
     if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
         st.subheader("🛠️ Gestión de Almacén")
 
-        # === CREAR PRODUCTO INDIVIDUAL ===
         with st.expander("➕ CREAR PRODUCTO NUEVO"):
             col_n1, col_n2 = st.columns(2)
             with col_n1:
@@ -897,7 +903,7 @@ with tabs[5]:
                             'Precio': to_decimal(nuevo_precio),
                             'Stock': int(nuevo_stock)
                         })
-                        registrar_kardex(nuevo_prod, nuevo_stock, "PRODUCTO NUEVO")
+                        registrar_kardex(nuevo_prod, nuevo_stock, "PRODUCTO NUEVO", to_decimal(nuevo_precio) * nuevo_stock, to_decimal(nuevo_costo))
                         st.success(f"✅ {nuevo_prod} creado"); time.sleep(1); st.rerun()
         
         st.divider()
@@ -915,19 +921,19 @@ with tabs[5]:
                         st.error(f"❌ Tu plan no permite superar {MAX_STOCK_POR_PRODUCTO} unidades por producto. Stock actual: {df_inv.at[idx_m[0], 'Stock']}")
                     else:
                         tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m}, UpdateExpression="SET Stock = :s", ExpressionAttributeValues={':s': nuevo_stock_m})
-                        registrar_kardex(p_sel_m, cantidad_ingreso, f"REPOSICIÓN (+{cantidad_ingreso})")
+                        registrar_kardex(p_sel_m, cantidad_ingreso, f"REPOSICIÓN (+{cantidad_ingreso})", 0, 0)
                         st.success("✅ Actualizado"); time.sleep(2); st.rerun()
             elif opcion_m == "📝 MODIFICAR PRECIOS":
                 nuevo_c = st.number_input("Nuevo Costo:", value=float(df_inv.at[idx_m[0], 'Precio_Compra']))
                 nuevo_v = st.number_input("Nueva Venta:", value=float(df_inv.at[idx_m[0], 'Precio']))
                 if st.button("💾 GUARDAR"):
                     tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m}, UpdateExpression="SET Precio_Compra = :pc, Precio = :pv", ExpressionAttributeValues={':pc': to_decimal(nuevo_c), ':pv': to_decimal(nuevo_v)})
-                    registrar_kardex(p_sel_m, 0, f"CAMBIO PRECIOS")
+                    registrar_kardex(p_sel_m, 0, f"CAMBIO PRECIOS", 0, 0)
                     st.success("✅ Guardado"); time.sleep(2); st.rerun()
             else:
                 if st.button(f"🗑️ ELIMINAR {p_sel_m}"):
                     tabla_stock.delete_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel_m})
-                    registrar_kardex(p_sel_m, 0, "BORRADO"); st.warning("Eliminado"); time.sleep(2); st.rerun()
+                    registrar_kardex(p_sel_m, 0, "BORRADO", 0, 0); st.warning("Eliminado"); time.sleep(2); st.rerun()
 
 # === SIDEBAR ===
 with st.sidebar:
