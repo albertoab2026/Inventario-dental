@@ -609,23 +609,34 @@ with tabs[3]:
             buscar_prod_h = st.text_input("🔍 Producto:", key="hist_buscar").upper()
 
         if st.button("🔎 BUSCAR MOVIMIENTOS", use_container_width=True, type="primary"):
-            res_movs = tabla_movs.query(
-                KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant),
-                FilterExpression=Attr('Fecha').between(
-                    fecha_inicio_h.strftime('%d/%m/%Y'),
-                    fecha_fin_h.strftime('%d/%m/%Y')
-                ),
-                ScanIndexForward=False,
-                Limit=500
-            )
-            movs = res_movs.get('Items', [])
+            # === CAMBIO CLAVE: Usamos SCAN porque las fechas son texto DD/MM/YYYY ===
+            # Query solo funciona bien si tu Sort Key es la fecha en formato YYYY-MM-DD
+            with st.spinner("Buscando movimientos..."):
+                res_movs = tabla_movs.scan(
+                    FilterExpression=Attr('TenantID').eq(st.session_state.tenant)
+                )
+                movs = res_movs.get('Items', [])
 
-            if movs:
-                df_movs = pd.DataFrame(movs)
+                # Filtramos en Python porque DynamoDB no compara bien DD/MM/YYYY
+                movs_filtrados = []
+                for m in movs:
+                    try:
+                        fecha_mov = datetime.strptime(m['Fecha'], '%d/%m/%Y').date()
+                        if fecha_inicio_h <= fecha_mov <= fecha_fin_h:
+                            movs_filtrados.append(m)
+                    except:
+                        continue
+
+            if movs_filtrados:
+                df_movs = pd.DataFrame(movs_filtrados)
                 if buscar_prod_h:
                     df_movs = df_movs[df_movs['Producto'].str.contains(buscar_prod_h)]
 
                 if not df_movs.empty:
+                    # Ordenar por fecha y hora descendente
+                    df_movs['FechaHora'] = pd.to_datetime(df_movs['Fecha'] + ' ' + df_movs['Hora'], format='%d/%m/%Y %H:%M:%S')
+                    df_movs = df_movs.sort_values('FechaHora', ascending=False).drop('FechaHora', axis=1)
+
                     st.success(f"Encontrados: {len(df_movs)} movimientos")
                     st.dataframe(
                         df_movs[['Fecha', 'Hora', 'Producto', 'Cantidad', 'Tipo', 'Usuario']],
