@@ -260,50 +260,79 @@ with tabs[1]:
         if not bajo.empty: st.warning(f"⚠️ Stock crítico: {len(bajo)} productos"); st.dataframe(bajo[['Producto', 'Stock']], hide_index=True)
     else: st.info("No hay productos")
 
-# === TAB REPORTES CON YAPE/PLIN ===
+# === TAB REPORTES CON GANANCIA POR MÉTODO ===
 with tabs[2]:
     if st.session_state.rol == "DUEÑO":
-        fecha = st.date_input("Día:", value=datetime.now(tz_peru).date(), label_visibility="collapsed")
-        if st.button("📈 GENERAR", use_container_width=True, type="primary"):
-            fecha_iso = fecha.strftime('%Y-%m-%d')
-            res = tabla_movs.query(IndexName='TenantID-FechaISO-index', KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant) & Key('FechaISO').eq(fecha_iso))
-            items = res.get('Items', [])
-            df_v = pd.DataFrame([m for m in items if m.get('Tipo') == 'VENTA'])
+        col_f1, col_f2 = st.columns([3,1])
+        fecha = col_f1.date_input("Día:", value=datetime.now(tz_peru).date(), label_visibility="collapsed")
+        if col_f2.button("🔄 ACTUALIZAR", use_container_width=True): st.cache_data.clear(); st.rerun()
 
-            if not df_v.empty:
-                df_v['Total'] = pd.to_numeric(df_v['Total'], errors='coerce').fillna(0)
-                df_v['Precio_Compra'] = pd.to_numeric(df_v['Precio_Compra'], errors='coerce').fillna(0)
-                df_v['Cantidad'] = pd.to_numeric(df_v['Cantidad'], errors='coerce').fillna(0)
-                df_v['Metodo'] = df_v['Metodo'].fillna('').astype(str)
+        fecha_iso = fecha.strftime('%Y-%m-%d')
+        fecha_sem_pasada = (fecha - timedelta(days=7)).strftime('%Y-%m-%d')
 
-                vt = df_v['Total'].sum(); tk = len(df_v); tp = vt/tk if tk else 0; gn = vt - (df_v['Precio_Compra'] * df_v['Cantidad']).sum()
+        res_hoy = tabla_movs.query(IndexName='TenantID-FechaISO-index', KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant) & Key('FechaISO').eq(fecha_iso))
+        items_hoy = res_hoy.get('Items', [])
+        df_v = pd.DataFrame([m for m in items_hoy if m.get('Tipo') == 'VENTA'])
 
-                st.markdown(f"### 💰 VENTA TOTAL\n<h1 style='margin:0;font-size:48px;'>S/ {float(vt):.2f}</h1>", unsafe_allow_html=True)
+        res_sem = tabla_movs.query(IndexName='TenantID-FechaISO-index', KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant) & Key('FechaISO').eq(fecha_sem_pasada))
+        items_sem = res_sem.get('Items', [])
+        df_v_sem = pd.DataFrame([m for m in items_sem if m.get('Tipo') == 'VENTA'])
+
+        if not df_v.empty:
+            df_v['Total'] = pd.to_numeric(df_v['Total'], errors='coerce').fillna(0)
+            df_v['Precio_Compra'] = pd.to_numeric(df_v['Precio_Compra'], errors='coerce').fillna(0)
+            df_v['Cantidad'] = pd.to_numeric(df_v['Cantidad'], errors='coerce').fillna(0)
+            df_v['Metodo'] = df_v['Metodo'].fillna('').astype(str)
+            df_v['Costo'] = df_v['Precio_Compra'] * df_v['Cantidad']
+            df_v['Ganancia_Item'] = df_v['Total'] - df_v['Costo']
+
+            vt = df_v['Total'].sum()
+            tk = len(df_v)
+            tp = vt/tk if tk else 0
+            costo_total = df_v['Costo'].sum()
+            gn_total = df_v['Ganancia_Item'].sum()
+
+            # === COMPARATIVO ===
+            vt_sem = df_v_sem['Total'].sum() if not df_v_sem.empty else 0
+            dif = vt - vt_sem
+            pct = (dif / vt_sem * 100) if vt_sem > 0 else 0
+            color = "#2ecc71" if dif >= 0 else "#e74c3c"
+            flecha = "↑" if dif >= 0 else "↓"
+
+            st.markdown(f"### 💰 VENTA TOTAL DEL DÍA\n<h1 style='margin:0;font-size:48px;'>S/ {float(vt):.2f}</h1>", unsafe_allow_html=True)
+            st.markdown(f"<div style='background:{color};color:white;padding:4px 12px;border-radius:20px;display:inline-block;font-size:14px;'>{flecha} {abs(pct):.1f}% vs sem. pasada</div>", unsafe_allow_html=True)
+            st.write("")
+
+            st.markdown(f"### 📈 GANANCIA REAL TOTAL\n<h1 style='margin:0;font-size:48px;color:#2ecc71;'>S/ {float(gn_total):.2f}</h1>", unsafe_allow_html=True)
+            st.caption(f"Tickets: {tk} | Ticket Prom: S/{float(tp):.2f} | Margen: {(gn_total/vt*100) if vt > 0 else 0:.1f}%")
+            st.write("---")
+
+            # === DESGLOSE POR MÉTODO ===
+            df_ef = df_v[df_v['Metodo'].str.contains('EFECTIVO')]
+            df_yape = df_v[df_v['Metodo'].str.contains('YAPE')]
+            df_plin = df_v[df_v['Metodo'].str.contains('PLIN')]
+
+            if not df_ef.empty:
+                venta_ef = df_ef['Total'].sum()
+                gan_ef = df_ef['Ganancia_Item'].sum()
+                st.markdown(f"### 💵 EFECTIVO\n<h2 style='margin:0;'>Venta: S/ {float(venta_ef):.2f}</h2>", unsafe_allow_html=True)
+                st.caption(f"Ganancia: S/ {float(gan_ef):.2f}")
                 st.write("")
-                st.markdown(f"### 🧾 TICKET PROMEDIO\n<h1 style='margin:0;font-size:48px;'>S/ {float(tp):.2f}</h1>", unsafe_allow_html=True)
-                st.markdown(f"<div style='background:#2ecc71;color:white;padding:4px 12px;border-radius:20px;display:inline-block;font-size:14px;'>↑ {tk} Tickets</div>", unsafe_allow_html=True)
+
+            if not df_yape.empty:
+                venta_yape = df_yape['Total'].sum()
+                gan_yape = df_yape['Ganancia_Item'].sum()
+                st.markdown(f"### 🟣 YAPE\n<h2 style='margin:0;'>Venta: S/ {float(venta_yape):.2f}</h2>", unsafe_allow_html=True)
+                st.caption(f"Ganancia: S/ {float(gan_yape):.2f}")
                 st.write("")
-                st.markdown(f"### 📈 GANANCIA\n<h1 style='margin:0;font-size:48px;'>S/ {float(gn):.2f}</h1>", unsafe_allow_html=True)
-                st.write("---")
 
-                # === MÉTODOS DE PAGO ===
-                total_ef = df_v[df_v['Metodo'].str.contains('EFECTIVO')]['Total'].sum()
-                total_yape = df_v[df_v['Metodo'].str.contains('YAPE')]['Total'].sum()
-                total_plin = df_v[df_v['Metodo'].str.contains('PLIN')]['Total'].sum()
-
-                if total_ef > 0:
-                    st.markdown(f"### 💵 EFECTIVO\n<h1 style='margin:0;font-size:48px;'>S/ {float(total_ef):.2f}</h1>", unsafe_allow_html=True)
-                    st.write("")
-                if total_yape > 0:
-                    st.markdown(f"### 🟣 YAPE\n<h1 style='margin:0;font-size:48px;'>S/ {float(total_yape):.2f}</h1>", unsafe_allow_html=True)
-                    st.write("")
-                if total_plin > 0:
-                    st.markdown(f"### 🔵 PLIN\n<h1 style='margin:0;font-size:48px;'>S/ {float(total_plin):.2f}</h1>", unsafe_allow_html=True)
-
-                if total_ef == 0 and total_yape == 0 and total_plin == 0:
-                    st.warning("⚠️ Las ventas no tienen Metodo. Revisa HISTORIAL si sale 🟣 YAPE")
-            else:
-                st.info(f"No hay ventas {fecha.strftime('%d/%m/%Y')}")
+            if not df_plin.empty:
+                venta_plin = df_plin['Total'].sum()
+                gan_plin = df_plin['Ganancia_Item'].sum()
+                st.markdown(f"### 🔵 PLIN\n<h2 style='margin:0;'>Venta: S/ {float(venta_plin):.2f}</h2>", unsafe_allow_html=True)
+                st.caption(f"Ganancia: S/ {float(gan_plin):.2f}")
+        else:
+            st.info(f"No hay ventas {fecha.strftime('%d/%m/%Y')}")
 # === TAB HISTORIAL/CARGAR/MANT SOLO DUEÑO ===
 if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
     # TAB 3: HISTORIAL
@@ -402,25 +431,38 @@ if st.session_state.auth:
             hora_ult = max([c['Hora'] for c in cierres]) if cierres else "00:00:00"
             res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(f_hoy) & Attr('Usuario').eq(st.session_state.usuario) & Attr('Hora').gt(hora_ult))
             total = sum([Decimal(str(v['Total'])) for v in res_v.get('Items', [])])
-            if total > 0: registrar_cierre(total, st.session_state.usuario, f"CIERRE {st.session_state.rol}", st.session_state.usuario); st.success(f"✅ S/ {float(total):.2f}"); st.balloons(); time.sleep(1); st.rerun()
-            else: st.warning("No hay ventas nuevas")
+            if total > 0:
+                registrar_cierre(total, st.session_state.usuario, f"CIERRE {st.session_state.rol}", st.session_state.usuario)
+                st.success(f"✅ S/ {float(total):.2f}")
+                st.balloons()
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.warning("No hay ventas nuevas")
 
         if st.session_state.rol == "DUEÑO":
-            st.markdown("---"); st.subheader("🚨 CIERRE TARDÍO")
+            st.markdown("---")
+            st.subheader("🚨 CIERRE TARDÍO")
             if 0 <= datetime.now(tz_peru).hour <= 6:
                 ayer = (datetime.now(tz_peru) - timedelta(days=1)).strftime("%d/%m/%Y")
                 res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(ayer))
                 res_c = tabla_cierres.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(ayer))
                 if res_v.get('Items') and not res_c.get('Items'):
                     users = {}
-                    for v in res_v.get('Items'): users[v['Usuario']] = users.get(v['Usuario'], Decimal('0.00')) + Decimal(str(v['Total']))
+                    for v in res_v.get('Items'):
+                        users[v['Usuario']] = users.get(v['Usuario'], Decimal('0.00')) + Decimal(str(v['Total']))
                     st.warning(f"⚠️ {len(users)} no cerraron")
                     u_sel = st.selectbox("Empleado:", list(users.keys()))
                     st.metric("Pendiente", f"S/ {float(users[u_sel]):.2f}")
                     if st.button("🔒 CERRAR CAJA EMPLEADO", use_container_width=True):
-                        registrar_cierre(users[u_sel], u_sel, "CIERRE TARDÍO DUEÑO", st.session_state.usuario, ayer); st.success("✅"); time.sleep(1); st.rerun()
-                else: st.success("✅ Todo cerrado")
-            else: st.info("⏰ Solo 12am-6am")
+                        registrar_cierre(users[u_sel], u_sel, "CIERRE TARDÍO DUEÑO", st.session_state.usuario, ayer)
+                        st.success("✅")
+                        time.sleep(1)
+                        st.rerun()
+                else:
+                    st.success("✅ Todo cerrado")
+            else:
+                st.info("⏰ Solo 12am-6am")
 
         st.markdown("---")
         st.caption(f"📲 Soporte: +{NUMERO_SOPORTE}")
