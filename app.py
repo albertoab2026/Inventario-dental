@@ -44,7 +44,7 @@ tabla_tenants = dynamodb.Table(TABLA_TENANTS)
 tabla_cierres = dynamodb.Table(TABLA_CIERRES)
 tabla_pagos = dynamodb.Table(TABLA_PAGOS)
 
-# === FUNCIONES CORE ===
+# === FUNCIONES CORE PARCHADAS ===
 def verificar_suscripcion(tid):
     try:
         t = tabla_tenants.get_item(Key={'TenantID': tid}).get('Item', {})
@@ -60,13 +60,21 @@ def contarProductosEnBD():
 
 @st.cache_data(ttl=10)
 def obtener_datos():
-    res = tabla_stock.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), Limit=2000)
-    df = pd.DataFrame(res.get('Items', []))
-    if df.empty: return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
-    df['Stock'] = pd.to_numeric(df['Stock']).fillna(0).astype(int)
-    df['Precio'] = pd.to_numeric(df['Precio']).fillna(0.0)
-    df['Precio_Compra'] = pd.to_numeric(df['Precio_Compra']).fillna(0.0)
-    return df[['Producto', 'Precio_Compra', 'Precio', 'Stock']].sort_values('Producto')
+    try:
+        res = tabla_stock.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), Limit=2000)
+        items = res.get('Items', [])
+        if not items: return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
+        df = pd.DataFrame(items)
+        for col in ['Producto', 'Precio_Compra', 'Precio', 'Stock']:
+            if col not in df.columns: df[col] = 0 if col!='Producto' else ''
+        df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0).astype(int)
+        df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0.0)
+        df['Precio_Compra'] = pd.to_numeric(df['Precio_Compra'], errors='coerce').fillna(0.0)
+        df['Producto'] = df['Producto'].astype(str)
+        return df[['Producto', 'Precio_Compra', 'Precio', 'Stock']].sort_values('Producto')
+    except Exception as e:
+        print(f"ERROR obtener_datos: {e}")
+        return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
 
 def registrar_kardex(prod, cant, tipo, total=0, pc=0, metodo=""):
     f, h, uid = obtener_tiempo_peru()
@@ -92,7 +100,9 @@ def obtener_limites_tenant():
     if fc < datetime.now(tz_peru).date() - timedelta(days=5): st.error(f"⛔ VENCIÓ {item.get('ProximoCobro')}"); st.stop()
     max_p, max_s = int(item.get('MaxProductos', 0)), int(item.get('MaxStock', 0))
     if max_p == 0: st.error("Configura MaxProductos"); st.stop()
-    if contarProductosEnBD() > max_p or obtener_datos()['Stock'].max() > max_s:
+    df_temp = obtener_datos()
+    stock_max = int(df_temp['Stock'].max()) if not df_temp.empty else 0
+    if contarProductosEnBD() > max_p or stock_max > max_s:
         st.session_state.modo_lectura = True
         st.session_state.mensaje_lectura = f"⚠️ MODO LECTURA: Pasado de límites"
     else: st.session_state.modo_lectura = False
