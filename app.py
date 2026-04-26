@@ -165,7 +165,7 @@ with tabs[0]:
             <div style="display:flex;justify-content:space-between;color:red;"><span>DESC:</span><span>- S/{float(b['rebaja']):.2f}</span></div>
             <div style="display:flex;justify-content:space-between;font-size:18px;"><b>NETO:</b><b>S/{float(b['t_neto']):.2f}</b></div></div>""", unsafe_allow_html=True)
 
-        # === PDF 80mm ===
+        # === PDF 80mm SIN EMOJIS ===
         pdf = FPDF(orientation='P', unit='mm', format=(80, 200))
         pdf.add_page()
         pdf.set_font('Courier', 'B', 12)
@@ -174,11 +174,13 @@ with tabs[0]:
         pdf.cell(0, 4, f"{b['fecha']} {b['hora']}", 0, 1, 'C')
         pdf.cell(0, 2, '-'*40, 0, 1, 'C')
         for i in b['items']:
-            pdf.cell(40, 4, f"{i['Cantidad']}x {i['Producto'][:15]}", 0, 0)
+            nombre = str(i['Producto'])[:15]
+            pdf.cell(40, 4, f"{i['Cantidad']}x {nombre}", 0, 0)
             pdf.cell(0, 4, f"S/{float(i['Subtotal']):.2f}", 0, 1, 'R')
         pdf.cell(0, 2, '-'*40, 0, 1, 'C')
+        metodo_pdf = str(b['metodo']).replace('🟣 ', '').replace('🔵 ', '').replace('💵 ', '')
         pdf.cell(40, 4, f"METODO:", 0, 0)
-        pdf.cell(0, 4, b['metodo'], 0, 1, 'R')
+        pdf.cell(0, 4, metodo_pdf, 0, 1, 'R')
         pdf.cell(40, 4, f"DESC:", 0, 0)
         pdf.cell(0, 4, f"- S/{float(b['rebaja']):.2f}", 0, 1, 'R')
         pdf.set_font('Courier', 'B', 10)
