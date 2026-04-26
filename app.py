@@ -152,7 +152,6 @@ tabs_list = ["🛒 VENTA", "📦 STOCK", "📊 REPORTES"]
 if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
     tabs_list += ["📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."]
 tabs = st.tabs(tabs_list)
-
 # === TAB VENTA ===
 with tabs[0]:
     if st.session_state.boleta:
@@ -165,6 +164,43 @@ with tabs[0]:
             <hr><div style="display:flex;justify-content:space-between;"><span>MÉTODO:</span><span>{b['metodo']}</span></div>
             <div style="display:flex;justify-content:space-between;color:red;"><span>DESC:</span><span>- S/{float(b['rebaja']):.2f}</span></div>
             <div style="display:flex;justify-content:space-between;font-size:18px;"><b>NETO:</b><b>S/{float(b['t_neto']):.2f}</b></div></div>""", unsafe_allow_html=True)
+
+        # === PDF 80mm ===
+        pdf = FPDF(orientation='P', unit='mm', format=(80, 200))
+        pdf.add_page()
+        pdf.set_font('Courier', 'B', 12)
+        pdf.cell(0, 5, st.session_state.tenant, 0, 1, 'C')
+        pdf.set_font('Courier', '', 8)
+        pdf.cell(0, 4, f"{b['fecha']} {b['hora']}", 0, 1, 'C')
+        pdf.cell(0, 2, '-'*40, 0, 1, 'C')
+        for i in b['items']:
+            pdf.cell(40, 4, f"{i['Cantidad']}x {i['Producto'][:15]}", 0, 0)
+            pdf.cell(0, 4, f"S/{float(i['Subtotal']):.2f}", 0, 1, 'R')
+        pdf.cell(0, 2, '-'*40, 0, 1, 'C')
+        pdf.cell(40, 4, f"METODO:", 0, 0)
+        pdf.cell(0, 4, b['metodo'], 0, 1, 'R')
+        pdf.cell(40, 4, f"DESC:", 0, 0)
+        pdf.cell(0, 4, f"- S/{float(b['rebaja']):.2f}", 0, 1, 'R')
+        pdf.set_font('Courier', 'B', 10)
+        pdf.cell(40, 5, f"NETO:", 0, 0)
+        pdf.cell(0, 5, f"S/{float(b['t_neto']):.2f}", 0, 1, 'R')
+        pdf_output = pdf.output(dest='S').encode('latin-1')
+
+        # === EXCEL DE LA BOLETA ===
+        df_boleta = pd.DataFrame(b['items'])
+        df_boleta['Fecha'] = b['fecha']
+        df_boleta['Hora'] = b['hora']
+        df_boleta['Metodo'] = b['metodo']
+        df_boleta['Descuento'] = float(b['rebaja'])
+        df_boleta['Total_Neto'] = float(b['t_neto'])
+        buf_excel = io.BytesIO()
+        with pd.ExcelWriter(buf_excel, engine='openpyxl') as w:
+            df_boleta[['Fecha', 'Hora', 'Producto', 'Cantidad', 'Precio', 'Subtotal', 'Metodo', 'Descuento', 'Total_Neto']].to_excel(w, index=False, sheet_name='Ticket')
+
+        col1, col2 = st.columns(2)
+        col1.download_button("📄 PDF 80mm", pdf_output, f"Ticket_{b['fecha'].replace('/','')}.pdf", "application/pdf", use_container_width=True)
+        col2.download_button("📊 EXCEL", buf_excel.getvalue(), f"Ticket_{b['fecha'].replace('/','')}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+
         if tiene_whatsapp_habilitado():
             texto = f"*TICKET - {st.session_state.tenant}*\n{b['fecha']} {b['hora']}\n---\n" + "\n".join([f"{i['Cantidad']}x {i['Producto']} - S/{float(i['Subtotal']):.2f}" for i in b['items']]) + f"\n---\n*TOTAL: S/{float(b['t_neto']):.2f}*\nMetodo: {b['metodo']}"
             st.link_button("📲 WhatsApp", f"https://wa.me/?text={urllib.parse.quote(texto)}", use_container_width=True)
@@ -222,7 +258,7 @@ with tabs[1]:
         if not bajo.empty: st.warning(f"⚠️ Stock crítico: {len(bajo)} productos"); st.dataframe(bajo[['Producto', 'Stock']], hide_index=True)
     else: st.info("No hay productos")
 
-# === TAB REPORTES PARCHADO ===
+# === TAB REPORTES CON YAPE/PLIN ===
 with tabs[2]:
     if st.session_state.rol == "DUEÑO":
         fecha = st.date_input("Día:", value=datetime.now(tz_peru).date(), label_visibility="collapsed")
@@ -230,12 +266,13 @@ with tabs[2]:
             fecha_iso = fecha.strftime('%Y-%m-%d')
             res = tabla_movs.query(IndexName='TenantID-FechaISO-index', KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant) & Key('FechaISO').eq(fecha_iso))
             items = res.get('Items', [])
-            df_v = pd.DataFrame([m for m in items if m['Tipo'] == 'VENTA'])
+            df_v = pd.DataFrame([m for m in items if m.get('Tipo') == 'VENTA'])
 
             if not df_v.empty:
                 df_v['Total'] = pd.to_numeric(df_v['Total'], errors='coerce').fillna(0)
                 df_v['Precio_Compra'] = pd.to_numeric(df_v['Precio_Compra'], errors='coerce').fillna(0)
                 df_v['Cantidad'] = pd.to_numeric(df_v['Cantidad'], errors='coerce').fillna(0)
+                df_v['Metodo'] = df_v['Metodo'].fillna('').astype(str)
 
                 vt = df_v['Total'].sum(); tk = len(df_v); tp = vt/tk if tk else 0; gn = vt - (df_v['Precio_Compra'] * df_v['Cantidad']).sum()
 
@@ -247,25 +284,22 @@ with tabs[2]:
                 st.markdown(f"### 📈 GANANCIA\n<h1 style='margin:0;font-size:48px;'>S/ {float(gn):.2f}</h1>", unsafe_allow_html=True)
                 st.write("---")
 
-                # === MÉTODOS DE PAGO SEPARADOS ===
-                if 'Metodo' in df_v.columns:
-                    metodos = df_v['Metodo'].fillna('').astype(str)
+                # === MÉTODOS DE PAGO ===
+                total_ef = df_v[df_v['Metodo'].str.contains('EFECTIVO')]['Total'].sum()
+                total_yape = df_v[df_v['Metodo'].str.contains('YAPE')]['Total'].sum()
+                total_plin = df_v[df_v['Metodo'].str.contains('PLIN')]['Total'].sum()
 
-                    total_ef = df_v[metodos.str.contains('EFECTIVO', na=False)]['Total'].sum()
-                    if total_ef > 0:
-                        st.markdown(f"### 💵 EFECTIVO\n<h1 style='margin:0;font-size:48px;'>S/ {float(total_ef):.2f}</h1>", unsafe_allow_html=True)
-                        st.write("")
+                if total_ef > 0:
+                    st.markdown(f"### 💵 EFECTIVO\n<h1 style='margin:0;font-size:48px;'>S/ {float(total_ef):.2f}</h1>", unsafe_allow_html=True)
+                    st.write("")
+                if total_yape > 0:
+                    st.markdown(f"### 🟣 YAPE\n<h1 style='margin:0;font-size:48px;'>S/ {float(total_yape):.2f}</h1>", unsafe_allow_html=True)
+                    st.write("")
+                if total_plin > 0:
+                    st.markdown(f"### 🔵 PLIN\n<h1 style='margin:0;font-size:48px;'>S/ {float(total_plin):.2f}</h1>", unsafe_allow_html=True)
 
-                    total_yape = df_v[metodos.str.contains('YAPE', na=False)]['Total'].sum()
-                    if total_yape > 0:
-                        st.markdown(f"### 🟣 YAPE\n<h1 style='margin:0;font-size:48px;'>S/ {float(total_yape):.2f}</h1>", unsafe_allow_html=True)
-                        st.write("")
-
-                    total_plin = df_v[metodos.str.contains('PLIN', na=False)]['Total'].sum()
-                    if total_plin > 0:
-                        st.markdown(f"### 🔵 PLIN\n<h1 style='margin:0;font-size:48px;'>S/ {float(total_plin):.2f}</h1>", unsafe_allow_html=True)
-                else:
-                    st.error("⚠️ Las ventas viejas no tienen campo Metodo. Vende algo nuevo con YAPE pa' probar.")
+                if total_ef == 0 and total_yape == 0 and total_plin == 0:
+                    st.warning("⚠️ Las ventas no tienen Metodo. Revisa HISTORIAL si sale 🟣 YAPE")
             else:
                 st.info(f"No hay ventas {fecha.strftime('%d/%m/%Y')}")
 # === TAB HISTORIAL/CARGAR/MANT SOLO DUEÑO ===
@@ -352,7 +386,7 @@ if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura',
                     tabla_stock.delete_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel})
                     registrar_kardex(p_sel, 0, "BORRADO", 0, 0, ""); st.warning("Eliminado"); time.sleep(1); st.rerun()
 # === SIDEBAR ===
-if st.session_state.auth: # ESTA LÍNEA FALTABA CTM
+if st.session_state.auth:
     with st.sidebar:
         st.title(f"🏢 {st.session_state.tenant}")
         st.write(f"Usuario: **{st.session_state.usuario}**")
@@ -391,4 +425,4 @@ if st.session_state.auth: # ESTA LÍNEA FALTABA CTM
         st.caption(f"💳 Yape/Plin: {YAPE_SOPORTE}")
         if st.button("🔴 CERRAR SESIÓN"):
             for k in list(st.session_state.keys()): del st.session_state[k]
-            st.rerun()
+            st.rerun()                    
