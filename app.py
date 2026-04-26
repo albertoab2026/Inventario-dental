@@ -1,43 +1,126 @@
-# === SIDEBAR ===
-with st.sidebar:
-    st.title(f"🏢 {st.session_state.tenant}")
-    st.write(f"Usuario: **{st.session_state.usuario}**")
-    st.caption(f"{'🔵' if PLAN_ACTUAL=='BASICO' else '🟣' if PLAN_ACTUAL=='PRO' else '🟡'} **Plan {PLAN_ACTUAL}** | S/ {float(PRECIO_ACTUAL):.0f}/mes")
+import streamlit as st
+import pandas as pd
+import boto3
+from datetime import datetime, timedelta
+import pytz
+from boto3.dynamodb.conditions import Attr, Key
+from fpdf import FPDF
+import time
+import re
+import urllib.parse
+from decimal import Decimal, ROUND_HALF_UP
+import io
+import uuid
 
-    st.markdown("---")
-    if st.button("🔒 CERRAR CAJA", use_container_width=True, type="primary"):
-        f_hoy, _, _ = obtener_tiempo_peru()
-        res_c = tabla_cierres.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(f_hoy) & Attr('UsuarioTurno').eq(st.session_state.usuario))
-        cierres = res_c.get('Items', [])
-        hora_ult = max([c['Hora'] for c in cierres]) if cierres else "00:00:00"
-        res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(f_hoy) & Attr('Usuario').eq(st.session_state.usuario) & Attr('Hora').gt(hora_ult))
-        total = sum([Decimal(str(v['Total'])) for v in res_v.get('Items', [])])
-        if total > 0: registrar_cierre(total, st.session_state.usuario, f"CIERRE {st.session_state.rol}", st.session_state.usuario); st.success(f"✅ S/ {float(total):.2f}"); st.balloons(); time.sleep(1); st.rerun()
-        else: st.warning("No hay ventas nuevas")
+# === CONFIG ===
+TABLA_STOCK = st.secrets["tablas"]["stock"]
+TABLA_VENTAS = st.secrets["tablas"]["ventas"]
+TABLA_MOVS = st.secrets["tablas"]["movs"]
+TABLA_TENANTS = st.secrets["tablas"]["tenants"]
+TABLA_CIERRES = st.secrets["tablas"]["cierres"]
+TABLA_PAGOS = st.secrets["tablas"]["pagos"]
+NUMERO_SOPORTE = "51914282688"
+YAPE_SOPORTE = "Alberto Ballarta"
+DESARROLLADOR = "Alberto Ballarta - Software Engineer"
 
-    if st.session_state.rol == "DUEÑO":
-        st.markdown("---"); st.subheader("🚨 CIERRE TARDÍO")
-        if 0 <= datetime.now(tz_peru).hour <= 6:
-            ayer = (datetime.now(tz_peru) - timedelta(days=1)).strftime("%d/%m/%Y")
-            res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(ayer))
-            res_c = tabla_cierres.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(ayer))
-            if res_v.get('Items') and not res_c.get('Items'):
-                users = {}
-                for v in res_v.get('Items'): users[v['Usuario']] = users.get(v['Usuario'], Decimal('0.00')) + Decimal(str(v['Total']))
-                st.warning(f"⚠️ {len(users)} no cerraron")
-                u_sel = st.selectbox("Empleado:", list(users.keys()))
-                st.metric("Pendiente", f"S/ {float(users[u_sel]):.2f}")
-                if st.button("🔒 CERRAR CAJA EMPLEADO", use_container_width=True):
-                    registrar_cierre(users[u_sel], u_sel, "CIERRE TARDÍO DUEÑO", st.session_state.usuario, ayer); st.success("✅"); time.sleep(1); st.rerun()
-            else: st.success("✅ Todo cerrado")
-        else: st.info("⏰ Solo 12am-6am")
+st.set_page_config(page_title="NEXUS BALLARTA", layout="wide", page_icon="🚀")
+tz_peru = pytz.timezone('America/Lima')
 
-    st.markdown("---")
-    st.caption(f"📲 Soporte: +{NUMERO_SOPORTE}")
-    st.caption(f"💳 Yape/Plin: {YAPE_SOPORTE}")
-    if st.button("🔴 CERRAR SESIÓN"):
-        for k in list(st.session_state.keys()): del st.session_state[k]
-        st.rerun()
+st.markdown("""
+    <style>
+        [data-testid="stSidebar"][aria-expanded="true"] {min-width: 300px;}
+    </style>
+""", unsafe_allow_html=True)
+
+def to_decimal(f): return Decimal(str(f)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+def obtener_tiempo_peru():
+    ahora = datetime.now(tz_peru)
+    return ahora.strftime("%d/%m/%Y"), ahora.strftime("%H:%M:%S"), ahora.strftime("%Y%m%d%H%M%S%f")
+
+# === AWS ===
+dynamodb = boto3.resource('dynamodb',
+    region_name=st.secrets["aws"]["aws_region"],
+    aws_access_key_id=st.secrets["aws"]["aws_access_key_id"],
+    aws_secret_access_key=st.secrets["aws"]["aws_secret_access_key"])
+tabla_stock = dynamodb.Table(TABLA_STOCK)
+tabla_ventas = dynamodb.Table(TABLA_VENTAS)
+tabla_movs = dynamodb.Table(TABLA_MOVS)
+tabla_tenants = dynamodb.Table(TABLA_TENANTS)
+tabla_cierres = dynamodb.Table(TABLA_CIERRES)
+tabla_pagos = dynamodb.Table(TABLA_PAGOS)
+
+# === FUNCIONES CORE ===
+def verificar_suscripcion(tid):
+    try:
+        t = tabla_tenants.get_item(Key={'TenantID': tid}).get('Item', {})
+        if t.get('EstadoPago') == 'SUSPENDIDO': return False, "SUSPENDIDO"
+        fc = datetime.strptime(t.get('ProximoCobro', '01/01/2000'), '%d/%m/%Y').date()
+        if fc < datetime.now(tz_peru).date() - timedelta(days=5): return False, f"VENCIDO {t.get('ProximoCobro')}"
+        return True, "ACTIVO"
+    except: return True, "ERROR"
+
+def contarProductosEnBD():
+    try: return tabla_stock.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), Select='COUNT').get('Count', 0)
+    except: return 9999
+
+@st.cache_data(ttl=10)
+def obtener_datos():
+    try:
+        res = tabla_stock.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), Limit=2000)
+        items = res.get('Items', [])
+        if not items: return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
+        df = pd.DataFrame(items)
+        for col in ['Producto', 'Precio_Compra', 'Precio', 'Stock']:
+            if col not in df.columns: df[col] = 0 if col!='Producto' else ''
+        df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0).astype(int)
+        df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0.0)
+        df['Precio_Compra'] = pd.to_numeric(df['Precio_Compra'], errors='coerce').fillna(0.0)
+        df['Producto'] = df['Producto'].astype(str)
+        return df[['Producto', 'Precio_Compra', 'Precio', 'Stock']].sort_values('Producto')
+    except Exception as e:
+        print(f"ERROR obtener_datos: {e}")
+        return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
+
+def registrar_kardex(prod, cant, tipo, total=0, pc=0, metodo=""):
+    f, h, uid = obtener_tiempo_peru()
+    tabla_movs.put_item(Item={
+        'TenantID': st.session_state.tenant, 'MovID': f"M-{uid}", 'Fecha': f, 'Hora': h,
+        'FechaISO': datetime.now(tz_peru).strftime("%Y-%m-%d"), 'Producto': prod, 'Cantidad': int(cant),
+        'Total': to_decimal(total), 'Precio_Compra': to_decimal(pc), 'Metodo': str(metodo), 'Tipo': tipo, 'Usuario': st.session_state.usuario
+    })
+
+def registrar_cierre(total, u_turno, tipo, u_cierre, fecha=None):
+    f, h, uid = obtener_tiempo_peru()
+    if fecha: f = fecha
+    tabla_cierres.put_item(Item={
+        'TenantID': st.session_state.tenant, 'CierreID': f"C-{uid}", 'Fecha': f, 'Hora': h,
+        'UsuarioTurno': u_turno, 'UsuarioCierre': u_cierre, 'Total': to_decimal(total), 'Tipo': tipo
+    })
+
+def obtener_limites_tenant():
+    item = tabla_tenants.get_item(Key={'TenantID': st.session_state.tenant}).get('Item', {})
+    if not item: st.error("Tenant no existe"); st.stop()
+    if item.get('EstadoPago') == 'SUSPENDIDO': st.error(f"⛔ SUSPENDIDO. WhatsApp +{NUMERO_SOPORTE}"); st.stop()
+    fc = datetime.strptime(item.get('ProximoCobro', '01/01/2000'), '%d/%m/%Y').date()
+    if fc < datetime.now(tz_peru).date() - timedelta(days=5): st.error(f"⛔ VENCIÓ {item.get('ProximoCobro')}"); st.stop()
+    max_p, max_s = int(item.get('MaxProductos', 0)), int(item.get('MaxStock', 0))
+    if max_p == 0: st.error("Configura MaxProductos"); st.stop()
+    df_temp = obtener_datos()
+    stock_max = int(df_temp['Stock'].max()) if not df_temp.empty else 0
+    if contarProductosEnBD() > max_p or stock_max > max_s:
+        st.session_state.modo_lectura = True
+        st.session_state.mensaje_lectura = f"⚠️ MODO LECTURA: Pasado de límites"
+    else: st.session_state.modo_lectura = False
+    return max_p, max_s, item.get('Plan', 'SIN_PLAN'), item.get('PrecioMensual', 0)
+
+def tiene_whatsapp_habilitado():
+    try: return tabla_tenants.get_item(Key={'TenantID': st.session_state.tenant}).get('Item', {}).get('WhatsApp', False) or PLAN_ACTUAL in ["PRO", "PREMIUM"]
+    except: return PLAN_ACTUAL in ["PRO", "PREMIUM"]
+
+# === ESTADO ===
+for k in ['auth','rol','tenant','usuario','carrito','boleta','confirmar','modo_lectura']:
+    if k not in st.session_state: st.session_state[k] = [] if k=='carrito' else False if k in ['auth','confirmar','modo_lectura'] else None
 # === LOGIN ===
 if not st.session_state.auth:
     st.markdown("<h1 style='text-align:center;color:#3498db;'>🚀 NEXUS BALLARTA</h1>", unsafe_allow_html=True)
@@ -269,42 +352,43 @@ if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura',
                     tabla_stock.delete_item(Key={'TenantID': st.session_state.tenant, 'Producto': p_sel})
                     registrar_kardex(p_sel, 0, "BORRADO", 0, 0, ""); st.warning("Eliminado"); time.sleep(1); st.rerun()
 # === SIDEBAR ===
-with st.sidebar:
-    st.title(f"🏢 {st.session_state.tenant}")
-    st.write(f"Usuario: **{st.session_state.usuario}**")
-    st.caption(f"{'🔵' if PLAN_ACTUAL=='BASICO' else '🟣' if PLAN_ACTUAL=='PRO' else '🟡'} **Plan {PLAN_ACTUAL}** | S/ {float(PRECIO_ACTUAL):.0f}/mes")
+if st.session_state.auth: # ESTA LÍNEA FALTABA CTM
+    with st.sidebar:
+        st.title(f"🏢 {st.session_state.tenant}")
+        st.write(f"Usuario: **{st.session_state.usuario}**")
+        st.caption(f"{'🔵' if PLAN_ACTUAL=='BASICO' else '🟣' if PLAN_ACTUAL=='PRO' else '🟡'} **Plan {PLAN_ACTUAL}** | S/ {float(PRECIO_ACTUAL):.0f}/mes")
 
-    st.markdown("---")
-    if st.button("🔒 CERRAR CAJA", use_container_width=True, type="primary"):
-        f_hoy, _, _ = obtener_tiempo_peru()
-        res_c = tabla_cierres.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(f_hoy) & Attr('UsuarioTurno').eq(st.session_state.usuario))
-        cierres = res_c.get('Items', [])
-        hora_ult = max([c['Hora'] for c in cierres]) if cierres else "00:00:00"
-        res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(f_hoy) & Attr('Usuario').eq(st.session_state.usuario) & Attr('Hora').gt(hora_ult))
-        total = sum([Decimal(str(v['Total'])) for v in res_v.get('Items', [])])
-        if total > 0: registrar_cierre(total, st.session_state.usuario, f"CIERRE {st.session_state.rol}", st.session_state.usuario); st.success(f"✅ S/ {float(total):.2f}"); st.balloons(); time.sleep(1); st.rerun()
-        else: st.warning("No hay ventas nuevas")
+        st.markdown("---")
+        if st.button("🔒 CERRAR CAJA", use_container_width=True, type="primary"):
+            f_hoy, _, _ = obtener_tiempo_peru()
+            res_c = tabla_cierres.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(f_hoy) & Attr('UsuarioTurno').eq(st.session_state.usuario))
+            cierres = res_c.get('Items', [])
+            hora_ult = max([c['Hora'] for c in cierres]) if cierres else "00:00:00"
+            res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(f_hoy) & Attr('Usuario').eq(st.session_state.usuario) & Attr('Hora').gt(hora_ult))
+            total = sum([Decimal(str(v['Total'])) for v in res_v.get('Items', [])])
+            if total > 0: registrar_cierre(total, st.session_state.usuario, f"CIERRE {st.session_state.rol}", st.session_state.usuario); st.success(f"✅ S/ {float(total):.2f}"); st.balloons(); time.sleep(1); st.rerun()
+            else: st.warning("No hay ventas nuevas")
 
-    if st.session_state.rol == "DUEÑO":
-        st.markdown("---"); st.subheader("🚨 CIERRE TARDÍO")
-        if 0 <= datetime.now(tz_peru).hour <= 6:
-            ayer = (datetime.now(tz_peru) - timedelta(days=1)).strftime("%d/%m/%Y")
-            res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(ayer))
-            res_c = tabla_cierres.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(ayer))
-            if res_v.get('Items') and not res_c.get('Items'):
-                users = {}
-                for v in res_v.get('Items'): users[v['Usuario']] = users.get(v['Usuario'], Decimal('0.00')) + Decimal(str(v['Total']))
-                st.warning(f"⚠️ {len(users)} no cerraron")
-                u_sel = st.selectbox("Empleado:", list(users.keys()))
-                st.metric("Pendiente", f"S/ {float(users[u_sel]):.2f}")
-                if st.button("🔒 CERRAR CAJA EMPLEADO", use_container_width=True):
-                    registrar_cierre(users[u_sel], u_sel, "CIERRE TARDÍO DUEÑO", st.session_state.usuario, ayer); st.success("✅"); time.sleep(1); st.rerun()
-            else: st.success("✅ Todo cerrado")
-        else: st.info("⏰ Solo 12am-6am")
+        if st.session_state.rol == "DUEÑO":
+            st.markdown("---"); st.subheader("🚨 CIERRE TARDÍO")
+            if 0 <= datetime.now(tz_peru).hour <= 6:
+                ayer = (datetime.now(tz_peru) - timedelta(days=1)).strftime("%d/%m/%Y")
+                res_v = tabla_ventas.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(ayer))
+                res_c = tabla_cierres.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), FilterExpression=Attr('Fecha').eq(ayer))
+                if res_v.get('Items') and not res_c.get('Items'):
+                    users = {}
+                    for v in res_v.get('Items'): users[v['Usuario']] = users.get(v['Usuario'], Decimal('0.00')) + Decimal(str(v['Total']))
+                    st.warning(f"⚠️ {len(users)} no cerraron")
+                    u_sel = st.selectbox("Empleado:", list(users.keys()))
+                    st.metric("Pendiente", f"S/ {float(users[u_sel]):.2f}")
+                    if st.button("🔒 CERRAR CAJA EMPLEADO", use_container_width=True):
+                        registrar_cierre(users[u_sel], u_sel, "CIERRE TARDÍO DUEÑO", st.session_state.usuario, ayer); st.success("✅"); time.sleep(1); st.rerun()
+                else: st.success("✅ Todo cerrado")
+            else: st.info("⏰ Solo 12am-6am")
 
-    st.markdown("---")
-    st.caption(f"📲 Soporte: +{NUMERO_SOPORTE}")
-    st.caption(f"💳 Yape/Plin: {YAPE_SOPORTE}")
-    if st.button("🔴 CERRAR SESIÓN"):
-        for k in list(st.session_state.keys()): del st.session_state[k]
-        st.rerun()
+        st.markdown("---")
+        st.caption(f"📲 Soporte: +{NUMERO_SOPORTE}")
+        st.caption(f"💳 Yape/Plin: {YAPE_SOPORTE}")
+        if st.button("🔴 CERRAR SESIÓN"):
+            for k in list(st.session_state.keys()): del st.session_state[k]
+            st.rerun()
