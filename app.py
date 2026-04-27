@@ -14,7 +14,7 @@ from botocore.exceptions import ClientError
 
 st.set_page_config(page_title="💎 Nexus - Sistema Empresarial", page_icon="💎", layout="wide")
 
-# === CONFIG PLAN - CAMBIA AQUÍ ===
+# === CONFIG PLAN ===
 PLAN_ACTUAL = "PRO" # BASICO | PRO | PREMIUM
 PRECIO_ACTUAL = 59
 NUMERO_SOPORTE = "51964023239"
@@ -24,16 +24,63 @@ MAX_PRODUCTOS = {"BASICO": 100, "PRO": 500, "PREMIUM": 2000}
 MAX_STOCK_POR_PRODUCTO = 10000
 MAX_PRODUCTOS_TOTALES = MAX_PRODUCTOS[PLAN_ACTUAL]
 
-# === CONFIG UI ===
+# === CSS PRO CON ANIMACIONES ===
 st.markdown("""
     <style>
-        [data-testid="stButton"] button {height:60px;font-size:18px;font-weight:bold;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);transition:all 0.2s ease;}
-        [data-testid="stButton"] button:hover {transform:translateY(-2px);box-shadow:0 10px 15px -3px rgba(59,130,246,0.3);}
-        button[kind="primary"] {background:linear-gradient(90deg,#3b82f6,#2563eb);color:white;}
-        button[kind="secondary"] {background:linear-gradient(90deg,#f59e0b,#d97706);color:white;}
-        [data-testid="stDataFrame"] {border-radius:12px;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);}
-        [data-testid="stSidebar"] {background:linear-gradient(180deg,#3b82f6,#1e40af);}
-        [data-testid="stSidebar"] * {color:white!important;}
+        [data-testid="stButton"] button {
+            height: 60px;
+            font-size: 18px;
+            font-weight: 700;
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        [data-testid="stButton"] button:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 20px 25px -5px rgba(59,130,246,0.4);
+        }
+        button[kind="primary"] {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+        button[kind="secondary"] {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+        [data-testid="stDataFrame"] {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #3b82f6 0%, #1e40af 100%);
+        }
+        [data-testid="stSidebar"] * {
+            color: white!important;
+        }
+       .stTabs [data-baseweb="tab-list"] {
+            gap: 8px;
+            background-color: #f3f4f6;
+            padding: 8px;
+            border-radius: 12px;
+        }
+       .stTabs [data-baseweb="tab"] {
+            height: 50px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+       .stTabs [aria-selected="true"] {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)!important;
+            color: white!important;
+            box-shadow: 0 4px 6px -1px rgba(59,130,246,0.4);
+        }
+        [data-testid="stMetricValue"] {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #3b82f6;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -83,27 +130,44 @@ if 'autenticado' not in st.session_state:
     st.session_state.tenant = None
 
 if not st.session_state.autenticado:
-    st.markdown(f"<h1 style='text-align:center;color:#3b82f6;font-size:4rem;'>💎 NEXUS</h1><h3 style='text-align:center;color:#6b7280;'>Sistema Empresarial - Plan {PLAN_ACTUAL}</h3>", unsafe_allow_html=True)
+    st.markdown("""
+        <div style='text-align:center;padding:40px 0;'>
+            <h1 style='font-size:5rem;margin:0;color:#3b82f6;text-shadow:0 4px 8px rgba(59,130,246,0.3);'>💎</h1>
+            <h1 style='font-size:3rem;margin:10px 0;color:#1f2937;font-weight:800;'>NEXUS</h1>
+            <h3 style='margin:0;color:#6b7280;font-weight:400;'>Sistema Empresarial</h3>
+            <div style='display:inline-block;background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;padding:8px 20px;border-radius:20px;margin-top:10px;font-weight:bold;'>Plan {PLAN_ACTUAL}</div>
+        </div>
+    """.format(PLAN_ACTUAL=PLAN_ACTUAL), unsafe_allow_html=True)
+    
     with st.form("login"):
-        st.subheader("🔐 Acceso Multiusuario")
-        empresa = st.text_input("Empresa:", placeholder="Mi Negocio SAC").upper()
-        usuario = st.text_input("Usuario:", placeholder="admin o vendedor1")
-        password = st.text_input("Password:", type="password")
-        if st.form_submit_button("🚀 ENTRAR", use_container_width=True):
-            if empresa == "DENTAL" and usuario == "admin" and password == "admin123":
-                st.session_state.autenticado = True
-                st.session_state.rol = "DUEÑO"
-                st.session_state.usuario = "admin"
-                st.session_state.tenant = "DENTAL"
-                st.rerun()
-            elif empresa == "DENTAL" and usuario == "vendedor1" and password == "vend123":
-                st.session_state.autenticado = True
-                st.session_state.rol = "EMPLEADO"
-                st.session_state.usuario = "vendedor1"
-                st.session_state.tenant = "DENTAL"
-                st.rerun()
-            else:
-                st.error("❌ Credenciales incorrectas")
+        st.markdown("<h3 style='text-align:center;color:#3b82f6;'>🔐 Acceso Multiusuario</h3>", unsafe_allow_html=True)
+        empresa = st.text_input("🏢 Empresa:", placeholder="DENTAL").upper()
+        usuario = st.text_input("👤 Usuario:", placeholder="admin o vendedor1")
+        password = st.text_input("🔑 Password:", type="password")
+        col1, col2, col3 = st.columns([1,2,1])
+        with col2:
+            if st.form_submit_button("🚀 ENTRAR AL SISTEMA", use_container_width=True):
+                if empresa == "DENTAL" and usuario == "admin" and password == "admin123":
+                    st.session_state.autenticado = True
+                    st.session_state.rol = "DUEÑO"
+                    st.session_state.usuario = "admin"
+                    st.session_state.tenant = "DENTAL"
+                    st.rerun()
+                elif empresa == "DENTAL" and usuario == "vendedor1" and password == "vend123":
+                    st.session_state.autenticado = True
+                    st.session_state.rol = "EMPLEADO"
+                    st.session_state.usuario = "vendedor1"
+                    st.session_state.tenant = "DENTAL"
+                    st.rerun()
+                else:
+                    st.error("❌ Credenciales incorrectas")
+    
+    st.markdown(f"""
+        <div style='text-align:center;margin-top:40px;color:#9ca3af;font-size:12px;'>
+            <p>{DESARROLLADOR}</p>
+            <p>Soporte: {NUMERO_SOPORTE}</p>
+        </div>
+    """, unsafe_allow_html=True)
     st.stop()
 
 # === ESTADO ===
@@ -207,141 +271,78 @@ with tabs[0]:
             st.link_button("📲 WhatsApp", f"https://wa.me/?text={urllib.parse.quote(texto)}", use_container_width=True)
         if st.button("⬅️ NUEVA VENTA", use_container_width=True, key="btn_nueva_venta"): st.session_state.boleta = None; st.rerun()
     else:
-        tab_vender, tab_ingreso_emp = st.tabs(["🛒 VENDER", "📦 INGRESAR MERCADERÍA"])
+        st.subheader("🛍️ Nueva Venta")
+        busq = st.text_input("🔍 Buscar:", key="bv", placeholder="Escribe nombre del producto...").upper()
+        ops = []
+        for _, f in df_inv.iterrows():
+            if busq in str(f['Producto']):
+                est = f"STOCK: {f['Stock']}" if f['Stock'] > 0 else "🚫 AGOTADO"
+                ops.append(f"{f['Producto']} | S/ {f['Precio']:.2f} | {est}")
+        col1, col2 = st.columns([3, 1])
+        if ops:
+            sel = col1.selectbox("Producto:", ops, key="sel_v", placeholder="Busca y selecciona producto")
+            p_sel = sel.split(" | ")[0] if sel else None
+        else:
+            st.info("👆 Escribe arriba para buscar productos")
+            sel = None
+            p_sel = None
+        cant = col2.number_input("Cant:", min_value=1, value=1, key="cant_v")
+        if p_sel:
+            dp = df_inv[df_inv['Producto'] == p_sel].iloc[0]
+            en_carro = sum(i['Cantidad'] for i in st.session_state.carrito if i['Producto'] == p_sel)
+            disp = dp.Stock - en_carro
+            st.info(f"Disponible: {disp}")
+            if st.button("➕ Añadir", use_container_width=True, key="btn_add_carrito"):
+                if cant <= disp:
+                    st.session_state.carrito.append({'Producto': p_sel, 'Cantidad': int(cant), 'Precio': to_decimal(dp.Precio), 'Precio_Compra': to_decimal(dp.Precio_Compra), 'Subtotal': to_decimal(dp.Precio) * int(cant)})
+                    st.rerun()
+                else: st.error("❌ Sin stock")
+        if st.session_state.carrito:
+            for idx, item in enumerate(st.session_state.carrito):
+                c1, c2 = st.columns([3,1])
+                c1.write(f"{item['Producto']} x{item['Cantidad']}")
+                c2.write(f"S/{float(item['Subtotal']):.2f}")
+            if st.button("🗑️ VACIAR", key="btn_vaciar_carrito"): st.session_state.carrito = []; st.rerun()
 
-        with tab_vender:
-            st.subheader("🛍️ Nueva Venta")
-            busq = st.text_input("🔍 Buscar:", key="bv", placeholder="Escribe nombre del producto...").upper()
-            ops = []
-            for _, f in df_inv.iterrows():
-                if busq in str(f['Producto']):
-                    est = f"STOCK: {f['Stock']}" if f['Stock'] > 0 else "🚫 AGOTADO"
-                    ops.append(f"{f['Producto']} | S/ {f['Precio']:.2f} | {est}")
-            col1, col2 = st.columns([3, 1])
-            if ops:
-                sel = col1.selectbox("Producto:", ops, key="sel_v", placeholder="Busca y selecciona producto")
-                p_sel = sel.split(" | ")[0] if sel else None
-            else:
-                st.info("👆 Escribe arriba para buscar productos")
-                sel = None
-                p_sel = None
-            cant = col2.number_input("Cant:", min_value=1, value=1, key="cant_v")
-            if p_sel:
-                dp = df_inv[df_inv['Producto'] == p_sel].iloc[0]
-                en_carro = sum(i['Cantidad'] for i in st.session_state.carrito if i['Producto'] == p_sel)
-                disp = dp.Stock - en_carro
-                st.info(f"Disponible: {disp}")
-                if st.button("➕ Añadir", use_container_width=True, key="btn_add_carrito"):
-                    if cant <= disp:
-                        st.session_state.carrito.append({'Producto': p_sel, 'Cantidad': int(cant), 'Precio': to_decimal(dp.Precio), 'Precio_Compra': to_decimal(dp.Precio_Compra), 'Subtotal': to_decimal(dp.Precio) * int(cant)})
-                        st.rerun()
-                    else: st.error("❌ Sin stock")
-            if st.session_state.carrito:
-                for idx, item in enumerate(st.session_state.carrito):
-                    c1, c2 = st.columns([3,1])
-                    c1.write(f"{item['Producto']} x{item['Cantidad']}")
-                    c2.write(f"S/{float(item['Subtotal']):.2f}")
-                if st.button("🗑️ VACIAR", key="btn_vaciar_carrito"): st.session_state.carrito = []; st.rerun()
+            st.write("**Método de Pago:**")
+            col_ef, col_yape, col_plin = st.columns(3)
 
-                st.write("**Método de Pago:**")
-                col_ef, col_yape, col_plin = st.columns(3)
+            with col_ef:
+                st.markdown("<div style='text-align:center;font-size:40px;'>💵</div>", unsafe_allow_html=True)
+                if st.button("EFECTIVO", use_container_width=True, type="primary" if st.session_state.metodo_pago=="💵 EFECTIVO" else "secondary", key="btn_efectivo"):
+                    st.session_state.metodo_pago = "💵 EFECTIVO"
+                    st.rerun()
 
-                with col_ef:
-                    st.markdown("<div style='text-align:center;font-size:40px;'>💵</div>", unsafe_allow_html=True)
-                    if st.button("EFECTIVO", use_container_width=True, type="primary" if st.session_state.metodo_pago=="💵 EFECTIVO" else "secondary", key="btn_efectivo"):
-                        st.session_state.metodo_pago = "💵 EFECTIVO"
-                        st.rerun()
+            with col_yape:
+                st.markdown("<div style='text-align:center;font-size:40px;'>🟣</div>", unsafe_allow_html=True)
+                if st.button("YAPE", use_container_width=True, type="primary" if st.session_state.metodo_pago=="🟣 YAPE" else "secondary", key="btn_yape"):
+                    st.session_state.metodo_pago = "🟣 YAPE"
+                    st.rerun()
 
-                with col_yape:
-                    st.markdown("<div style='text-align:center;font-size:40px;'>🟣</div>", unsafe_allow_html=True)
-                    if st.button("YAPE", use_container_width=True, type="primary" if st.session_state.metodo_pago=="🟣 YAPE" else "secondary", key="btn_yape"):
-                        st.session_state.metodo_pago = "🟣 YAPE"
-                        st.rerun()
+            with col_plin:
+                st.markdown("<div style='text-align:center;font-size:40px;'>🔵</div>", unsafe_allow_html=True)
+                if st.button("PLIN", use_container_width=True, type="primary" if st.session_state.metodo_pago=="🔵 PLIN" else "secondary", key="btn_plin"):
+                    st.session_state.metodo_pago = "🔵 PLIN"
+                    st.rerun()
 
-                with col_plin:
-                    st.markdown("<div style='text-align:center;font-size:40px;'>🔵</div>", unsafe_allow_html=True)
-                    if st.button("PLIN", use_container_width=True, type="primary" if st.session_state.metodo_pago=="🔵 PLIN" else "secondary", key="btn_plin"):
-                        st.session_state.metodo_pago = "🔵 PLIN"
-                        st.rerun()
+            metodo = st.session_state.metodo_pago
+            st.markdown(f"<h3 style='text-align:center;color:#3b82f6;'>Seleccionado: {metodo}</h3>", unsafe_allow_html=True)
 
-                metodo = st.session_state.metodo_pago
-                st.markdown(f"<h3 style='text-align:center;color:#3b82f6;'>Seleccionado: {metodo}</h3>", unsafe_allow_html=True)
-
-                rebaja = st.number_input("💸 Descuento:", min_value=0.0, value=0.0, key="num_rebaja")
-                total = max(Decimal('0.00'), sum(i['Subtotal'] for i in st.session_state.carrito) - to_decimal(rebaja))
-                st.markdown(f"<h1 style='text-align:center;color:#3b82f6;font-size:3rem;'>S/ {float(total):.2f}</h1>", unsafe_allow_html=True)
-                if st.button("🚀 FINALIZAR", use_container_width=True, type="primary", key="btn_finalizar"): st.session_state.confirmar = True
-                if st.session_state.confirmar:
-                    if st.button(f"✅ CONFIRMAR S/ {float(total):.2f}", use_container_width=True, key="btn_confirmar_venta"):
-                        f, h, uid = obtener_tiempo_peru()
-                        for item in st.session_state.carrito:
-                            tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': item['Producto']}, UpdateExpression="SET Stock = Stock - :s", ConditionExpression="Stock >= :s", ExpressionAttributeValues={':s': item['Cantidad']})
-                            tabla_ventas.put_item(Item={'TenantID': st.session_state.tenant, 'VentaID': f"V-{uid}", 'Fecha': f, 'Hora': h, 'Producto': item['Producto'], 'Cantidad': int(item['Cantidad']), 'Total': item['Subtotal'], 'Precio_Compra': item['Precio_Compra'], 'Metodo': metodo, 'Rebaja': to_decimal(rebaja), 'Usuario': st.session_state.usuario})
-                            registrar_kardex(item['Producto'], item['Cantidad'], "VENTA", item['Subtotal'], item['Precio_Compra'], metodo)
-                        st.session_state.boleta = {'items': st.session_state.carrito, 't_neto': total, 'rebaja': to_decimal(rebaja), 'metodo': metodo, 'fecha': f, 'hora': h}
-                        st.session_state.carrito = []; st.session_state.confirmar = False; st.rerun()
-
-        with tab_ingreso_emp:
-            st.subheader("📦 Registrar Ingreso de Mercadería")
-            st.caption("Registra lo que llegó de tu proveedor - Empleados pueden usar esta pestaña")
-
-            if not df_inv.empty:
-                prod_ingreso = st.selectbox("Producto que llegó:", df_inv['Producto'].tolist(), key="sel_ingreso_emp")
-
-                if prod_ingreso:
-                    df_prod = df_inv[df_inv['Producto'] == prod_ingreso].iloc[0]
-                    ultimo_pc = float(df_prod['Precio_Compra'])
-                    st.info(f"Stock actual: {int(df_prod['Stock'])} unidades | Último costo: S/{ultimo_pc:.2f} | Venta: S/{df_prod['Precio']:.2f}")
-
-                    st.markdown("**📦 DATOS DE LA COMPRA:**")
-                    col1, col2 = st.columns(2)
-                    unidad_medida = col1.selectbox("Unidad:", ["Unidades", "Docenas", "Cajas", "Paquetes", "Millares"], key="unidad_medida_emp")
-                    cantidad = col2.number_input(f"Cantidad:", min_value=1, value=1, key="cant_lote_emp")
-
-                    multiplicador = {"Unidades": 1, "Docenas": 12, "Cajas": 1, "Paquetes": 1, "Millares": 1000}[unidad_medida]
-
-                    if unidad_medida in ["Cajas", "Paquetes"]:
-                        unid_x_bulto = st.number_input(f"¿Cuántas unidades trae cada {unidad_medida[:-1]}?", min_value=1, value=50, key="unid_bulto_emp")
-                        multiplicador = unid_x_bulto
-
-                    cant_ingreso = cantidad * multiplicador
-                    costo_sugerido = ultimo_pc * cant_ingreso
-
-                    usar_ultimo = st.checkbox(f"✓ Usar último costo: S/{ultimo_pc:.2f} c/u → Total: S/{costo_sugerido:.2f}", value=False, key="check_ultimo_emp")
-
-                    if usar_ultimo:
-                        precio_total_lote = costo_sugerido
-                        st.success(f"✅ Usando último precio: S/{precio_total_lote:.2f}")
-                    else:
-                        precio_total_lote = st.number_input(f"Costo total S/:", min_value=0.0, value=0.0, key="precio_lote_emp", help="Lo que pagaste por todo según tu factura")
-
-                    nuevo_pc = precio_total_lote / cant_ingreso if cant_ingreso > 0 else 0
-
-                    st.success(f"✅ Total: {cant_ingreso} unidades | Costo unitario: S/{nuevo_pc:.2f}")
-                    stock_final = int(df_prod['Stock']) + cant_ingreso
-                    st.metric("Stock nuevo", f"{stock_final} unidades")
-
-                    if st.button("📥 REGISTRAR", use_container_width=True, type="primary", key="btn_ingreso_stock_emp"):
-                        if stock_final > MAX_STOCK_POR_PRODUCTO:
-                            st.error(f"❌ Stock máximo: {MAX_STOCK_POR_PRODUCTO}")
-                        else:
-                            stock_viejo = int(df_prod['Stock'])
-                            pc_viejo = float(df_prod['Precio_Compra'])
-                            pc_promedio = ((stock_viejo * pc_viejo) + (cant_ingreso * nuevo_pc)) / stock_final if stock_viejo > 0 else nuevo_pc
-
-                            tabla_stock.update_item(
-                                Key={'TenantID': st.session_state.tenant, 'Producto': prod_ingreso},
-                                UpdateExpression="SET Stock = :s, Precio_Compra = :pc",
-                                ExpressionAttributeValues={':s': stock_final, ':pc': to_decimal(pc_promedio)}
-                            )
-                            registrar_kardex(prod_ingreso, cant_ingreso, "INGRESO_STOCK", precio_total_lote, nuevo_pc, f"INGRESO_{st.session_state.usuario}")
-                            st.success(f"✅ {st.session_state.usuario} ingresó {cant_ingreso} {prod_ingreso} | Nuevo costo: S/{pc_promedio:.2f}")
-                            time.sleep(1)
-                            st.rerun()
-            else:
-                st.warning("⚠️ No hay productos")
+            rebaja = st.number_input("💸 Descuento:", min_value=0.0, value=0.0, key="num_rebaja")
+            total = max(Decimal('0.00'), sum(i['Subtotal'] for i in st.session_state.carrito) - to_decimal(rebaja))
+            st.markdown(f"<h1 style='text-align:center;color:#3b82f6;font-size:3rem;'>S/ {float(total):.2f}</h1>", unsafe_allow_html=True)
+            if st.button("🚀 FINALIZAR", use_container_width=True, type="primary", key="btn_finalizar"): st.session_state.confirmar = True
+            if st.session_state.confirmar:
+                if st.button(f"✅ CONFIRMAR S/ {float(total):.2f}", use_container_width=True, key="btn_confirmar_venta"):
+                    f, h, uid = obtener_tiempo_peru()
+                    for item in st.session_state.carrito:
+                        tabla_stock.update_item(Key={'TenantID': st.session_state.tenant, 'Producto': item['Producto']}, UpdateExpression="SET Stock = Stock - :s", ConditionExpression="Stock >= :s", ExpressionAttributeValues={':s': item['Cantidad']})
+                        tabla_ventas.put_item(Item={'TenantID': st.session_state.tenant, 'VentaID': f"V-{uid}", 'Fecha': f, 'Hora': h, 'Producto': item['Producto'], 'Cantidad': int(item['Cantidad']), 'Total': item['Subtotal'], 'Precio_Compra': item['Precio_Compra'], 'Metodo': metodo, 'Rebaja': to_decimal(rebaja), 'Usuario': st.session_state.usuario})
+                        registrar_kardex(item['Producto'], item['Cantidad'], "VENTA", item['Subtotal'], item['Precio_Compra'], metodo)
+                    st.session_state.boleta = {'items': st.session_state.carrito, 't_neto': total, 'rebaja': to_decimal(rebaja), 'metodo': metodo, 'fecha': f, 'hora': h}
+                    st.session_state.carrito = []; st.session_state.confirmar = False; st.rerun()
 # FIN PARTE 4/8
-# === TAB INVENTARIO - DUEÑO VE COSTO, EMPLEADO NO ===
+# === TAB INVENTARIO ===
 with tabs[1]:
     st.subheader("📊 Inventario")
     col1, col2 = st.columns([3, 1])
@@ -389,19 +390,7 @@ with tabs[1]:
             df_tabla.columns = ['PROD', 'STOCK', 'VENTA']
             st.info("💡 Solo el dueño ve costos y ganancias")
 
-        st.dataframe(
-            df_tabla,
-            use_container_width=True,
-            hide_index=True,
-            height=400,
-            column_config={
-                "PROD": st.column_config.TextColumn("PROD", width="medium"),
-                "STOCK": st.column_config.NumberColumn("STOCK", width="small"),
-                "COSTO": st.column_config.NumberColumn("COSTO", format="S/ %.2f", width="small"),
-                "VENTA": st.column_config.NumberColumn("VENTA", format="S/ %.2f", width="small"),
-                "VALOR": st.column_config.NumberColumn("VALOR", format="S/ %.2f", width="small")
-            }
-        )
+        st.dataframe(df_tabla, use_container_width=True, hide_index=True, height=400, column_config={"PROD": st.column_config.TextColumn("PROD", width="medium"), "STOCK": st.column_config.NumberColumn("STOCK", width="small"), "COSTO": st.column_config.NumberColumn("COSTO", format="S/ %.2f", width="small"), "VENTA": st.column_config.NumberColumn("VENTA", format="S/ %.2f", width="small"), "VALOR": st.column_config.NumberColumn("VALOR", format="S/ %.2f", width="small")})
 
         if st.session_state.rol == "DUEÑO":
             col1, col2, col3 = st.columns(3)
@@ -415,7 +404,7 @@ with tabs[1]:
     else:
         st.info(f"📭 No hay datos hasta el {f_filtro.strftime('%d/%m/%Y')}")
 
-# === TAB CAJA - AMBOS VEN PERO EMPLEADO SOLO SUS VENTAS ===
+# === TAB CAJA ===
 with tabs[2]:
     st.subheader("💰 Reporte de Caja")
     col1, col2 = st.columns([3, 1])
@@ -425,11 +414,7 @@ with tabs[2]:
     fecha_iso_caja = f_caja.strftime('%Y-%m-%d')
 
     if st.session_state.rol == "EMPLEADO":
-        res_c = tabla_movs.query(
-            IndexName='TenantID-FechaISO-index',
-            KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant) & Key('FechaISO').eq(fecha_iso_caja),
-            FilterExpression=Attr('Tipo').eq('VENTA') & Attr('Usuario').eq(st.session_state.usuario)
-        )
+        res_c = tabla_movs.query(IndexName='TenantID-FechaISO-index', KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant) & Key('FechaISO').eq(fecha_iso_caja), FilterExpression=Attr('Tipo').eq('VENTA') & Attr('Usuario').eq(st.session_state.usuario))
         st.info(f"📊 Mostrando solo TUS ventas - {st.session_state.usuario}")
     else:
         res_c = tabla_movs.query(IndexName='TenantID-FechaISO-index', KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant) & Key('FechaISO').eq(fecha_iso_caja), FilterExpression=Attr('Tipo').eq('VENTA'))
@@ -452,7 +437,6 @@ with tabs[2]:
             c1.metric("💵 VENTAS", f"S/ {float(vt):.2f}")
             c2.metric("📉 COSTOS", f"S/ {float(ct):.2f}")
             c3.metric("📈 GANANCIA", f"S/ {float(gn):.2f}")
-
             por_metodo = df_c.groupby('Metodo')['Total'].sum().to_dict()
             st.write("**Por método de pago:**")
             cols_metodo = st.columns(len(por_metodo))
@@ -480,12 +464,10 @@ with tabs[2]:
             else:
                 texto = f"*MIS VENTAS {f_caja.strftime('%d/%m/%Y')} - {st.session_state.usuario}*\nVentas: S/{float(vt):.2f}\nTickets: {len(df_c)}"
             st.link_button("📲 COMPARTIR", f"https://wa.me/?text={urllib.parse.quote(texto)}", use_container_width=True)
-        else:
-            st.caption("💡 WhatsApp solo disponible en Plan PRO/PREMIUM")
     else:
         st.info(f"📭 No hay ventas el {f_caja.strftime('%d/%m/%Y')}")
 # FIN PARTE 5/8
-# === TAB HISTORIAL - DUEÑO Y EMPLEADO ===
+# === TAB HISTORIAL ===
 with tabs[3]:
     st.subheader("📋 Historial de Movimientos")
     col1, col2 = st.columns([3, 1])
