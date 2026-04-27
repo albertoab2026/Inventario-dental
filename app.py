@@ -26,22 +26,27 @@ DESARROLLADOR = "Alberto Ballarta - Software Engineer"
 st.set_page_config(page_title="NEXUS BALLARTA", layout="wide", page_icon="🚀", initial_sidebar_state="collapsed")
 tz_peru = pytz.timezone('America/Lima')
 
-# === CSS FIX DARK MODE + TABLAS ===
+# === CSS PARCHADO DARK MODE TOTAL ===
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
         * {font-family: 'Poppins', sans-serif;}
-   .main {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important;}
-   .block-container {
+    html, body, [class*="stApp"], [data-testid="stAppViewContainer"] {
+            color-scheme: light only!important;
+            forced-color-adjust: none!important;
+            -webkit-forced-color-adjust: none!important;
+        }
+  .main {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important;}
+  .block-container {
             background: white!important; 
             color: #262730!important;
             border-radius: 20px; 
             padding: 2rem; 
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
-   .block-container p,.block-container h1,.block-container h2,.block-container h3, 
-   .block-container h4,.block-container label,.block-container span,
-   .stMarkdown,.stText,.stCaption {
+  .block-container p,.block-container h1,.block-container h2,.block-container h3, 
+  .block-container h4,.block-container label,.block-container span,
+  .stMarkdown,.stText,.stCaption {
             color: #262730!important;
         }
         div[data-testid="stMetric"] {
@@ -50,39 +55,78 @@ st.markdown("""
         }
         div[data-testid="stMetric"] label {color: white!important; font-weight: 600;}
         div[data-testid="stMetric"] [data-testid="stMetricValue"] {color: white!important; font-size: 36px;}
-   .stButton>button {
+  .stButton>button {
             border-radius: 12px; font-weight: 600; border: none;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important; 
             color: white!important; box-shadow: 0 4px 12px rgba(102,126,234,0.4);
         }
-   .stTabs [data-baseweb="tab-list"] {gap: 8px; background: #f8f9fa!important; padding: 10px; border-radius: 15px;}
-   .stTabs [data-baseweb="tab"] {border-radius: 10px; padding: 10px 20px; font-weight: 600; color: #262730!important;}
-   .stTabs [aria-selected="true"] {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important; color: white!important;}
-   .stSelectbox>div>div {
+  .stTabs [data-baseweb="tab-list"] {gap: 8px; background: #f8f9fa!important; padding: 10px; border-radius: 15px;}
+  .stTabs [data-baseweb="tab"] {border-radius: 10px; padding: 10px 20px; font-weight: 600; color: #262730!important;}
+  .stTabs [aria-selected="true"] {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important; color: white!important;}
+   
+        /* FIX SELECTBOX + DROPDOWN */
+  .stSelectbox>div>div {
             background: white!important; 
             border: 2px solid #e0e0e0!important; 
             border-radius: 10px!important;
         }
-   .stSelectbox>div>div>div {color: #262730!important;}
-   .stSelectbox svg {fill: #262730!important;}
-   .stTextInput>div>div>input,.stNumberInput>div>div>input,.stDateInput input {
+  .stSelectbox>div>div>div {color: #262730!important;}
+  .stSelectbox svg {fill: #262730!important;}
+   [data-baseweb="select"] {background-color: white!important;}
+   [data-baseweb="select"] > div {background-color: white!important; color: #262730!important;}
+   [data-baseweb="popover"] {background-color: white!important;}
+   [data-baseweb="menu"] {background-color: white!important;}
+   [data-baseweb="menu"] li {background-color: white!important; color: #262730!important;}
+   [data-baseweb="menu"] li:hover {background-color: #e3f2fd!important;}
+   
+        /* FIX INPUTS + NUMBER INPUT */
+  .stTextInput>div>div>input,.stNumberInput>div>div>input,.stDateInput input {
             border-radius: 10px; border: 2px solid #e0e0e0!important; padding: 12px;
             background: white!important; color: #262730!important;
         }
-   .stSelectbox label,.stTextInput label,.stNumberInput label,.stDateInput label,.stRadio label {color: #262730!important;}
+   [data-testid="stNumberInput"] input {
+            background-color: white!important;
+            color: #262730!important;
+        }
+   [data-testid="stNumberInput"] button {
+            background-color: #f0f0f0!important;
+            color: #262730!important;
+        }
+  .stSelectbox label,.stTextInput label,.stNumberInput label,.stDateInput label,.stRadio label {color: #262730!important;}
+   
+        /* SIDEBAR */
         [data-testid="stSidebar"] {background: linear-gradient(180deg, #667eea 0%, #764ba2 100%)!important;}
         [data-testid="stSidebar"] * {color: white!important;}
         [data-testid="stSidebar"].stButton>button {background: white!important; color: #667eea!important;}
-   .stDataFrame {background: white!important;}
-   .stDataFrame [data-testid="stTable"] {background: white!important;}
-   .stDataFrame table {background: white!important; color: #262730!important;}
-   .stDataFrame th {background: #f8f9fa!important; color: #262730!important; position: sticky!important; top: 0!important; z-index: 10!important;}
-   .stDataFrame td {background: white!important; color: #262730!important;}
-   .stDataFrame tr:nth-child(even) td {background: #f9f9f9!important;}
-   .stDataFrame tr:hover td {background: #e3f2fd!important;}
-   .streamlit-expanderHeader {background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)!important; border-radius: 10px; font-weight: 600; color: #262730!important;}
-   .stAlert {border-radius: 12px; border-left: 5px solid;}
-   .element-container {overflow-x: auto!important;}
+   
+        /* FIX TABLAS */
+   [data-testid="stDataFrame"], [data-testid="stDataFrame"] *, 
+   [data-testid="stTable"], [data-testid="stTable"] * {
+            background-color: white!important;
+            color: #262730!important;
+            border-color: #e0e0e0!important;
+        }
+   [data-testid="stDataFrame"] thead tr th {
+            background-color: #f8f9fa!important;
+            color: #262730!important;
+            position: sticky!important;
+            top: 0!important;
+        }
+   [data-testid="stDataFrame"] tbody tr:nth-child(even) td {background-color: #f9f9f9!important;}
+   [data-testid="stDataFrame"] tbody tr:nth-child(odd) td {background-color: white!important;}
+   
+        /* EXPANDER */
+   [data-testid="stExpander"] {
+            background-color: white!important;
+            border: 1px solid #e0e0e0!important;
+        }
+   [data-testid="stExpander"] summary {
+            background-color: #f5f7fa!important;
+            color: #262730!important;
+        }
+  .streamlit-expanderHeader {background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)!important; border-radius: 10px; font-weight: 600; color: #262730!important;}
+  .stAlert {border-radius: 12px; border-left: 5px solid;}
+  .element-container {overflow-x: auto!important;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -328,15 +372,20 @@ with tabs[0]:
         if st.button("⬅️ NUEVA VENTA", use_container_width=True, key="btn_nueva_venta"): st.session_state.boleta = None; st.rerun()
     else:
         st.subheader("🛍️ Nueva Venta")
-        busq = st.text_input("🔍 Buscar:", key="bv").upper()
+        busq = st.text_input("🔍 Buscar:", key="bv", placeholder="Escribe nombre del producto...").upper()
         ops = []
         for _, f in df_inv.iterrows():
             if busq in str(f['Producto']):
                 est = f"STOCK: {f['Stock']}" if f['Stock'] > 0 else "🚫 AGOTADO"
                 ops.append(f"{f['Producto']} | S/ {f['Precio']:.2f} | {est}")
         col1, col2 = st.columns([3, 1])
-        sel = col1.selectbox("Producto:", ops, key="sel_v")
-        p_sel = sel.split(" | ")[0] if sel else None
+        if ops:
+            sel = col1.selectbox("Producto:", ops, key="sel_v", placeholder="Busca y selecciona producto")
+            p_sel = sel.split(" | ")[0] if sel else None
+        else:
+            st.info("👆 Escribe arriba para buscar productos")
+            sel = None
+            p_sel = None
         cant = col2.number_input("Cant:", min_value=1, value=1, key="cant_v")
         if p_sel:
             dp = df_inv[df_inv['Producto'] == p_sel].iloc[0]
@@ -365,26 +414,86 @@ with tabs[0]:
                         registrar_kardex(item['Producto'], item['Cantidad'], "VENTA", item['Subtotal'], item['Precio_Compra'], metodo)
                     st.session_state.boleta = {'items': st.session_state.carrito, 't_neto': total, 'rebaja': to_decimal(rebaja), 'metodo': metodo, 'fecha': f, 'hora': h}
                     st.session_state.carrito = []; st.session_state.confirmar = False; st.rerun()
-# === TAB STOCK ===
+# === TAB STOCK - BUSCADOR + LISTA PAGINADA ===
 with tabs[1]:
     st.subheader("📦 Inventario")
-    busq = st.text_input("🔍 Escribe para buscar producto:", key="bs").upper()
-
+    
+    busq = st.text_input("🔍 Buscar producto por nombre:", key="bs", placeholder="Ej: CUADERNO, LAPIZ, BORRADOR...").upper()
+    
+    col1, col2, col3 = st.columns([2,1,1])
+    mostrar_todos = col1.checkbox("📋 Ver lista completa", value=False, help="Solo activa si tienes <200 productos")
+    filtro_stock = col2.selectbox("Filtrar:", ["Todos", "Stock bajo <5", "Agotados", "Con stock"], key="filtro_stock")
+    
+    df_mostrar = df_inv.copy()
+    
     if busq:
-        df_f = df_inv[df_inv['Producto'].str.contains(busq)]
-        if not df_f.empty:
-            st.caption(f"Resultados: {len(df_f)} productos")
-            st.dataframe(df_f[['Producto', 'Stock', 'Precio_Compra', 'Precio']], use_container_width=True, hide_index=True)
+        df_mostrar = df_mostrar[df_mostrar['Producto'].str.contains(busq, na=False)]
+    
+    if filtro_stock == "Stock bajo <5":
+        df_mostrar = df_mostrar[df_mostrar['Stock'] < 5]
+    elif filtro_stock == "Agotados":
+        df_mostrar = df_mostrar[df_mostrar['Stock'] == 0]
+    elif filtro_stock == "Con stock":
+        df_mostrar = df_mostrar[df_mostrar['Stock'] > 0]
+    
+    if busq or mostrar_todos:
+        if not df_mostrar.empty:
+            st.caption(f"Mostrando {len(df_mostrar)} de {len(df_inv)} productos totales")
+            
+            if len(df_mostrar) > 50:
+                page_size = 50
+                total_pages = (len(df_mostrar) - 1) // page_size + 1
+                page = st.number_input("Página:", min_value=1, max_value=total_pages, value=1, key="page_stock") - 1
+                start_idx = page * page_size
+                end_idx = start_idx + page_size
+                df_pagina = df_mostrar.iloc[start_idx:end_idx]
+                st.caption(f"Página {page+1} de {total_pages}")
+            else:
+                df_pagina = df_mostrar
+            
+            st.dataframe(
+                df_pagina[['Producto', 'Stock', 'Precio_Compra', 'Precio']], 
+                use_container_width=True, 
+                hide_index=True,
+                column_config={
+                    "Producto": st.column_config.TextColumn("Producto", width="large"),
+                    "Stock": st.column_config.NumberColumn("Stock", width="small"),
+                    "Precio_Compra": st.column_config.NumberColumn("Costo", format="S/ %.2f", width="small"),
+                    "Precio": st.column_config.NumberColumn("Venta", format="S/ %.2f", width="small")
+                }
+            )
+            
             buf = io.BytesIO()
-            with pd.ExcelWriter(buf, engine='openpyxl') as w: df_f.to_excel(w, index=False)
-            st.download_button("📥 DESCARGAR RESULTADOS", buf.getvalue(), f"Inventario_{st.session_state.tenant}_{datetime.now(tz_peru).strftime('%Y%m%d')}.xlsx", use_container_width=True, key="btn_desc_inv")
-            bajo = df_f[df_f['Stock'] < 5]
-            if not bajo.empty: st.warning(f"⚠️ Stock crítico: {len(bajo)} productos"); st.dataframe(bajo[['Producto', 'Stock']], hide_index=True)
+            with pd.ExcelWriter(buf, engine='openpyxl') as w: 
+                df_mostrar.to_excel(w, index=False, sheet_name='Inventario')
+            st.download_button(
+                "📥 DESCARGAR EXCEL FILTRADO", 
+                buf.getvalue(), 
+                f"Inventario_{st.session_state.tenant}_{datetime.now(tz_peru).strftime('%Y%m%d')}.xlsx", 
+                use_container_width=True, 
+                key="btn_desc_inv"
+            )
+            
+            bajo = df_mostrar[df_mostrar['Stock'] < 5]
+            if not bajo.empty: 
+                st.warning(f"⚠️ Stock crítico: {len(bajo)} productos con menos de 5 unidades")
+                with st.expander("Ver productos con stock bajo"):
+                    st.dataframe(bajo[['Producto', 'Stock']], hide_index=True, use_container_width=True)
         else:
-            st.info(f"No se encontró '{busq}'")
+            if busq:
+                st.info(f"❌ No se encontró '{busq}'. Prueba con parte del nombre.")
+            else:
+                st.info("📭 No hay productos con ese filtro")
     else:
-        st.info("👆 Escribe arriba para buscar productos")
+        st.info("👆 Escribe arriba para buscar o activa 'Ver lista completa'")
         st.caption(f"Total en BD: {contarProductosEnBD()} productos")
+        
+        if not df_inv.empty:
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Total productos", len(df_inv))
+            col2.metric("Agotados", len(df_inv[df_inv['Stock'] == 0]))
+            col3.metric("Stock bajo <5", len(df_inv[df_inv['Stock'] < 5]))
+            col4.metric("Valor inventario", f"S/ {(df_inv['Stock'] * df_inv['Precio_Compra']).sum():.2f}")
 
 # === TAB REPORTES - ARREGLADO PA' EMPLEADOS ===
 with tabs[2]:
@@ -399,7 +508,6 @@ with tabs[2]:
     fecha_iso = fecha.strftime('%Y-%m-%d')
     fecha_sem_pasada = (fecha - timedelta(days=7)).strftime('%Y-%m-%d')
 
-    # FILTRO POR ROL - ESTO ARREGLA EL NEGRO EN EMPLEADOS
     if st.session_state.rol == "EMPLEADO":
         res_hoy = tabla_movs.query(
             IndexName='TenantID-FechaISO-index',
@@ -422,13 +530,12 @@ with tabs[2]:
     items_sem = res_sem.get('Items', [])
     df_v_sem = pd.DataFrame([m for m in items_sem if m.get('Tipo') == 'VENTA'])
 
-    # ARREGLO: SI NO HAY VENTAS, MUESTRA MENSAJE EN VEZ DE PANTALLA NEGRA
     if df_v.empty:
         st.warning(f"📭 No hay ventas registradas el {fecha.strftime('%d/%m/%Y')}")
         if st.session_state.rol == "EMPLEADO":
             st.caption("Si hiciste ventas hoy, verifica que cerraste la venta correctamente.")
     else:
-        df_v = df_v.sort_values('Hora', ascending=False) # MÁS RECIENTE ARRIBA
+        df_v = df_v.sort_values('Hora', ascending=False)
         df_v['Total'] = pd.to_numeric(df_v['Total'], errors='coerce').fillna(0)
         df_v['Precio_Compra'] = pd.to_numeric(df_v['Precio_Compra'], errors='coerce').fillna(0)
         df_v['Cantidad'] = pd.to_numeric(df_v['Cantidad'], errors='coerce').fillna(0)
@@ -507,7 +614,7 @@ if st.session_state.rol == "DUEÑO" and len(tabs) > 3:
         df_h = pd.DataFrame(res_h.get('Items', []))
 
         if not df_h.empty:
-            df_h = df_h.sort_values('Hora', ascending=False) # MÁS RECIENTE ARRIBA
+            df_h = df_h.sort_values('Hora', ascending=False)
             df_h['Total'] = pd.to_numeric(df_h['Total'], errors='coerce').fillna(0)
             df_h['Precio_Compra'] = pd.to_numeric(df_h['Precio_Compra'], errors='coerce').fillna(0)
             df_h['Cantidad'] = pd.to_numeric(df_h['Cantidad'], errors='coerce').fillna(0)
@@ -703,7 +810,6 @@ if st.session_state.rol == "DUEÑO" and len(tabs) > 5:
         col2.metric("Precio Mensual", f"S/ {PRECIO_ACTUAL}")
         col3.metric("Productos", f"{contarProductosEnBD()}/{MAX_PRODUCTOS_TOTALES}")
         
-        # NOTA MAQUILLADA EN LETRAS PEQUEÑAS
         st.caption("💡 *Todos los planes incluyen instalación y configuración inicial sin costo adicional. Servicio por única vez al contratar.*")
 
         st.write("---")
