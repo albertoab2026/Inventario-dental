@@ -799,6 +799,97 @@ if st.session_state.rol == "DUEÑO" and len(tabs) > 4:
                 df_upload.columns = [c.strip() for c in df_upload.columns]
 
                 columnas_req = ['Producto', 'Precio_Compra', 'Precio', 'Stock']
+# === TAB CARGAR - SOLO DUEÑO ===
+if st.session_state.rol == "DUEÑO" and len(tabs) > 4:
+    with tabs[4]:
+        st.subheader("📥 Cargar Productos")
+        actual = contarProductosEnBD()
+        st.info(f"Productos: {actual}/{MAX_PRODUCTOS_TOTALES} | Stock máx/producto: {MAX_STOCK_POR_PRODUCTO}")
+
+        tab_nuevo, tab_ingreso = st.tabs(["➕ PRODUCTO NUEVO", "📦 INGRESO DE STOCK"])
+
+        with tab_nuevo:
+            with st.expander("📝 AGREGAR PRODUCTO INDIVIDUAL", expanded=True):
+                col1, col2 = st.columns(2)
+                prod = col1.text_input("Producto:", max_chars=30, key="prod_cargar").upper().strip()
+                pc = col1.number_input("Precio Compra:", min_value=0.0, value=0.0, key="pc_cargar")
+                p = col2.number_input("Precio Venta:", min_value=0.01, value=1.0, key="p_cargar")
+                s = col2.number_input("Stock Inicial:", min_value=0, value=0, key="s_cargar")
+
+                if st.button("➕ AGREGAR PRODUCTO", use_container_width=True, key="btn_agregar_prod"):
+                    if prod and p > 0:
+                        if actual >= MAX_PRODUCTOS_TOTALES:
+                            st.error(f"❌ Límite de {MAX_PRODUCTOS_TOTALES} productos alcanzado")
+                        elif s > MAX_STOCK_POR_PRODUCTO:
+                            st.error(f"❌ Stock máximo por producto: {MAX_STOCK_POR_PRODUCTO}")
+                        else:
+                            try:
+                                tabla_stock.put_item(Item={
+                                    'TenantID': st.session_state.tenant, 'Producto': prod,
+                                    'Precio_Compra': to_decimal(pc), 'Precio': to_decimal(p), 'Stock': int(s)
+                                }, ConditionExpression='attribute_not_exists(Producto)')
+                                registrar_kardex(prod, s, "CARGA_INICIAL", s * p, pc, "INVENTARIO")
+                                st.success(f"✅ {prod} agregado"); time.sleep(1); st.rerun()
+                            except dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
+                                st.error("❌ Producto ya existe. Usa la pestaña 'INGRESO DE STOCK'")
+                    else:
+                        st.error("❌ Completa todos los campos")
+
+        with tab_ingreso:
+            st.markdown("### 📦 INGRESO DE MERCADERÍA")
+            st.caption("Suma stock a productos que ya existen sin tocar el precio")
+            
+            if not df_inv.empty:
+                prod_ingreso = st.selectbox("Selecciona producto:", df_inv['Producto'].tolist(), key="sel_ingreso")
+                
+                if prod_ingreso:
+                    df_prod = df_inv[df_inv['Producto'] == prod_ingreso].iloc[0]
+                    st.info(f"Stock actual: {int(df_prod['Stock'])} | Precio Compra: S/{df_prod['Precio_Compra']:.2f} | Precio Venta: S/{df_prod['Precio']:.2f}")
+                    
+                    col1, col2 = st.columns(2)
+                    cant_ingreso = col1.number_input("Cantidad a ingresar:", min_value=1, value=1, key="cant_ingreso")
+                    nuevo_pc = col2.number_input("Precio Compra nuevo lote:", min_value=0.0, value=float(df_prod['Precio_Compra']), key="pc_ingreso", help="Si cambió el precio de compra")
+                    
+                    stock_final = int(df_prod['Stock']) + cant_ingreso
+                    st.metric("Stock después del ingreso", stock_final)
+                    
+                    if st.button("📥 REGISTRAR INGRESO", use_container_width=True, type="primary", key="btn_ingreso_stock"):
+                        if stock_final > MAX_STOCK_POR_PRODUCTO:
+                            st.error(f"❌ Stock máximo: {MAX_STOCK_POR_PRODUCTO}. Te pasas por {stock_final - MAX_STOCK_POR_PRODUCTO}")
+                        else:
+                            # Actualizar stock y precio compra promedio
+                            stock_viejo = int(df_prod['Stock'])
+                            pc_viejo = float(df_prod['Precio_Compra'])
+                            
+                            # Calcular precio compra promedio ponderado
+                            if stock_viejo > 0:
+                                pc_promedio = ((stock_viejo * pc_viejo) + (cant_ingreso * nuevo_pc)) / stock_final
+                            else:
+                                pc_promedio = nuevo_pc
+                            
+                            tabla_stock.update_item(
+                                Key={'TenantID': st.session_state.tenant, 'Producto': prod_ingreso},
+                                UpdateExpression="SET Stock = :s, Precio_Compra = :pc",
+                                ExpressionAttributeValues={':s': stock_final, ':pc': to_decimal(pc_promedio)}
+                            )
+                            registrar_kardex(prod_ingreso, cant_ingreso, "INGRESO_STOCK", cant_ingreso * nuevo_pc, nuevo_pc, "COMPRA")
+                            st.success(f"✅ Ingreso registrado: +{cant_ingreso} {prod_ingreso}. Stock nuevo: {stock_final}")
+                            time.sleep(1)
+                            st.rerun()
+            else:
+                st.warning("⚠️ No hay productos cargados. Primero agrega productos en la pestaña 'PRODUCTO NUEVO'")
+
+        st.write("---")
+        st.subheader("📊 CARGA MASIVA EXCEL")
+        st.caption("Formato: Producto | Precio_Compra | Precio | Stock")
+
+        archivo = st.file_uploader("Sube tu Excel", type=['xlsx', 'xls'], key="upload_excel")
+        if archivo:
+            try:
+                df_upload = pd.read_excel(archivo)
+                df_upload.columns = [c.strip() for c in df_upload.columns]
+
+                columnas_req = ['Producto', 'Precio_Compra', 'Precio', 'Stock']
                 if not all(col in df_upload.columns for col in columnas_req):
                     st.error(f"❌ El Excel debe tener columnas: {', '.join(columnas_req)}")
                 else:
