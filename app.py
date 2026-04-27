@@ -26,7 +26,7 @@ DESARROLLADOR = "Alberto Ballarta - Software Engineer"
 st.set_page_config(page_title="NEXUS BALLARTA", layout="wide", page_icon="🚀", initial_sidebar_state="collapsed")
 tz_peru = pytz.timezone('America/Lima')
 
-# === CSS NUCLEAR ===
+# === CSS ===
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
@@ -66,7 +66,6 @@ st.markdown("""
 .stTabs [data-baseweb="tab"] {border-radius: 10px; padding: 10px 20px; font-weight: 600; color: #262730!important;}
 .stTabs [aria-selected="true"] {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important; color: white!important;}
    
-    /* BOTONES GIGANTES YAPE PLIN EFECTIVO */
     button[key="btn_yape"] {
             background: linear-gradient(135deg, #720e9e 0%, #5a0b7a 100%)!important;
             color: white!important;
@@ -436,7 +435,6 @@ with tabs[0]:
             st.dataframe(pd.DataFrame(st.session_state.carrito)[['Producto', 'Cantidad', 'Subtotal']], use_container_width=True, hide_index=True)
             if st.button("🗑️ VACIAR", key="btn_vaciar_carrito"): st.session_state.carrito = []; st.rerun()
             
-            # BOTONES GIGANTES DE PAGO
             st.write("**Método de Pago:**")
             col_ef, col_yape, col_plin = st.columns(3)
             
@@ -515,6 +513,7 @@ with tabs[1]:
                 df_pagina[['Producto', 'Stock', 'Precio_Compra', 'Precio']],
                 use_container_width=True,
                 hide_index=True,
+                height=400,
                 column_config={
                     "Producto": st.column_config.TextColumn("Producto", width="large"),
                     "Stock": st.column_config.NumberColumn("Stock", width="small"),
