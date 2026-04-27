@@ -666,7 +666,73 @@ if st.session_state.rol == "DUEÑO" and len(tabs) > 3:
             df_h['Costo'] = df_h['Precio_Compra'] * df_h['Cantidad']
             df_h['Ganancia'] = df_h.apply(lambda r: r['Total'] - r['Costo'] if r['Tipo'] == 'VENTA' else 0, axis=1)
 
-            # TABLA MANUAL HISTORIAL
+            # TABLA MANUAL HISTORIAL - 8 COLUMNAS CORRECTAS
+            h1, h2, h3, h4, h5, h6, h7, h8 = st.columns([1,2,1,1])
+            h1.markdown("**HORA**"); h2.markdown("**PRODUCTO**"); h3.markdown("**TIPO**")
+            h4.markdown("**CANT**"); h5.markdown("**TOTAL**"); h6.markdown("**COSTO**")
+            h7.markdown("**GANANCIA**"); h8.markdown("**USUARIO**")
+            st.divider()
+
+            for idx, row in df_h.iterrows():
+                c1, c2, c3, c4, c5, c6, c7, c8 = st.columns([1,2,1,1,1,1])
+                c1.write(row['Hora'])
+                c2.write(row['Producto'])
+                c3.write(row['Tipo'])
+                c4.write(f"{int(row['Cantidad'])}")
+                c5.write(f"S/{row['Total']:.2f}")
+                c6.write(f"S/{row['Costo']:.2f}")
+                c7.write(f"S/{row['Ganancia']:.2f}")
+                c8.write(row['Usuario'])
+
+            df_v_h = df_h[df_h['Tipo'] == 'VENTA']
+            if not df_v_h.empty:
+                vt_h = df_v_h['Total'].sum()
+                costo_h = df_v_h['Costo'].sum()
+                gn_h = df_v_h['Ganancia'].sum()
+
+                col1, col2, col3 = st.columns(3)
+                col1.metric("💰 VENTA TOTAL", f"S/ {float(vt_h):.2f}")
+                col2.metric("📉 COSTO TOTAL", f"S/ {float(costo_h):.2f}")
+                col3.metric("📈 GANANCIA REAL", f"S/ {float(gn_h):.2f}")
+
+                buf = io.BytesIO()
+                with pd.ExcelWriter(buf, engine='openpyxl') as w: df_h.to_excel(w, index=False)
+                st.download_button("📥 DESCARGAR EXCEL", buf.getvalue(), f"Kardex_{f_h.strftime('%Y%m%d')}.xlsx", use_container_width=True, key="btn_desc_kardex")
+
+                if tiene_whatsapp_habilitado():
+                    res = f"*REPORTE {f_h.strftime('%d/%m/%Y')}*\nVenta: S/{float(vt_h):.2f}\nCosto: S/{float(costo_h):.2f}\n*Ganancia: S/{float(gn_h):.2f}*"
+                    st.link_button("📲 COMPARTIR", f"https://wa.me/?text={urllib.parse.quote(res)}", use_container_width=True)
+            else:
+                st.info("No hay ventas este día")
+        else:
+            st.info(f"📭 No hay movimientos el {f_h.strftime('%d/%m/%Y')}")
+
+        st.write("---")
+        st.subheader("🔒 Cierre de Caja")
+        fecha_cierre = st.date_input("Fecha a cerrar:", value=datetime.now(tz_peru).date(), key="date_cierre_fix")
+        fecha_iso_cierre = fecha_cierre.strftime('%Y-%m-%d')
+
+# === TAB HISTORIAL - SOLO DUEÑO ===
+if st.session_state.rol == "DUEÑO" and len(tabs) > 3:
+    with tabs[3]:
+        st.subheader("📋 Historial Kardex")
+        col_f1, col_f2 = st.columns([3,1])
+        f_h = col_f1.date_input("Día:", value=datetime.now(tz_peru).date(), key="date_historial_fix")
+        if col_f2.button("🔄 ACTUALIZAR", use_container_width=True, key="btn_actualizar_hist"): st.cache_data.clear(); st.rerun()
+
+        fecha_iso_h = f_h.strftime('%Y-%m-%d')
+        res_h = tabla_movs.query(IndexName='TenantID-FechaISO-index', KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant) & Key('FechaISO').eq(fecha_iso_h))
+        df_h = pd.DataFrame(res_h.get('Items', []))
+
+        if not df_h.empty:
+            df_h = df_h.sort_values('Hora', ascending=False)
+            df_h['Total'] = pd.to_numeric(df_h['Total'], errors='coerce').fillna(0)
+            df_h['Precio_Compra'] = pd.to_numeric(df_h['Precio_Compra'], errors='coerce').fillna(0)
+            df_h['Cantidad'] = pd.to_numeric(df_h['Cantidad'], errors='coerce').fillna(0)
+            df_h['Costo'] = df_h['Precio_Compra'] * df_h['Cantidad']
+            df_h['Ganancia'] = df_h.apply(lambda r: r['Total'] - r['Costo'] if r['Tipo'] == 'VENTA' else 0, axis=1)
+
+            # TABLA MANUAL HISTORIAL - 8 COLUMNAS
             h1, h2, h3, h4, h5, h6, h7, h8 = st.columns([1,2,1,1,1,1])
             h1.markdown("**HORA**"); h2.markdown("**PRODUCTO**"); h3.markdown("**TIPO**")
             h4.markdown("**CANT**"); h5.markdown("**TOTAL**"); h6.markdown("**COSTO**")
