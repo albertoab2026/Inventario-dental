@@ -46,9 +46,9 @@ st.markdown("""
             -webkit-forced-color-adjust: none!important;
         }
 
-   .main {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important;}
+  .main {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important;}
 
-   .block-container {
+  .block-container {
             background: #ffffff!important;
             color: #0f172a!important;
             border-radius: 24px;
@@ -59,9 +59,9 @@ st.markdown("""
             backdrop-filter: blur(10px);
         }
 
-   .block-container p,.block-container h1,.block-container h2,.block-container h3,
-   .block-container h4,.block-container label,.block-container span,
-   .stMarkdown,.stText,.stCaption {
+  .block-container p,.block-container h1,.block-container h2,.block-container h3,
+  .block-container h4,.block-container label,.block-container span,
+  .stMarkdown,.stText,.stCaption {
             color: #0f172a!important;
         }
 
@@ -70,7 +70,7 @@ st.markdown("""
     h3 {font-weight: 700!important; letter-spacing: -0.02em; font-size: 1.5rem!important;}
 
     /* HERO LOGIN */
-   .hero-login {
+  .hero-login {
             text-align: center;
             padding: 60px 20px 40px 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -78,21 +78,21 @@ st.markdown("""
             margin: -3rem -3rem 2rem -3rem;
             color: white;
         }
-   .hero-login h1 {
+  .hero-login h1 {
             font-size: 4rem!important;
             font-weight: 900!important;
             margin: 0;
             color: white!important;
             text-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-   .hero-login p {
+  .hero-login p {
             font-size: 1.25rem;
             opacity: 0.95;
             margin: 10px 0 0 0;
             color: white!important;
             font-weight: 500;
         }
-   .hero-badge {
+  .hero-badge {
             display: inline-block;
             background: rgba(255,255,255,0.2);
             backdrop-filter: blur(10px);
@@ -132,7 +132,7 @@ st.markdown("""
         }
 
     /* BOTONES */
-   .stButton>button {
+  .stButton>button {
             border-radius: 10px;
             font-weight: 700;
             border: none;
@@ -144,12 +144,12 @@ st.markdown("""
             letter-spacing: -0.01em;
             transition: all 0.15s ease;
         }
-   .stButton>button:hover {
+  .stButton>button:hover {
             background: #2563eb!important;
             box-shadow: 0 10px 15px -3px rgba(59,130,246,0.4);
             transform: translateY(-2px);
         }
-   .stButton>button:active {
+  .stButton>button:active {
             transform: translateY(0px);
         }
 
@@ -163,14 +163,14 @@ st.markdown("""
         }
 
     /* TABS */
-   .stTabs [data-baseweb="tab-list"] {
+  .stTabs [data-baseweb="tab-list"] {
             gap: 6px;
             background: #f1f5f9!important;
             padding: 8px;
             border-radius: 12px;
             border: 1px solid #e2e8f0;
         }
-   .stTabs [data-baseweb="tab"] {
+  .stTabs [data-baseweb="tab"] {
             border-radius: 8px;
             padding: 12px 24px;
             font-weight: 600;
@@ -178,11 +178,11 @@ st.markdown("""
             font-size: 15px;
             transition: all 0.15s;
         }
-   .stTabs [data-baseweb="tab"]:hover {
+  .stTabs [data-baseweb="tab"]:hover {
             color: #334155!important;
             background: rgba(255,255,255,0.5);
         }
-   .stTabs [aria-selected="true"] {
+  .stTabs [aria-selected="true"] {
             background: white!important;
             color: #0f172a!important;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -225,22 +225,22 @@ st.markdown("""
         }
 
     /* INPUTS */
-   .stSelectbox>div {
+  .stSelectbox>div {
             background: white!important;
             border: 1px solid #cbd5e1!important;
             border-radius: 10px!important;
             font-weight: 500;
             transition: all 0.15s;
         }
-   .stSelectbox>div:hover {
+  .stSelectbox>div:hover {
             border-color: #94a3b8!important;
         }
-   .stSelectbox>div:focus-within {
+  .stSelectbox>div:focus-within {
             border-color: #3b82f6!important;
             box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
         }
-   .stSelectbox>div>div>div {color: #0f172a!important; font-weight: 500;}
-   .stSelectbox svg {fill: #64748b!important;}
+  .stSelectbox>div>div>div {color: #0f172a!important; font-weight: 500;}
+  .stSelectbox svg {fill: #64748b!important;}
 
     [data-baseweb="select"] {background-color: white!important;}
     [data-baseweb="select"] > div {background-color: white!important; color: #0f172a!important;}
@@ -260,7 +260,7 @@ st.markdown("""
         }
     [data-baseweb="menu"] li:hover {background-color: #f1f5f9!important;}
 
-   .stTextInput>div>input,.stNumberInput>div>div>input,.stDateInput input {
+  .stTextInput>div>input,.stNumberInput>div>div>input,.stDateInput input {
             border-radius: 10px;
             border: 1px solid #cbd5e1!important;
             padding: 14px 18px;
@@ -270,10 +270,10 @@ st.markdown("""
             font-size: 15px;
             transition: all 0.15s;
         }
-   .stTextInput>div>input:hover,.stNumberInput>div>div>input:hover,.stDateInput input:hover {
+  .stTextInput>div>input:hover,.stNumberInput>div>div>input:hover,.stDateInput input:hover {
             border-color: #94a3b8!important;
         }
-   .stTextInput>div>input:focus,.stNumberInput>div>div>input:focus,.stDateInput input:focus {
+  .stTextInput>div>input:focus,.stNumberInput>div>div>input:focus,.stDateInput input:focus {
             border-color: #3b82f6!important;
             box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
             outline: none;
@@ -296,7 +296,7 @@ st.markdown("""
             border-color: #cbd5e1;
         }
 
-   .stSelectbox label,.stTextInput label,.stNumberInput label,.stDateInput label,.stRadio label {
+  .stSelectbox label,.stTextInput label,.stNumberInput label,.stDateInput label,.stRadio label {
             color: #334155!important;
             font-weight: 600;
             font-size: 14px;
@@ -346,7 +346,7 @@ st.markdown("""
             padding: 8px 20px 20px 20px;
         }
 
-   .streamlit-expanderHeader {
+  .streamlit-expanderHeader {
             background: #f8fafc!important;
             border-radius: 14px;
             font-weight: 600;
@@ -355,7 +355,7 @@ st.markdown("""
         }
 
     /* ALERTAS */
-   .stAlert {
+  .stAlert {
             border-radius: 12px;
             border-left: 4px solid;
             font-weight: 500;
@@ -368,25 +368,25 @@ st.markdown("""
         }
 
     /* DATAFRAME */
-   .stDataFrame {
+  .stDataFrame {
             border: 1px solid #e2e8f0!important;
             border-radius: 14px;
             overflow: hidden;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
-   .stDataFrame [data-testid="stTable"] {
+  .stDataFrame [data-testid="stTable"] {
             font-size: 14px;
             font-weight: 500;
         }
 
     /* CHECKBOX */
-   .stCheckbox {
+  .stCheckbox {
             font-weight: 500;
             color: #334155;
         }
 
     /* SUCCESS/ERROR/WARNING */
-   .stSuccess {
+  .stSuccess {
             background-color: #f0fdf4;
             border-left: 4px solid #10b981;
             color: #065f46;
@@ -394,7 +394,7 @@ st.markdown("""
             padding: 16px 20px;
             font-weight: 500;
         }
-   .stError {
+  .stError {
             background-color: #fef2f2;
             border-left: 4px solid #ef4444;
             color: #991b1b;
@@ -402,7 +402,7 @@ st.markdown("""
             padding: 16px 20px;
             font-weight: 500;
         }
-   .stWarning {
+  .stWarning {
             background-color: #fffbeb;
             border-left: 4px solid #f59e0b;
             color: #92400e;
@@ -410,7 +410,7 @@ st.markdown("""
             padding: 16px 20px;
             font-weight: 500;
         }
-   .stInfo {
+  .stInfo {
             background-color: #eff6ff;
             border-left: 4px solid #3b82f6;
             color: #1e40af;
@@ -525,7 +525,7 @@ if not st.session_state.auth:
         time.sleep(1)
         st.rerun()
 
-    # HERO SECTION PREMIUM - SIN FLORO
+    # HERO SECTION PREMIUM
     st.markdown("""
         <div class='hero-login'>
             <h1>💎 NEXUS BALLARTA</h1>
@@ -779,7 +779,7 @@ with tabs[0]:
             else:
                 st.warning("⚠️ No hay productos cargados. Pide al dueño que agregue productos.")
 # FIN PARTE 4/8
-# === TAB STOCK ===
+# === TAB STOCK - SIN SCROLL + COSTO SOLO DUEÑO ===
 with tabs[1]:
     st.subheader("📦 Inventario")
 
@@ -816,35 +816,34 @@ with tabs[1]:
             else:
                 df_pagina = df_mostrar
 
-            df_tabla = df_pagina[['Producto', 'Stock', 'Precio']].copy()
-            df_tabla.columns = ['PROD', 'STOCK', 'VENTA']
-            df_tabla['STOCK'] = df_tabla['STOCK'].astype(int)
+            # DUEÑO VE 4 COLUMNAS, EMPLEADO VE 3
+            if st.session_state.rol == "DUEÑO":
+                df_tabla = df_pagina[['Producto', 'Stock', 'Precio_Compra', 'Precio']].copy()
+                df_tabla.columns = ['PROD', 'STOCK', 'COSTO', 'VENTA']
+                df_tabla['STOCK'] = df_tabla['STOCK'].astype(int)
+                column_config = {
+                    "PROD": st.column_config.TextColumn("PROD", width="medium"),
+                    "STOCK": st.column_config.NumberColumn("STOCK", width="small", format="%d"),
+                    "COSTO": st.column_config.NumberColumn("COSTO", width="small", format="S/ %.2f"),
+                    "VENTA": st.column_config.NumberColumn("VENTA", width="small", format="S/ %.2f")
+                }
+            else:
+                df_tabla = df_pagina[['Producto', 'Stock', 'Precio']].copy()
+                df_tabla.columns = ['PROD', 'STOCK', 'VENTA']
+                df_tabla['STOCK'] = df_tabla['STOCK'].astype(int)
+                column_config = {
+                    "PROD": st.column_config.TextColumn("PROD", width="large"),
+                    "STOCK": st.column_config.NumberColumn("STOCK", width="small", format="%d"),
+                    "VENTA": st.column_config.NumberColumn("VENTA", width="small", format="S/ %.2f")
+                }
 
             st.dataframe(
                 df_tabla,
                 use_container_width=True,
                 hide_index=True,
                 height=400,
-                column_config={
-                    "PROD": st.column_config.TextColumn("PROD", width="small"),
-                    "STOCK": st.column_config.NumberColumn("STOCK", width="small", format="%d"),
-                    "VENTA": st.column_config.NumberColumn("VENTA", width="small", format="S/ %.2f")
-                }
+                column_config=column_config
             )
-
-            with st.expander("🔍 VER DETALLE COMPLETO - COSTO + VENTA"):
-                st.dataframe(
-                    df_pagina[['Producto', 'Stock', 'Precio_Compra', 'Precio']],
-                    use_container_width=True,
-                    hide_index=True,
-                    height=300,
-                    column_config={
-                        "Producto": st.column_config.TextColumn("PRODUCTO", width="small"),
-                        "Stock": st.column_config.NumberColumn("STOCK", width="small"),
-                        "Precio_Compra": st.column_config.NumberColumn("COSTO", width="small", format="S/ %.2f"),
-                        "Precio": st.column_config.NumberColumn("VENTA", width="small", format="S/ %.2f")
-                    }
-                )
 
             buf = io.BytesIO()
             with pd.ExcelWriter(buf, engine='openpyxl') as w:
@@ -879,7 +878,7 @@ with tabs[1]:
             col3.metric("Stock bajo <5", len(df_inv[df_inv['Stock'] < 5]))
             col4.metric("Valor inventario", f"S/ {(df_inv['Stock'] * df_inv['Precio_Compra']).sum():.2f}")
 
-# === TAB REPORTES ===
+# === TAB REPORTES - GANANCIA SOLO DUEÑO ===
 with tabs[2]:
     st.subheader("📊 Reportes del Día")
 
@@ -948,9 +947,14 @@ with tabs[2]:
                 st.error(f"↓ {abs(pct):.1f}% vs semana pasada")
 
         with col2:
-            st.markdown("### 📈 GANANCIA REAL")
-            st.markdown(f"<h1 style='margin:0;font-size:38px;color:#10b981;'>S/ {float(gn_total):.2f}</h1>", unsafe_allow_html=True)
-            st.info(f"Tickets: {tk} | Ticket Prom: S/{float(tp):.2f} | Margen: {(gn_total/vt*100) if vt > 0 else 0:.1f}%")
+            if st.session_state.rol == "DUEÑO":
+                st.markdown("### 📈 GANANCIA REAL")
+                st.markdown(f"<h1 style='margin:0;font-size:38px;color:#10b981;'>S/ {float(gn_total):.2f}</h1>", unsafe_allow_html=True)
+                st.info(f"Tickets: {tk} | Ticket Prom: S/{float(tp):.2f} | Margen: {(gn_total/vt*100) if vt > 0 else 0:.1f}%")
+            else:
+                st.markdown("### 📊 RESUMEN")
+                st.markdown(f"<h1 style='margin:0;font-size:38px;color:#10b981;'>{tk} Tickets</h1>", unsafe_allow_html=True)
+                st.info(f"Ticket Promedio: S/{float(tp):.2f}")
 
         st.write("---")
 
@@ -979,17 +983,26 @@ with tabs[2]:
         if not df_ef.empty:
             venta_ef = df_ef['Total'].sum()
             gan_ef = df_ef['Ganancia_Item'].sum()
-            cols[0].metric("💵 EFECTIVO", f"S/ {float(venta_ef):.2f}", f"Ganancia: S/ {float(gan_ef):.2f}")
+            if st.session_state.rol == "DUEÑO":
+                cols[0].metric("💵 EFECTIVO", f"S/ {float(venta_ef):.2f}", f"Ganancia: S/ {float(gan_ef):.2f}")
+            else:
+                cols[0].metric("💵 EFECTIVO", f"S/ {float(venta_ef):.2f}")
 
         if not df_yape.empty:
             venta_yape = df_yape['Total'].sum()
             gan_yape = df_yape['Ganancia_Item'].sum()
-            cols[1].metric("🟣 YAPE", f"S/ {float(venta_yape):.2f}", f"Ganancia: S/ {float(gan_yape):.2f}")
+            if st.session_state.rol == "DUEÑO":
+                cols[1].metric("🟣 YAPE", f"S/ {float(venta_yape):.2f}", f"Ganancia: S/ {float(gan_yape):.2f}")
+            else:
+                cols[1].metric("🟣 YAPE", f"S/ {float(venta_yape):.2f}")
 
         if not df_plin.empty:
             venta_plin = df_plin['Total'].sum()
             gan_plin = df_plin['Ganancia_Item'].sum()
-            cols[2].metric("🔵 PLIN", f"S/ {float(venta_plin):.2f}", f"Ganancia: S/ {float(gan_plin):.2f}")
+            if st.session_state.rol == "DUEÑO":
+                cols[2].metric("🔵 PLIN", f"S/ {float(venta_plin):.2f}", f"Ganancia: S/ {float(gan_plin):.2f}")
+            else:
+                cols[2].metric("🔵 PLIN", f"S/ {float(venta_plin):.2f}")
 # FIN PARTE 5/8
 # === TAB HISTORIAL - DUEÑO Y EMPLEADO - CIERRE PARA AMBOS ===
 with tabs[3]:
@@ -1045,17 +1058,25 @@ with tabs[3]:
             costo_h = df_v_h['Costo'].sum()
             gn_h = df_v_h['Ganancia'].sum()
 
-            col1, col2, col3 = st.columns(3)
-            col1.metric("💰 VENTA TOTAL", f"S/ {float(vt_h):.2f}")
-            col2.metric("📉 COSTO TOTAL", f"S/ {float(costo_h):.2f}")
-            col3.metric("📈 GANANCIA REAL", f"S/ {float(gn_h):.2f}")
+            if st.session_state.rol == "DUEÑO":
+                col1, col2, col3 = st.columns(3)
+                col1.metric("💰 VENTA TOTAL", f"S/ {float(vt_h):.2f}")
+                col2.metric("📉 COSTO TOTAL", f"S/ {float(costo_h):.2f}")
+                col3.metric("📈 GANANCIA REAL", f"S/ {float(gn_h):.2f}")
+            else:
+                col1, col2 = st.columns(2)
+                col1.metric("💰 VENTA TOTAL", f"S/ {float(vt_h):.2f}")
+                col2.metric("📊 TICKETS", len(df_v_h))
 
             buf = io.BytesIO()
             with pd.ExcelWriter(buf, engine='openpyxl') as w: df_h.to_excel(w, index=False)
             st.download_button("📥 DESCARGAR EXCEL", buf.getvalue(), f"Kardex_{f_h.strftime('%Y%m%d')}.xlsx", use_container_width=True, key="btn_desc_kardex")
 
             if tiene_whatsapp_habilitado():
-                res = f"*REPORTE {f_h.strftime('%d/%m/%Y')}*\nVenta: S/{float(vt_h):.2f}\nCosto: S/{float(costo_h):.2f}\n*Ganancia: S/{float(gn_h):.2f}*"
+                if st.session_state.rol == "DUEÑO":
+                    res = f"*REPORTE {f_h.strftime('%d/%m/%Y')}*\nVenta: S/{float(vt_h):.2f}\nCosto: S/{float(costo_h):.2f}\n*Ganancia: S/{float(gn_h):.2f}*"
+                else:
+                    res = f"*REPORTE {f_h.strftime('%d/%m/%Y')} - {st.session_state.usuario}*\nVenta: S/{float(vt_h):.2f}\nTickets: {len(df_v_h)}"
                 st.link_button("📲 COMPARTIR", f"https://wa.me/?text={urllib.parse.quote(res)}", use_container_width=True)
             else:
                 st.caption("💡 WhatsApp solo disponible en Plan PRO/PREMIUM")
