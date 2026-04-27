@@ -26,15 +26,18 @@ DESARROLLADOR = "Alberto Ballarta - Software Engineer"
 st.set_page_config(page_title="NEXUS BALLARTA", layout="wide", page_icon="🚀", initial_sidebar_state="collapsed")
 tz_peru = pytz.timezone('America/Lima')
 
-# === CSS PARCHADO DARK MODE TOTAL ===
+# === CSS + JS NUCLEAR ANTI-DARK MODE ===
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
         * {font-family: 'Poppins', sans-serif;}
-    html, body, [class*="stApp"], [data-testid="stAppViewContainer"] {
+        
+        /* MATA EL DARK MODE FORZADO */
+    html, body, [class*="stApp"], [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
             color-scheme: light only!important;
             forced-color-adjust: none!important;
             -webkit-forced-color-adjust: none!important;
+            -ms-high-contrast-adjust: none!important;
         }
   .main {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important;}
   .block-container {
@@ -72,135 +75,6 @@ st.markdown("""
         }
   .stSelectbox>div>div>div {color: #262730!important;}
   .stSelectbox svg {fill: #262730!important;}
-   [data-baseweb="select"] {background-color: white!important;}
-   [data-baseweb="select"] > div {background-color: white!important; color: #262730!important;}
-   [data-baseweb="popover"] {background-color: white!important;}
-   [data-baseweb="menu"] {background-color: white!important;}
-   [data-baseweb="menu"] li {background-color: white!important; color: #262730!important;}
-   [data-baseweb="menu"] li:hover {background-color: #e3f2fd!important;}
-   
-        /* FIX INPUTS + NUMBER INPUT */
-  .stTextInput>div>div>input,.stNumberInput>div>div>input,.stDateInput input {
-            border-radius: 10px; border: 2px solid #e0e0e0!important; padding: 12px;
-            background: white!important; color: #262730!important;
-        }
-   [data-testid="stNumberInput"] input {
-            background-color: white!important;
-            color: #262730!important;
-        }
-   [data-testid="stNumberInput"] button {
-            background-color: #f0f0f0!important;
-            color: #262730!important;
-        }
-  .stSelectbox label,.stTextInput label,.stNumberInput label,.stDateInput label,.stRadio label {color: #262730!important;}
-   
-        /* SIDEBAR */
-        [data-testid="stSidebar"] {background: linear-gradient(180deg, #667eea 0%, #764ba2 100%)!important;}
-        [data-testid="stSidebar"] * {color: white!important;}
-        [data-testid="stSidebar"].stButton>button {background: white!important; color: #667eea!important;}
-   
-        /* FIX TABLAS */
-   [data-testid="stDataFrame"], [data-testid="stDataFrame"] *, 
-   [data-testid="stTable"], [data-testid="stTable"] * {
-            background-color: white!important;
-            color: #262730!important;
-            border-color: #e0e0e0!important;
-        }
-   [data-testid="stDataFrame"] thead tr th {
-            background-color: #f8f9fa!important;
-            color: #262730!important;
-            position: sticky!important;
-            top: 0!important;
-        }
-   [data-testid="stDataFrame"] tbody tr:nth-child(even) td {background-color: #f9f9f9!important;}
-   [data-testid="stDataFrame"] tbody tr:nth-child(odd) td {background-color: white!important;}
-   
-        /* EXPANDER */
-   [data-testid="stExpander"] {
-            background-color: white!important;
-            border: 1px solid #e0e0e0!important;
-        }
-   [data-testid="stExpander"] summary {
-            background-color: #f5f7fa!important;
-            color: #262730!important;
-
-import streamlit as st
-import pandas as pd
-import boto3
-from datetime import datetime, timedelta
-import pytz
-from boto3.dynamodb.conditions import Attr, Key
-from fpdf import FPDF
-import time
-import re
-import urllib.parse
-from decimal import Decimal, ROUND_HALF_UP
-import io
-import uuid
-
-# === CONFIG ===
-TABLA_STOCK = st.secrets["tablas"]["stock"]
-TABLA_VENTAS = st.secrets["tablas"]["ventas"]
-TABLA_MOVS = st.secrets["tablas"]["movs"]
-TABLA_TENANTS = st.secrets["tablas"]["tenants"]
-TABLA_CIERRES = st.secrets["tablas"]["cierres"]
-TABLA_PAGOS = st.secrets["tablas"]["pagos"]
-NUMERO_SOPORTE = "51914282688"
-YAPE_SOPORTE = "Alberto Ballarta"
-DESARROLLADOR = "Alberto Ballarta - Software Engineer"
-
-st.set_page_config(page_title="NEXUS BALLARTA", layout="wide", page_icon="🚀", initial_sidebar_state="collapsed")
-tz_peru = pytz.timezone('America/Lima')
-
-# === CSS NUCLEAR ANTI-DARK MODE ANDROID ===
-st.markdown("""
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
-        * {font-family: 'Poppins', sans-serif;}
-        
-        /* MATA EL DARK MODE FORZADO DE CHROME ANDROID */
-    html, body, [class*="stApp"], [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-            color-scheme: light only!important;
-            forced-color-adjust: none!important;
-            -webkit-forced-color-adjust: none!important;
-            -ms-high-contrast-adjust: none!important;
-        }
-   .main {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important;}
-   .block-container {
-            background: white!important; 
-            color: #262730!important;
-            border-radius: 20px; 
-            padding: 2rem; 
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-   .block-container p,.block-container h1,.block-container h2,.block-container h3, 
-   .block-container h4,.block-container label,.block-container span,
-   .stMarkdown,.stText,.stCaption {
-            color: #262730!important;
-        }
-        div[data-testid="stMetric"] {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important;
-            padding: 20px; border-radius: 15px; box-shadow: 0 8px 16px rgba(102,126,234,0.3); border: none;
-        }
-        div[data-testid="stMetric"] label {color: white!important; font-weight: 600;}
-        div[data-testid="stMetric"] [data-testid="stMetricValue"] {color: white!important; font-size: 36px;}
-   .stButton>button {
-            border-radius: 12px; font-weight: 600; border: none;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important; 
-            color: white!important; box-shadow: 0 4px 12px rgba(102,126,234,0.4);
-        }
-   .stTabs [data-baseweb="tab-list"] {gap: 8px; background: #f8f9fa!important; padding: 10px; border-radius: 15px;}
-   .stTabs [data-baseweb="tab"] {border-radius: 10px; padding: 10px 20px; font-weight: 600; color: #262730!important;}
-   .stTabs [aria-selected="true"] {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important; color: white!important;}
-   
-        /* FIX SELECTBOX + DROPDOWN */
-   .stSelectbox>div>div {
-            background: white!important; 
-            border: 2px solid #e0e0e0!important; 
-            border-radius: 10px!important;
-        }
-   .stSelectbox>div>div>div {color: #262730!important;}
-   .stSelectbox svg {fill: #262730!important;}
     [data-baseweb="select"] {background-color: white!important;}
     [data-baseweb="select"] > div {background-color: white!important; color: #262730!important;}
     [data-baseweb="popover"] {background-color: white!important;}
@@ -209,7 +83,7 @@ st.markdown("""
     [data-baseweb="menu"] li:hover {background-color: #e3f2fd!important;}
    
         /* FIX INPUTS + NUMBER INPUT */
-   .stTextInput>div>div>input,.stNumberInput>div>div>input,.stDateInput input {
+  .stTextInput>div>div>input,.stNumberInput>div>div>input,.stDateInput input {
             border-radius: 10px; border: 2px solid #e0e0e0!important; padding: 12px;
             background: white!important; color: #262730!important;
         }
@@ -222,7 +96,7 @@ st.markdown("""
             background-color: #f0f0f0!important;
             color: #262730!important;
         }
-   .stSelectbox label,.stTextInput label,.stNumberInput label,.stDateInput label,.stRadio label {color: #262730!important;}
+  .stSelectbox label,.stTextInput label,.stNumberInput label,.stDateInput label,.stRadio label {color: #262730!important;}
    
         /* SIDEBAR */
         [data-testid="stSidebar"] {background: linear-gradient(180deg, #667eea 0%, #764ba2 100%)!important;}
@@ -263,16 +137,32 @@ st.markdown("""
             color: #262730!important;
         }
     [data-testid="stExpander"] > div {background-color: white!important;}
-   .streamlit-expanderHeader {background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)!important; border-radius: 10px; font-weight: 600; color: #262730!important;}
-   .stAlert {border-radius: 12px; border-left: 5px solid;}
-   .element-container {overflow-x: auto!important;}
-    
-        /* FIX BADGE VERDE REPORTES */
-    div[style*="background:#2ecc71"], div[style*="background:#e74c3c"] {
-            white-space: nowrap!important;
-            overflow: visible!important;
-        }
+  .streamlit-expanderHeader {background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)!important; border-radius: 10px; font-weight: 600; color: #262730!important;}
+  .stAlert {border-radius: 12px; border-left: 5px solid;}
+  .element-container {overflow-x: auto!important;}
     </style>
+    
+    <script>
+        // Detecta dark mode y avisa
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            setTimeout(() => {
+                const div = document.createElement('div');
+                div.innerHTML = '<div style="background:#ff9800;color:white;padding:15px;border-radius:10px;margin:10px;text-align:center;font-weight:600;">⚠️ MODO OSCURO DETECTADO<br>Para mejor visualización, use modo claro o Firefox</div>';
+                if(document.body.firstChild) {
+                    document.body.insertBefore(div, document.body.firstChild);
+                }
+            }, 500);
+        }
+        
+        // Fuerza color-scheme cada 200ms
+        setInterval(() => {
+            document.documentElement.style.setProperty('color-scheme', 'light only', 'important');
+            document.querySelectorAll('[data-testid="stDataFrame"] th').forEach(el => {
+                el.style.setProperty('background', '#f8f9fa', 'important');
+                el.style.setProperty('color', '#262730', 'important');
+            });
+        }, 200);
+    </script>
 """, unsafe_allow_html=True)
 
 def to_decimal(f): return Decimal(str(f)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -640,7 +530,7 @@ with tabs[1]:
             col3.metric("Stock bajo <5", len(df_inv[df_inv['Stock'] < 5]))
             col4.metric("Valor inventario", f"S/ {(df_inv['Stock'] * df_inv['Precio_Compra']).sum():.2f}")
 
-# === TAB REPORTES - ARREGLADO PA' EMPLEADOS ===
+# === TAB REPORTES - BADGE PARCHADO ===
 with tabs[2]:
     st.subheader("📊 Reportes del Día")
 
@@ -702,7 +592,11 @@ with tabs[2]:
 
         col1, col2 = st.columns(2)
         col1.markdown(f"### 💰 VENTA TOTAL\n<h1 style='margin:0;font-size:42px;color:#667eea;'>S/ {float(vt):.2f}</h1>", unsafe_allow_html=True)
-        col1.markdown(f"<div style='background:{color};color:white;padding:4px 12px;border-radius:20px;display:inline-block;font-size:14px;'>{flecha} {abs(pct):.1f}% vs sem. pasada</div>", unsafe_allow_html=True)
+        col1.markdown(f"""
+        <div style='background:{color};color:white;padding:8px 16px;border-radius:20px;display:inline-block;font-size:14px;font-weight:600;margin:10px 0;width:fit-content;white-space:nowrap;'>
+            {flecha} {abs(pct):.1f}% vs semana pasada
+        </div>
+        """, unsafe_allow_html=True)
 
         col2.markdown(f"### 📈 GANANCIA REAL\n<h1 style='margin:0;font-size:42px;color:#2ecc71;'>S/ {float(gn_total):.2f}</h1>", unsafe_allow_html=True)
         col2.caption(f"Tickets: {tk} | Ticket Prom: S/{float(tp):.2f} | Margen: {(gn_total/vt*100) if vt > 0 else 0:.1f}%")
