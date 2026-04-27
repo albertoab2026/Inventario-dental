@@ -140,6 +140,7 @@ st.markdown("""
 .stAlert {border-radius: 12px; border-left: 5px solid;}
     </style>
 """, unsafe_allow_html=True)
+# FIN PARTE 1/8
 def to_decimal(f): return Decimal(str(f)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 def obtener_tiempo_peru():
@@ -233,6 +234,7 @@ for k in ['auth','rol','tenant','usuario','carrito','boleta','confirmar','modo_l
         elif k in ['bloqueo_hasta']: st.session_state[k] = None
         elif k == 'metodo_pago': st.session_state[k] = "💵 EFECTIVO"
         else: st.session_state[k] = None
+# FIN PARTE 2/8
 # === LOGIN CON SEGURIDAD ===
 if not st.session_state.auth:
     if st.session_state.bloqueo_hasta and datetime.now() < st.session_state.bloqueo_hasta:
@@ -315,6 +317,7 @@ tabs_list = ["🛒 VENTA", "📦 STOCK", "📊 REPORTES"]
 if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
     tabs_list += ["📋 HISTORIAL", "📥 CARGAR", "🛠️ MANT."]
 tabs = st.tabs(tabs_list)
+# FIN PARTE 3/8
 # === TAB VENTA ===
 with tabs[0]:
     f_hoy, h_hoy, _ = obtener_tiempo_peru()
@@ -410,7 +413,7 @@ with tabs[0]:
                 else: st.error("❌ Sin stock")
         if st.session_state.carrito:
             for idx, item in enumerate(st.session_state.carrito):
-                c1, c2, c3 = st.columns([3,1,1])
+                c1, c2, c3 = st.columns([3,1])
                 c1.write(f"{item['Producto']}")
                 c2.write(f"x{item['Cantidad']}")
                 c3.write(f"S/{float(item['Subtotal']):.2f}")
@@ -453,7 +456,8 @@ with tabs[0]:
                         registrar_kardex(item['Producto'], item['Cantidad'], "VENTA", item['Subtotal'], item['Precio_Compra'], metodo)
                     st.session_state.boleta = {'items': st.session_state.carrito, 't_neto': total, 'rebaja': to_decimal(rebaja), 'metodo': metodo, 'fecha': f, 'hora': h}
                     st.session_state.carrito = []; st.session_state.confirmar = False; st.rerun()
-# === TAB STOCK - TABLA MANUAL ANTI-BLANCO ===
+# FIN PARTE 4/8
+# === TAB STOCK - SIN SCROLL LATERAL EN MÓVIL ===
 with tabs[1]:
     st.subheader("📦 Inventario")
 
@@ -490,23 +494,37 @@ with tabs[1]:
             else:
                 df_pagina = df_mostrar
 
-            # TABLA CON COLORES - height=400 ARREGLA EL CUADRO BLANCO
-            df_tabla = df_pagina[['Producto', 'Stock', 'Precio_Compra', 'Precio']].copy()
-            df_tabla.columns = ['PRODUCTO', 'STOCK', 'COSTO', 'VENTA']
+            # SOLO 3 COLUMNAS PARA QUE ENTRE SIN SCROLL
+            df_tabla = df_pagina[['Producto', 'Stock', 'Precio']].copy()
+            df_tabla.columns = ['PROD', 'STOCK', 'VENTA']
             df_tabla['STOCK'] = df_tabla['STOCK'].astype(int)
 
             st.dataframe(
                 df_tabla,
                 use_container_width=True,
                 hide_index=True,
-                height=400, # <-- CLAVE: YA NO SALE CUADRO BLANCO
+                height=400,
                 column_config={
-                    "PRODUCTO": st.column_config.TextColumn("PRODUCTO", width="large"),
+                    "PROD": st.column_config.TextColumn("PROD", width="small"),
                     "STOCK": st.column_config.NumberColumn("STOCK", width="small", format="%d"),
-                    "COSTO": st.column_config.NumberColumn("COSTO", width="small", format="S/ %.2f"),
                     "VENTA": st.column_config.NumberColumn("VENTA", width="small", format="S/ %.2f")
                 }
             )
+
+            # VER DETALLE COMPLETO AL TOCAR
+            with st.expander("🔍 VER DETALLE COMPLETO - COSTO + VENTA"):
+                st.dataframe(
+                    df_pagina[['Producto', 'Stock', 'Precio_Compra', 'Precio']],
+                    use_container_width=True,
+                    hide_index=True,
+                    height=300,
+                    column_config={
+                        "Producto": st.column_config.TextColumn("PRODUCTO", width="small"),
+                        "Stock": st.column_config.NumberColumn("STOCK", width="small"),
+                        "Precio_Compra": st.column_config.NumberColumn("COSTO", width="small", format="S/ %.2f"),
+                        "Precio": st.column_config.NumberColumn("VENTA", width="small", format="S/ %.2f")
+                    }
+                )
 
             buf = io.BytesIO()
             with pd.ExcelWriter(buf, engine='openpyxl') as w:
@@ -541,7 +559,7 @@ with tabs[1]:
             col3.metric("Stock bajo <5", len(df_inv[df_inv['Stock'] < 5]))
             col4.metric("Valor inventario", f"S/ {(df_inv['Stock'] * df_inv['Precio_Compra']).sum():.2f}")
 
-# === TAB REPORTES - SIN CORTE NUNCA ===
+# === TAB REPORTES - SIN SCROLL LATERAL ===
 with tabs[2]:
     st.subheader("📊 Reportes del Día")
 
@@ -617,20 +635,20 @@ with tabs[2]:
         st.write("---")
 
         with st.expander("🧾 VER TICKETS DEL DÍA - MÁS RECIENTE ARRIBA", expanded=True):
-            df_tickets = df_v[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo', 'Usuario']].copy()
+            # SOLO 4 COLUMNAS PA' QUE ENTRE
+            df_tickets = df_v[['Hora', 'Producto', 'Cantidad', 'Total']].copy()
             df_tickets['Cantidad'] = df_tickets['Cantidad'].astype(int)
+            df_tickets.columns = ['HORA', 'PROD', 'CANT', 'TOTAL']
             st.dataframe(
                 df_tickets,
                 use_container_width=True,
                 hide_index=True,
                 height=350,
                 column_config={
-                    "Hora": st.column_config.TextColumn("HORA", width="small"),
-                    "Producto": st.column_config.TextColumn("PRODUCTO", width="large"),
-                    "Cantidad": st.column_config.NumberColumn("CANT", width="small"),
-                    "Total": st.column_config.NumberColumn("TOTAL", width="small", format="S/ %.2f"),
-                    "Metodo": st.column_config.TextColumn("METODO", width="small"),
-                    "Usuario": st.column_config.TextColumn("USUARIO", width="small")
+                    "HORA": st.column_config.TextColumn("HORA", width="small"),
+                    "PROD": st.column_config.TextColumn("PROD", width="small"),
+                    "CANT": st.column_config.NumberColumn("CANT", width="small"),
+                    "TOTAL": st.column_config.NumberColumn("TOTAL", width="small", format="S/ %.2f")
                 }
             )
 
@@ -674,24 +692,22 @@ if st.session_state.rol == "DUEÑO" and len(tabs) > 3:
             df_h['Costo'] = df_h['Precio_Compra'] * df_h['Cantidad']
             df_h['Ganancia'] = df_h.apply(lambda r: r['Total'] - r['Costo'] if r['Tipo'] == 'VENTA' else 0, axis=1)
 
-            # TABLA CON COLORES - height=400 ARREGLA EL CUADRO BLANCO
-            df_tabla_h = df_h[['Hora', 'Producto', 'Tipo', 'Cantidad', 'Total', 'Costo', 'Ganancia', 'Usuario']].copy()
+            # TABLA CON 4 COLUMNAS MAX
+            df_tabla_h = df_h[['Hora', 'Producto', 'Tipo', 'Cantidad', 'Total']].copy()
             df_tabla_h['Cantidad'] = df_tabla_h['Cantidad'].astype(int)
+            df_tabla_h.columns = ['HORA', 'PROD', 'TIPO', 'CANT', 'TOTAL']
 
             st.dataframe(
                 df_tabla_h,
                 use_container_width=True,
                 hide_index=True,
-                height=400, # <-- CLAVE
+                height=400,
                 column_config={
-                    "Hora": st.column_config.TextColumn("HORA", width="small"),
-                    "Producto": st.column_config.TextColumn("PRODUCTO", width="medium"),
-                    "Tipo": st.column_config.TextColumn("TIPO", width="small"),
-                    "Cantidad": st.column_config.NumberColumn("CANT", width="small"),
-                    "Total": st.column_config.NumberColumn("TOTAL", width="small", format="S/ %.2f"),
-                    "Costo": st.column_config.NumberColumn("COSTO", width="small", format="S/ %.2f"),
-                    "Ganancia": st.column_config.NumberColumn("GANANCIA", width="small", format="S/ %.2f"),
-                    "Usuario": st.column_config.TextColumn("USUARIO", width="small")
+                    "HORA": st.column_config.TextColumn("HORA", width="small"),
+                    "PROD": st.column_config.TextColumn("PROD", width="small"),
+                    "TIPO": st.column_config.TextColumn("TIPO", width="small"),
+                    "CANT": st.column_config.NumberColumn("CANT", width="small"),
+                    "TOTAL": st.column_config.NumberColumn("TOTAL", width="small", format="S/ %.2f")
                 }
             )
 
@@ -809,11 +825,9 @@ if st.session_state.rol == "DUEÑO" and len(tabs) > 4:
                         if stock_final > MAX_STOCK_POR_PRODUCTO:
                             st.error(f"❌ Stock máximo: {MAX_STOCK_POR_PRODUCTO}. Te pasas por {stock_final - MAX_STOCK_POR_PRODUCTO}")
                         else:
-                            # Actualizar stock y precio compra promedio
                             stock_viejo = int(df_prod['Stock'])
                             pc_viejo = float(df_prod['Precio_Compra'])
 
-                            # Calcular precio compra promedio ponderado
                             if stock_viejo > 0:
                                 pc_promedio = ((stock_viejo * pc_viejo) + (cant_ingreso * nuevo_pc)) / stock_final
                             else:
