@@ -135,7 +135,7 @@ st.markdown("""
 
     [data-testid="stExpander"] {
             background-color: white!important;
-            border: 1px solid #e0e0e0!important;
+            border: 1px solid #e0e0!important;
         }
     [data-testid="stExpander"] summary {
             background-color: #f5f7fa!important;
@@ -192,36 +192,7 @@ def obtener_datos():
         df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0.0)
         df['Precio_Compra'] = pd.to_numeric(df['Precio_Compra'], errors='coerce').fillna(0.0)
         df['Producto'] = df['Producto'].astype(str)
-        return df[['Producto', 'Precio_Compra', 'Precio', 'Stock']].sort_values('Producto')
-    except: return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
-
-def registrar_kardex(prod, cant, tipo, total=0, pc=0, metodo=""):
-    f, h, uid = obtener_tiempo_peru()
-    tabla_movs.put_item(Item={
-        'TenantID': st.session_state.tenant, 'MovID': f"M-{uid}", 'Fecha': f, 'Hora': h,
-        'FechaISO': datetime.now(tz_peru).strftime("%Y-%m-%d"), 'Producto': prod, 'Cantidad': int(cant),
-        'Total': to_decimal(total), 'Precio_Compra': to_decimal(pc), 'Metodo': str(metodo), 'Tipo': tipo, 'Usuario': st.session_state.usuario
-    })
-
-def registrar_cierre(total, u_turno, tipo, u_cierre, fecha=None):
-    f, h, uid = obtener_tiempo_peru()
-    if fecha: f = fecha
-    tabla_cierres.put_item(Item={
-        'TenantID': st.session_state.tenant, 'CierreID': f"C-{uid}", 'Fecha': f, 'Hora': h,
-        'UsuarioTurno': u_turno, 'UsuarioCierre': u_cierre, 'Total': to_decimal(total), 'Tipo': tipo
-    })
-
-def obtener_limites_tenant():
-    item = tabla_tenants.get_item(Key={'TenantID': st.session_state.tenant}).get('Item', {})
-    if not item: st.error("Tenant no existe"); st.stop()
-    if item.get('EstadoPago') == 'SUSPENDIDO': st.error(f"⛔ SUSPENDIDO. WhatsApp +{NUMERO_SOPORTE}"); st.stop()
-    fc = datetime.strptime(item.get('ProximoCobro', '01/01/2000'), '%d/%m/%Y').date()
-    if fc < datetime.now(tz_peru).date() - timedelta(days=5): st.error(f"⛔ VENCIÓ {item.get('ProximoCobro')}"); st.stop()
-    max_p, max_s = int(item.get('MaxProductos', 0)), int(item.get('MaxStock', 0))
-    if max_p == 0: st.error("Configura MaxProductos"); st.stop()
-    df_temp = obtener_datos()
-    stock_max = int(df_temp['Stock'].max()) if not df_temp.empty else 0
-    if contarProductos
+        return df[['Producto', 'Precio_
 # === LOGIN CON SEGURIDAD ===
 if not st.session_state.auth:
     if st.session_state.bloqueo_hasta and datetime.now() < st.session_state.bloqueo_hasta:
@@ -608,7 +579,7 @@ with tabs[2]:
             h4.markdown("**TOTAL**"); h5.markdown("**METODO**"); h6.markdown("**USUARIO**")
             st.divider()
             for idx, row in df_v.iterrows():
-                c1, c2, c3, c4, c5, c6 = st.columns([1,3,1,1])
+                c1, c2, c3, c4, c5, c6 = st.columns([1,3,1,1,1,1])
                 c1.write(row['Hora'])
                 c2.write(row['Producto'])
                 c3.write(f"{int(row['Cantidad'])}")
@@ -655,8 +626,8 @@ if st.session_state.rol == "DUEÑO" and len(tabs) > 3:
             df_h['Costo'] = df_h['Precio_Compra'] * df_h['Cantidad']
             df_h['Ganancia'] = df_h.apply(lambda r: r['Total'] - r['Costo'] if r['Tipo'] == 'VENTA' else 0, axis=1)
 
-            # TABLA MANUAL HISTORIAL - 8 COLUMNAS
-            h1, h2, h3, h4, h5, h6, h7, h8 = st.columns([1,2,1,1])
+            # TABLA MANUAL HISTORIAL - 8 COLUMNAS CORRECTAS
+            h1, h2, h3, h4, h5, h6, h7, h8 = st.columns([1,2,1,1,1,1])
             h1.markdown("**HORA**"); h2.markdown("**PRODUCTO**"); h3.markdown("**TIPO**")
             h4.markdown("**CANT**"); h5.markdown("**TOTAL**"); h6.markdown("**COSTO**")
             h7.markdown("**GANANCIA**"); h8.markdown("**USUARIO**")
