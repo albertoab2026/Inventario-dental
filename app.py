@@ -133,22 +133,6 @@ st.markdown("""
         [data-testid="stSidebar"] * {color: white!important;}
         [data-testid="stSidebar"].stButton>button {background: white!important; color: #667eea!important;}
    
-    [data-testid="stDataFrame"] {background-color: white!important;}
-    [data-testid="stDataFrame"] * {
-            background-color: white!important;
-            color: #262730!important;
-            border-color: #e0e0e0!important;
-        }
-    [data-testid="stDataFrame"] thead {background-color: #f8f9fa!important;}
-    [data-testid="stDataFrame"] thead tr th {
-            background-color: #f8f9fa!important;
-            color: #262730!important;
-        }
-    [data-testid="stDataFrame"] tbody tr:nth-child(even) {background-color: #f9f9f9!important;}
-    [data-testid="stDataFrame"] tbody tr:nth-child(even) td {background-color: #f9f9f9!important;}
-    [data-testid="stDataFrame"] tbody tr:nth-child(odd) {background-color: white!important;}
-    [data-testid="stDataFrame"] tbody tr:nth-child(odd) td {background-color: white!important;}
-   
     [data-testid="stExpander"] {
             background-color: white!important;
             border: 1px solid #e0e0e0!important;
@@ -472,7 +456,7 @@ with tabs[0]:
                         registrar_kardex(item['Producto'], item['Cantidad'], "VENTA", item['Subtotal'], item['Precio_Compra'], metodo)
                     st.session_state.boleta = {'items': st.session_state.carrito, 't_neto': total, 'rebaja': to_decimal(rebaja), 'metodo': metodo, 'fecha': f, 'hora': h}
                     st.session_state.carrito = []; st.session_state.confirmar = False; st.rerun()
-# === TAB STOCK - BUSCADOR + LISTA PAGINADA ===
+# === TAB STOCK - TABLA MANUAL ANTI-BLANCO ===
 with tabs[1]:
     st.subheader("📦 Inventario")
 
@@ -509,18 +493,20 @@ with tabs[1]:
             else:
                 df_pagina = df_mostrar
 
-            st.dataframe(
-                df_pagina[['Producto', 'Stock', 'Precio_Compra', 'Precio']],
-                use_container_width=True,
-                hide_index=True,
-                height=400,
-                column_config={
-                    "Producto": st.column_config.TextColumn("Producto", width="large"),
-                    "Stock": st.column_config.NumberColumn("Stock", width="small"),
-                    "Precio_Compra": st.column_config.NumberColumn("Costo", format="S/ %.2f", width="small"),
-                    "Precio": st.column_config.NumberColumn("Venta", format="S/ %.2f", width="small")
-                }
-            )
+            # TABLA MANUAL QUE NUNCA FALLA EN MÓVIL
+            h1, h2, h3, h4 = st.columns([3,1,1,1])
+            h1.markdown("**PRODUCTO**")
+            h2.markdown("**STOCK**")
+            h3.markdown("**COSTO**")
+            h4.markdown("**VENTA**")
+            st.divider()
+
+            for idx, row in df_pagina.iterrows():
+                c1, c2, c3, c4 = st.columns([3,1,1,1])
+                c1.write(row['Producto'])
+                c2.write(f"{int(row['Stock'])}")
+                c3.write(f"S/{row['Precio_Compra']:.2f}")
+                c4.write(f"S/{row['Precio']:.2f}")
 
             buf = io.BytesIO()
             with pd.ExcelWriter(buf, engine='openpyxl') as w:
@@ -537,7 +523,8 @@ with tabs[1]:
             if not bajo.empty:
                 st.warning(f"⚠️ Stock crítico: {len(bajo)} productos con menos de 5 unidades")
                 with st.expander("Ver productos con stock bajo"):
-                    st.dataframe(bajo[['Producto', 'Stock']], hide_index=True, use_container_width=True)
+                    for idx, row in bajo.iterrows():
+                        st.write(f"**{row['Producto']}** - Stock: {int(row['Stock'])}")
         else:
             if busq:
                 st.info(f"❌ No se encontró '{busq}'. Prueba con parte del nombre.")
@@ -631,19 +618,14 @@ with tabs[2]:
         st.write("---")
 
         with st.expander("🧾 VER TICKETS DEL DÍA - MÁS RECIENTE ARRIBA", expanded=True):
-            st.dataframe(
-                df_v[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo', 'Usuario']],
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Hora": st.column_config.TextColumn("Hora", width="small"),
-                    "Producto": st.column_config.TextColumn("Producto", width="large"),
-                    "Cantidad": st.column_config.NumberColumn("Cantidad", width="small"),
-                    "Total": st.column_config.NumberColumn("Total", format="S/ %.2f", width="small"),
-                    "Metodo": st.column_config.TextColumn("Metodo", width="small"),
-                    "Usuario": st.column_config.TextColumn("Usuario", width="small")
-                }
-            )
+            for idx, row in df_v.iterrows():
+                c1, c2, c3, c4, c5, c6 = st.columns([1,3,1,1,1,1])
+                c1.write(row['Hora'])
+                c2.write(row['Producto'])
+                c3.write(f"{int(row['Cantidad'])}")
+                c4.write(f"S/{row['Total']:.2f}")
+                c5.write(row['Metodo'])
+                c6.write(row['Usuario'])
 
         df_ef = df_v[df_v['Metodo'].str.contains('EFECTIVO')]
         df_yape = df_v[df_v['Metodo'].str.contains('YAPE')]
@@ -684,21 +666,23 @@ if st.session_state.rol == "DUEÑO" and len(tabs) > 3:
             df_h['Costo'] = df_h['Precio_Compra'] * df_h['Cantidad']
             df_h['Ganancia'] = df_h.apply(lambda r: r['Total'] - r['Costo'] if r['Tipo'] == 'VENTA' else 0, axis=1)
 
-            st.dataframe(
-                df_h[['Hora', 'Producto', 'Tipo', 'Cantidad', 'Total', 'Costo', 'Ganancia', 'Usuario']],
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Hora": st.column_config.TextColumn("Hora", width="small"),
-                    "Producto": st.column_config.TextColumn("Producto", width="medium"),
-                    "Tipo": st.column_config.TextColumn("Tipo", width="small"),
-                    "Cantidad": st.column_config.NumberColumn("Cantidad", width="small"),
-                    "Total": st.column_config.NumberColumn("Total", format="S/ %.2f", width="small"),
-                    "Costo": st.column_config.NumberColumn("Costo", format="S/ %.2f", width="small"),
-                    "Ganancia": st.column_config.NumberColumn("Ganancia", format="S/ %.2f", width="small"),
-                    "Usuario": st.column_config.TextColumn("Usuario", width="small")
-                }
-            )
+            # TABLA MANUAL HISTORIAL
+            h1, h2, h3, h4, h5, h6, h7, h8 = st.columns([1,2,1,1,1,1])
+            h1.markdown("**HORA**"); h2.markdown("**PRODUCTO**"); h3.markdown("**TIPO**")
+            h4.markdown("**CANT**"); h5.markdown("**TOTAL**"); h6.markdown("**COSTO**")
+            h7.markdown("**GANANCIA**"); h8.markdown("**USUARIO**")
+            st.divider()
+
+            for idx, row in df_h.iterrows():
+                c1, c2, c3, c4, c5, c6, c7, c8 = st.columns([1,2,1,1,1,1])
+                c1.write(row['Hora'])
+                c2.write(row['Producto'])
+                c3.write(row['Tipo'])
+                c4.write(f"{int(row['Cantidad'])}")
+                c5.write(f"S/{row['Total']:.2f}")
+                c6.write(f"S/{row['Costo']:.2f}")
+                c7.write(f"S/{row['Ganancia']:.2f}")
+                c8.write(row['Usuario'])
 
             df_v_h = df_h[df_h['Tipo'] == 'VENTA']
             if not df_v_h.empty:
@@ -814,7 +798,10 @@ if st.session_state.rol == "DUEÑO" and len(tabs) > 4:
                     if len(df_upload) + actual > MAX_PRODUCTOS_TOTALES:
                         st.error(f"❌ Excede límite. Máximo {MAX_PRODUCTOS_TOTALES - actual} productos más")
                     else:
-                        st.dataframe(df_upload, use_container_width=True, hide_index=True)
+                        st.write("**Vista previa:**")
+                        for idx, row in df_upload.iterrows():
+                            st.write(f"{row['Producto']} | S/{row['Precio_Compra']:.2f} | S/{row['Precio']:.2f} | {int(row['Stock'])}")
+
                         if st.button("🚀 CARGAR TODO", use_container_width=True, key="btn_cargar_excel"):
                             progreso = st.progress(0)
                             for idx, row in df_upload.iterrows():
