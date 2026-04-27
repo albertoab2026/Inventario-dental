@@ -745,14 +745,90 @@ with tabs[0]:
 
         with tab_ingreso_emp:
             st.subheader("📦 Registrar Ingreso de Mercadería")
-            st.caption("Registra lo que llegó de tu proveedor")
+            st.caption("Busca y haz click en el producto")
 
             if not df_inv.empty:
-                prod_ingreso = st.selectbox("Producto que llegó:", df_inv['Producto'].tolist(), key="sel_ingreso_emp")
+                # BUSCADOR EN VIVO
+                busq_ingreso = st.text_input("🔍 Buscar producto:", key="busq_ingreso_emp", placeholder="Ej: CUADERNO, LAPIZ...").upper()
 
-                if prod_ingreso:
-                    df_prod = df_inv[df_inv['Producto'] == prod_ingreso].iloc[0]
-                    st.info(f"Stock actual: {int(df_prod['Stock'])} unidades | Costo actual: S/{df_prod['Precio_Compra']:.2f} | Venta: S/{df_prod['Precio']:.2f}")
+                # FILTRAR DF
+                if busq_ingreso:
+                    df_filtrado = df_inv[df_inv['Producto'].str.contains(busq_ingreso, na=False)]
+                else:
+                    df_filtrado = df_inv.head(20) # Solo 20 pa no saturar
+                    st.caption("Mostrando primeros 20 productos. Escribe para buscar más.")
+
+                if not df_filtrado.empty:
+                    # TABLA CLICKEABLE CON STOCK Y PRECIO
+                    st.write("**Click en la fila para seleccionar:**")
+                    df_tabla_busq = df_filtrado[['Producto', 'Stock', 'Precio_Compra']].copy()
+                    df_tabla_busq.columns = ['PRODUCTO', 'STOCK', 'COSTO']
+                    df_tabla_busq['STOCK'] = df_tabla_busq['STOCK'].astype(int)
+
+                    evento = st.dataframe(
+                        df_tabla_busq,
+                        use_container_width=True,
+                        hide_index=True,
+                        height=300,
+                        on_select="rerun",
+                        selection_mode="single-row",
+                        column_config={
+                            "PRODUCTO": st.column_config.TextColumn("PRODUCTO", width="large"),
+                            "STOCK": st.column_config.NumberColumn("STOCK", width="small"),
+                            "COSTO": st.column_config.NumberColumn("COSTO", width="small", format="S/ %.2f")
+                        }
+                    )
+
+                    # CAPTURAR SELECCIÓN
+                    if evento.selection.rows:
+                        idx = evento.selection.rows[0]
+                        prod_ingreso = df_filtrado.iloc[idx]['Producto']
+                        df_prod = df_inv[df_inv['Producto'] == prod_ingreso].iloc[0]
+
+                        st.success(f"Seleccionado: **{prod_ingreso}**")
+                        st.info(f"Stock actual: {int(df_prod['Stock'])} unidades | Costo actual: S/{df_prod['Precio_Compra']:.2f}")
+
+                        st.markdown("**📦 DATOS DE LA COMPRA:**")
+                        col1, col2, col3 = st.columns(3)
+                        unidad_medida = col1.selectbox("Unidad:", ["Unidades", "Docenas", "Cajas", "Paquetes", "Millares"], key="unidad_medida_emp")
+                        cantidad = col2.number_input(f"Cantidad:", min_value=1, value=1, key="cant_lote_emp")
+                        costo_x_unidad = col3.number_input(f"Costo x unidad S/:", min_value=0.0, value=0.0, key="costo_x_unidad_emp")
+
+                        multiplicador = {"Unidades": 1, "Docenas": 12, "Cajas": 1, "Paquetes": 1, "Millares": 1000}[unidad_medida]
+                        if unidad_medida in ["Cajas", "Paquetes"]:
+                            unid_x_bulto = st.number_input(f"¿Cuántas unidades trae cada {unidad_medida[:-1]}?", min_value=1, value=50, key="unid_bulto_emp")
+                            multiplicador = unid_x_bulto
+
+                        cant_ingreso = cantidad * multiplicador
+                        nuevo_pc = costo_x_unidad
+
+                        st.success(f"✅ Total: {cant_ingreso} unidades | Costo unitario: S/{nuevo_pc:.2f}")
+                        stock_final = int(df_prod['Stock']) + cant_ingreso
+                        st.metric("Stock nuevo", f"{stock_final} unidades")
+
+                        if st.button("📥 REGISTRAR", use_container_width=True, type="primary", key="btn_ingreso_stock_emp"):
+                            if stock_final > MAX_STOCK_POR_PRODUCTO:
+                                st.error(f"❌ Stock máximo: {MAX_STOCK_POR_PRODUCTO}")
+                            else:
+                                stock_viejo = int(df_prod['Stock'])
+                                pc_viejo = float(df_prod['Precio_Compra'])
+                                pc_promedio = ((stock_viejo * pc_viejo) + (cant_ingreso * nuevo_pc)) / stock_final if stock_viejo > 0 else nuevo_pc
+
+                                tabla_stock.update_item(
+                                    Key={'TenantID': st.session_state.tenant, 'Producto': prod_ingreso},
+                                    UpdateExpression="SET Stock = :s, Precio_Compra = :pc",
+                                    ExpressionAttributeValues={':s': stock_final, ':pc': to_decimal(pc_promedio)}
+                                )
+                                registrar_kardex(prod_ingreso, cant_ingreso, "INGRESO_STOCK", cant_ingreso * nuevo_pc, nuevo_pc, f"INGRESO_{st.session_state.usuario}")
+                                st.success(f"✅ {st.session_state.usuario} ingresó {cant_ingreso} {prod_ingreso} | Nuevo costo: S/{pc_promedio:.2f}")
+                                time.sleep(1)
+                                st.rerun()
+                    else:
+                        st.info("👆 Haz click en una fila de la tabla para seleccionar")
+                else:
+                    st.warning("❌ No se encontró ese producto")
+            else:
+                st.warning("⚠️ No hay productos")
 # === TAB STOCK - SIN SCROLL + COSTO SOLO DUEÑO ===
 with tabs[1]:
     st.subheader("📦 Inventario")
