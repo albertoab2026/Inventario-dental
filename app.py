@@ -123,60 +123,6 @@ st.markdown("""
    [data-testid="stExpander"] summary {
             background-color: #f5f7fa!important;
             color: #262730!important;
-        }
-  .streamlit-expanderHeader {background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)!important; border-radius: 10px; font-weight: 600; color: #262730!important;}
-  .stAlert {border-radius: 12px; border-left: 5px solid;}
-  .element-container {overflow-x: auto!important;}
-    </style>
-""", unsafe_allow_html=True)
-
-def to_decimal(f): return Decimal(str(f)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-
-def obtener_tiempo_peru():
-    ahora = datetime.now(tz_peru)
-    return ahora.strftime("%d/%m/%Y"), ahora.strftime("%H:%M:%S"), ahora.strftime("%Y%m%d%H%M%S%f")
-
-# === AWS ===
-dynamodb = boto3.resource('dynamodb',
-    region_name=st.secrets["aws"]["aws_region"],
-    aws_access_key_id=st.secrets["aws"]["aws_access_key_id"],
-    aws_secret_access_key=st.secrets["aws"]["aws_secret_access_key"])
-tabla_stock = dynamodb.Table(TABLA_STOCK)
-tabla_ventas = dynamodb.Table(TABLA_VENTAS)
-tabla_movs = dynamodb.Table(TABLA_MOVS)
-tabla_tenants = dynamodb.Table(TABLA_TENANTS)
-tabla_cierres = dynamodb.Table(TABLA_CIERRES)
-tabla_pagos = dynamodb.Table(TABLA_PAGOS)
-
-# === FUNCIONES CORE ===
-def verificar_suscripcion(tid):
-    try:
-        t = tabla_tenants.get_item(Key={'TenantID': tid}).get('Item', {})
-        if t.get('EstadoPago') == 'SUSPENDIDO': return False, "SUSPENDIDO"
-        fc = datetime.strptime(t.get('ProximoCobro', '01/01/2000'), '%d/%m/%Y').date()
-        if fc < datetime.now(tz_peru).date() - timedelta(days=5): return False, f"VENCIDO {t.get('ProximoCobro')}"
-        return True, "ACTIVO"
-    except: return True, "ERROR"
-
-def contarProductosEnBD():
-    try: return tabla_stock.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), Select='COUNT').get('Count', 0)
-    except: return 9999
-
-@st.cache_data(ttl=10)
-def obtener_datos():
-    try:
-        res = tabla_stock.query(KeyConditionExpression=Key('TenantID').eq(st.session_state.tenant), Limit=2000)
-        items = res.get('Items', [])
-        if not items: return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
-        df = pd.DataFrame(items)
-        for col in ['Producto', 'Precio_Compra', 'Precio', 'Stock']:
-            if col not in df.columns: df[col] = 0 if col!='Producto' else ''
-        df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0).astype(int)
-        df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0.0)
-        df['Precio_Compra'] = pd.to_numeric(df['Precio_Compra'], errors='coerce').fillna(0.0)
-        df['Producto'] = df['Producto'].astype(str)
-        return df[['Producto', 'Precio_Compra', 'Precio', 'Stock']].sort_values('Producto')
-    except: return pd.DataFrame(columns=['Producto', 'Precio_Compra', 'Precio', 'Stock'])
 
 import streamlit as st
 import pandas as pd
