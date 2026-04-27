@@ -26,29 +26,28 @@ DESARROLLADOR = "Alberto Ballarta - Software Engineer"
 st.set_page_config(page_title="NEXUS BALLARTA", layout="wide", page_icon="🚀", initial_sidebar_state="collapsed")
 tz_peru = pytz.timezone('America/Lima')
 
-# === CSS + BOTONES GIGANTES ===
+# === CSS NUCLEAR ===
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
         * {font-family: 'Poppins', sans-serif;}
         
-        /* MATA EL DARK MODE FORZADO */
     html, body, [class*="stApp"], [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
             color-scheme: light only!important;
             forced-color-adjust: none!important;
             -webkit-forced-color-adjust: none!important;
         }
- .main {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important;}
- .block-container {
+.main {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important;}
+.block-container {
             background: white!important; 
             color: #262730!important;
             border-radius: 20px; 
             padding: 2rem; 
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
- .block-container p,.block-container h1,.block-container h2,.block-container h3, 
- .block-container h4,.block-container label,.block-container span,
- .stMarkdown,.stText,.stCaption {
+.block-container p,.block-container h1,.block-container h2,.block-container h3, 
+.block-container h4,.block-container label,.block-container span,
+.stMarkdown,.stText,.stCaption {
             color: #262730!important;
         }
         div[data-testid="stMetric"] {
@@ -58,49 +57,57 @@ st.markdown("""
         div[data-testid="stMetric"] label {color: white!important; font-weight: 600;}
         div[data-testid="stMetric"] [data-testid="stMetricValue"] {color: white!important; font-size: 36px;}
         div[data-testid="stMetric"] [data-testid="stMetricDelta"] {color: white!important; font-size: 14px;}
- .stButton>button {
+.stButton>button {
             border-radius: 12px; font-weight: 600; border: none;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important; 
             color: white!important; box-shadow: 0 4px 12px rgba(102,126,234,0.4);
         }
- .stTabs [data-baseweb="tab-list"] {gap: 8px; background: #f8f9fa!important; padding: 10px; border-radius: 15px;}
- .stTabs [data-baseweb="tab"] {border-radius: 10px; padding: 10px 20px; font-weight: 600; color: #262730!important;}
- .stTabs [aria-selected="true"] {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important; color: white!important;}
+.stTabs [data-baseweb="tab-list"] {gap: 8px; background: #f8f9fa!important; padding: 10px; border-radius: 15px;}
+.stTabs [data-baseweb="tab"] {border-radius: 10px; padding: 10px 20px; font-weight: 600; color: #262730!important;}
+.stTabs [aria-selected="true"] {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)!important; color: white!important;}
    
-        /* BOTONES GIGANTES DE PAGO */
+    /* BOTONES GIGANTES YAPE PLIN EFECTIVO */
     button[key="btn_yape"] {
-            background: #720e9e!important;
+            background: linear-gradient(135deg, #720e9e 0%, #5a0b7a 100%)!important;
             color: white!important;
-            font-size: 20px!important;
-            font-weight: 700!important;
-            height: 90px!important;
-            border: 3px solid #5a0b7a!important;
+            font-size: 24px!important;
+            font-weight: 800!important;
+            height: 100px!important;
+            border: 4px solid #5a0b7a!important;
+            border-radius: 15px!important;
+            box-shadow: 0 8px 16px rgba(114,14,158,0.4)!important;
         }
     button[key="btn_plin"] {
-            background: #00b9e5!important;
+            background: linear-gradient(135deg, #00b9e5 0%, #0094b8 100%)!important;
             color: white!important;
-            font-size: 20px!important;
-            font-weight: 700!important;
-            height: 90px!important;
-            border: 3px solid #0094b8!important;
+            font-size: 24px!important;
+            font-weight: 800!important;
+            height: 100px!important;
+            border: 4px solid #0094b8!important;
+            border-radius: 15px!important;
+            box-shadow: 0 8px 16px rgba(0,185,229,0.4)!important;
         }
     button[key="btn_efectivo"] {
-            background: #2ecc71!important;
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)!important;
             color: white!important;
-            font-size: 20px!important;
-            font-weight: 700!important;
-            height: 90px!important;
-            border: 3px solid #27ae60!important;
+            font-size: 24px!important;
+            font-weight: 800!important;
+            height: 100px!important;
+            border: 4px solid #27ae60!important;
+            border-radius: 15px!important;
+            box-shadow: 0 8px 16px rgba(46,204,113,0.4)!important;
+        }
+    button[key="btn_yape"]:active, button[key="btn_plin"]:active, button[key="btn_efectivo"]:active {
+            transform: scale(0.95)!important;
         }
    
-        /* FIX SELECTBOX + DROPDOWN */
- .stSelectbox>div>div {
+.stSelectbox>div {
             background: white!important; 
             border: 2px solid #e0e0e0!important; 
             border-radius: 10px!important;
         }
- .stSelectbox>div>div>div {color: #262730!important;}
- .stSelectbox svg {fill: #262730!important;}
+.stSelectbox>div>div>div {color: #262730!important;}
+.stSelectbox svg {fill: #262730!important;}
     [data-baseweb="select"] {background-color: white!important;}
     [data-baseweb="select"] > div {background-color: white!important; color: #262730!important;}
     [data-baseweb="popover"] {background-color: white!important;}
@@ -108,8 +115,7 @@ st.markdown("""
     [data-baseweb="menu"] li {background-color: white!important; color: #262730!important;}
     [data-baseweb="menu"] li:hover {background-color: #e3f2fd!important;}
    
-        /* FIX INPUTS + NUMBER INPUT */
- .stTextInput>div>div>input,.stNumberInput>div>div>input,.stDateInput input {
+.stTextInput>div>div>input,.stNumberInput>div>div>input,.stDateInput input {
             border-radius: 10px; border: 2px solid #e0e0e0!important; padding: 12px;
             background: white!important; color: #262730!important;
         }
@@ -122,14 +128,12 @@ st.markdown("""
             background-color: #f0f0f0!important;
             color: #262730!important;
         }
- .stSelectbox label,.stTextInput label,.stNumberInput label,.stDateInput label,.stRadio label {color: #262730!important;}
+.stSelectbox label,.stTextInput label,.stNumberInput label,.stDateInput label,.stRadio label {color: #262730!important;}
    
-        /* SIDEBAR */
         [data-testid="stSidebar"] {background: linear-gradient(180deg, #667eea 0%, #764ba2 100%)!important;}
         [data-testid="stSidebar"] * {color: white!important;}
         [data-testid="stSidebar"].stButton>button {background: white!important; color: #667eea!important;}
    
-        /* FIX TABLAS */
     [data-testid="stDataFrame"] {background-color: white!important;}
     [data-testid="stDataFrame"] * {
             background-color: white!important;
@@ -146,7 +150,6 @@ st.markdown("""
     [data-testid="stDataFrame"] tbody tr:nth-child(odd) {background-color: white!important;}
     [data-testid="stDataFrame"] tbody tr:nth-child(odd) td {background-color: white!important;}
    
-        /* EXPANDER */
     [data-testid="stExpander"] {
             background-color: white!important;
             border: 1px solid #e0e0e0!important;
@@ -156,21 +159,9 @@ st.markdown("""
             color: #262730!important;
         }
     [data-testid="stExpander"] > div {background-color: white!important;}
- .streamlit-expanderHeader {background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)!important; border-radius: 10px; font-weight: 600; color: #262730!important;}
- .stAlert {border-radius: 12px; border-left: 5px solid;}
+.streamlit-expanderHeader {background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)!important; border-radius: 10px; font-weight: 600; color: #262730!important;}
+.stAlert {border-radius: 12px; border-left: 5px solid;}
     </style>
-    
-    <script>
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            setTimeout(() => {
-                const div = document.createElement('div');
-                div.innerHTML = '<div style="background:#ff9800;color:white;padding:15px;border-radius:10px;margin:10px;text-align:center;font-weight:600;">⚠️ MODO OSCURO DETECTADO<br>Para mejor visualización, use modo claro</div>';
-                if(document.body.firstChild) {
-                    document.body.insertBefore(div, document.body.firstChild);
-                }
-            }, 500);
-        }
-    </script>
 """, unsafe_allow_html=True)
 
 def to_decimal(f): return Decimal(str(f)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -446,26 +437,29 @@ with tabs[0]:
             if st.button("🗑️ VACIAR", key="btn_vaciar_carrito"): st.session_state.carrito = []; st.rerun()
             
             # BOTONES GIGANTES DE PAGO
-            st.write("**Pago:**")
+            st.write("**Método de Pago:**")
             col_ef, col_yape, col_plin = st.columns(3)
             
             with col_ef:
-                if st.button("💵\nEFECTIVO", use_container_width=True, type="primary" if st.session_state.metodo_pago=="💵 EFECTIVO" else "secondary", key="btn_efectivo"):
+                st.markdown("<div style='text-align:center;font-size:40px;'>💵</div>", unsafe_allow_html=True)
+                if st.button("EFECTIVO", use_container_width=True, type="primary" if st.session_state.metodo_pago=="💵 EFECTIVO" else "secondary", key="btn_efectivo"):
                     st.session_state.metodo_pago = "💵 EFECTIVO"
                     st.rerun()
             
             with col_yape:
-                if st.button("🟣\nYAPE", use_container_width=True, type="primary" if st.session_state.metodo_pago=="🟣 YAPE" else "secondary", key="btn_yape"):
+                st.markdown("<div style='text-align:center;font-size:40px;'>🟣</div>", unsafe_allow_html=True)
+                if st.button("YAPE", use_container_width=True, type="primary" if st.session_state.metodo_pago=="🟣 YAPE" else "secondary", key="btn_yape"):
                     st.session_state.metodo_pago = "🟣 YAPE"
                     st.rerun()
             
             with col_plin:
-                if st.button("🔵\nPLIN", use_container_width=True, type="primary" if st.session_state.metodo_pago=="🔵 PLIN" else "secondary", key="btn_plin"):
+                st.markdown("<div style='text-align:center;font-size:40px;'>🔵</div>", unsafe_allow_html=True)
+                if st.button("PLIN", use_container_width=True, type="primary" if st.session_state.metodo_pago=="🔵 PLIN" else "secondary", key="btn_plin"):
                     st.session_state.metodo_pago = "🔵 PLIN"
                     st.rerun()
             
             metodo = st.session_state.metodo_pago
-            st.caption(f"Seleccionado: {metodo}")
+            st.markdown(f"<h3 style='text-align:center;color:#667eea;'>Seleccionado: {metodo}</h3>", unsafe_allow_html=True)
             
             rebaja = st.number_input("💸 Descuento:", min_value=0.0, value=0.0, key="num_rebaja")
             total = max(Decimal('0.00'), sum(i['Subtotal'] for i in st.session_state.carrito) - to_decimal(rebaja))
@@ -483,29 +477,29 @@ with tabs[0]:
 # === TAB STOCK - BUSCADOR + LISTA PAGINADA ===
 with tabs[1]:
     st.subheader("📦 Inventario")
-    
+
     busq = st.text_input("🔍 Buscar producto por nombre:", key="bs", placeholder="Ej: CUADERNO, LAPIZ, BORRADOR...").upper()
-    
+
     col1, col2, col3 = st.columns([2,1,1])
     mostrar_todos = col1.checkbox("📋 Ver lista completa", value=False, help="Solo activa si tienes <200 productos")
     filtro_stock = col2.selectbox("Filtrar:", ["Todos", "Stock bajo <5", "Agotados", "Con stock"], key="filtro_stock")
-    
+
     df_mostrar = df_inv.copy()
-    
+
     if busq:
         df_mostrar = df_mostrar[df_mostrar['Producto'].str.contains(busq, na=False)]
-    
+
     if filtro_stock == "Stock bajo <5":
         df_mostrar = df_mostrar[df_mostrar['Stock'] < 5]
     elif filtro_stock == "Agotados":
         df_mostrar = df_mostrar[df_mostrar['Stock'] == 0]
     elif filtro_stock == "Con stock":
         df_mostrar = df_mostrar[df_mostrar['Stock'] > 0]
-    
+
     if busq or mostrar_todos:
         if not df_mostrar.empty:
             st.caption(f"Mostrando {len(df_mostrar)} de {len(df_inv)} productos totales")
-            
+
             if len(df_mostrar) > 50:
                 page_size = 50
                 total_pages = (len(df_mostrar) - 1) // page_size + 1
@@ -516,10 +510,10 @@ with tabs[1]:
                 st.caption(f"Página {page+1} de {total_pages}")
             else:
                 df_pagina = df_mostrar
-            
+
             st.dataframe(
-                df_pagina[['Producto', 'Stock', 'Precio_Compra', 'Precio']], 
-                use_container_width=True, 
+                df_pagina[['Producto', 'Stock', 'Precio_Compra', 'Precio']],
+                use_container_width=True,
                 hide_index=True,
                 column_config={
                     "Producto": st.column_config.TextColumn("Producto", width="large"),
@@ -528,20 +522,20 @@ with tabs[1]:
                     "Precio": st.column_config.NumberColumn("Venta", format="S/ %.2f", width="small")
                 }
             )
-            
+
             buf = io.BytesIO()
-            with pd.ExcelWriter(buf, engine='openpyxl') as w: 
+            with pd.ExcelWriter(buf, engine='openpyxl') as w:
                 df_mostrar.to_excel(w, index=False, sheet_name='Inventario')
             st.download_button(
-                "📥 DESCARGAR EXCEL FILTRADO", 
-                buf.getvalue(), 
-                f"Inventario_{st.session_state.tenant}_{datetime.now(tz_peru).strftime('%Y%m%d')}.xlsx", 
-                use_container_width=True, 
+                "📥 DESCARGAR EXCEL FILTRADO",
+                buf.getvalue(),
+                f"Inventario_{st.session_state.tenant}_{datetime.now(tz_peru).strftime('%Y%m%d')}.xlsx",
+                use_container_width=True,
                 key="btn_desc_inv"
             )
-            
+
             bajo = df_mostrar[df_mostrar['Stock'] < 5]
-            if not bajo.empty: 
+            if not bajo.empty:
                 st.warning(f"⚠️ Stock crítico: {len(bajo)} productos con menos de 5 unidades")
                 with st.expander("Ver productos con stock bajo"):
                     st.dataframe(bajo[['Producto', 'Stock']], hide_index=True, use_container_width=True)
@@ -553,7 +547,7 @@ with tabs[1]:
     else:
         st.info("👆 Escribe arriba para buscar o activa 'Ver lista completa'")
         st.caption(f"Total en BD: {contarProductosEnBD()} productos")
-        
+
         if not df_inv.empty:
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("Total productos", len(df_inv))
@@ -561,7 +555,7 @@ with tabs[1]:
             col3.metric("Stock bajo <5", len(df_inv[df_inv['Stock'] < 5]))
             col4.metric("Valor inventario", f"S/ {(df_inv['Stock'] * df_inv['Precio_Compra']).sum():.2f}")
 
-# === TAB REPORTES - CON ST.METRIC SIN CORTE ===
+# === TAB REPORTES - SIN CORTE NUNCA ===
 with tabs[2]:
     st.subheader("📊 Reportes del Día")
 
@@ -618,27 +612,29 @@ with tabs[2]:
         vt_sem = df_v_sem['Total'].sum() if not df_v_sem.empty else 0
         dif = vt - vt_sem
         pct = (dif / vt_sem * 100) if vt_sem > 0 else 0
-        flecha = "↑" if dif >= 0 else "↓"
-        texto_delta = f"{flecha} {abs(pct):.1f}% vs semana pasada"
 
+        # MÉTRICAS SIN DELTA PA' QUE NO SE CORTE
         col1, col2 = st.columns(2)
-        col1.metric(
-            label="💰 VENTA TOTAL", 
-            value=f"S/ {float(vt):.2f}", 
-            delta=texto_delta
-        )
-        col2.metric(
-            label="📈 GANANCIA REAL", 
-            value=f"S/ {float(gn_total):.2f}",
-            delta=f"Tickets: {tk} | Margen: {(gn_total/vt*100) if vt > 0 else 0:.1f}%"
-        )
+
+        with col1:
+            st.markdown("### 💰 VENTA TOTAL")
+            st.markdown(f"<h1 style='margin:0;font-size:38px;color:#667eea;'>S/ {float(vt):.2f}</h1>", unsafe_allow_html=True)
+            if dif >= 0:
+                st.success(f"↑ {abs(pct):.1f}% vs semana pasada")
+            else:
+                st.error(f"↓ {abs(pct):.1f}% vs semana pasada")
+
+        with col2:
+            st.markdown("### 📈 GANANCIA REAL")
+            st.markdown(f"<h1 style='margin:0;font-size:38px;color:#2ecc71;'>S/ {float(gn_total):.2f}</h1>", unsafe_allow_html=True)
+            st.info(f"Tickets: {tk} | Ticket Prom: S/{float(tp):.2f} | Margen: {(gn_total/vt*100) if vt > 0 else 0:.1f}%")
 
         st.write("---")
 
         with st.expander("🧾 VER TICKETS DEL DÍA - MÁS RECIENTE ARRIBA", expanded=True):
             st.dataframe(
-                df_v[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo', 'Usuario']], 
-                use_container_width=True, 
+                df_v[['Hora', 'Producto', 'Cantidad', 'Total', 'Metodo', 'Usuario']],
+                use_container_width=True,
                 hide_index=True,
                 column_config={
                     "Hora": st.column_config.TextColumn("Hora", width="small"),
@@ -690,8 +686,8 @@ if st.session_state.rol == "DUEÑO" and len(tabs) > 3:
             df_h['Ganancia'] = df_h.apply(lambda r: r['Total'] - r['Costo'] if r['Tipo'] == 'VENTA' else 0, axis=1)
 
             st.dataframe(
-                df_h[['Hora', 'Producto', 'Tipo', 'Cantidad', 'Total', 'Costo', 'Ganancia', 'Usuario']], 
-                use_container_width=True, 
+                df_h[['Hora', 'Producto', 'Tipo', 'Cantidad', 'Total', 'Costo', 'Ganancia', 'Usuario']],
+                use_container_width=True,
                 hide_index=True,
                 column_config={
                     "Hora": st.column_config.TextColumn("Hora", width="small"),
@@ -877,7 +873,7 @@ if st.session_state.rol == "DUEÑO" and len(tabs) > 5:
         col1.metric("Plan Actual", PLAN_ACTUAL)
         col2.metric("Precio Mensual", f"S/ {PRECIO_ACTUAL}")
         col3.metric("Productos", f"{contarProductosEnBD()}/{MAX_PRODUCTOS_TOTALES}")
-        
+
         st.caption("💡 *Todos los planes incluyen instalación y configuración inicial sin costo adicional. Servicio por única vez al contratar.*")
 
         st.write("---")
