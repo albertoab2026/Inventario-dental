@@ -635,22 +635,23 @@ def sistema_vencimiento_inteligente():
         # DÍAS DE GRACIA - 5 DÍAS
         elif -5 < dias < 0:
             dias_gracia = 5 + dias
-            st.error(f"🚨 PERÍODO DE GRACIA: Te quedan {dias_gracia} días. Paga ya o se bloqueará el {(fc + timedelta(days=5)).strftime('%d/%m/%Y')}")
-    except:
-        pass
-
-sistema_vencimiento_inteligente() # ← EJECUTA LOS AVISOS
+            st.error(f"🚨 PERÍODO DE GRACIA: Te quedan {dias_gracia} días")
+    except Exception as e:
+        st.error(f"❌ Error verificando vencimiento: {e}")
 
 # === POST LOGIN ===
-MAX_PRODUCTOS_TOTALES, MAX_STOCK_POR_PRODUCTO, PLAN_ACTUAL, PRECIO_ACTUAL = obtener_limites_tenant()
-df_inv = obtener_datos()
-if st.session_state.get('modo_lectura', False): st.warning(st.session_state.mensaje_lectura)
+if st.session_state.get('logged_in'):
+    sistema_vencimiento_inteligente()
+    MAX_PRODUCTOS_TOTALES, MAX_STOCK_POR_PRODUCTO, PLAN_ACTUAL, PRECIO_ACTUAL = obtener_limites_tenant()
+    df_inv = obtener_datos()
+    if st.session_state.get('modo_lectura', False):
+        st.warning(st.session_state.get('mensaje_lectura', ""))
 
-# === TABS === EMPLEADO AHORA VE HISTORIAL
-tabs_list = ["🛒 VENTA", "📦 STOCK", "📊 REPORTES", "📋 HISTORIAL"]
-if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
-    tabs_list += ["📥 CARGAR", "🛠️ MANT."]
-tabs = st.tabs(tabs_list)
+    # === TABS === EMPLEADO AHORA VE HISTORIAL Y REPORTE
+    tabs_list = ["🛒 VENTA", "📦 STOCK", "📈 HISTORIAL", "📊 REPORTE"]
+    if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
+        tabs_list += ["📥 CARGAR", "🛠️ MANT."]
+    tabs = st.tabs(tabs_list)
 
 # === TAB VENTA ===
 with tabs[0]:
