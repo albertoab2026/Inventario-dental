@@ -506,7 +506,7 @@ def tiene_whatsapp_habilitado():
 
 # === PARCHE: SISTEMA VENCIMIENTO INTELIGENTE ===
 def sistema_vencimiento_inteligente():
-    """Avisos de vencimiento + 5 días de gracia"""
+    """Avisos de vencimiento + 5 días de gracia + bloqueo total"""
     if st.session_state.rol!= "DUEÑO":
         return
 
@@ -515,38 +515,57 @@ def sistema_vencimiento_inteligente():
         if not t or 'ProximoCobro' not in t:
             return
 
-        fc = datetime.strptime(t['ProximoCobro'], '%Y-%m-%d').date()
+        # Acepta formato 20/04/2026 o 2026-04-20
+        fecha_str = str(t['ProximoCobro'])
+        if '/' in fecha_str:
+            fc = datetime.strptime(fecha_str, '%d/%m/%Y').date()
+        else:
+            fc = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            
         hoy = datetime.now(tz_peru).date()
         dias = (fc - hoy).days
 
         if 1 <= dias <= 3:
-            st.warning(f"⚠️ Tu plan {t.get('Plan', 'ACTUAL')} vence en {dias} días el {t['ProximoCobro']}. Renueva al +{NUMERO_SOPORTE}")
+            st.warning(f"⚠️ Tu plan vence en {dias} días el {fecha_str}. Renueva al +{NUMERO_SOPORTE}")
 
         elif dias == 0:
-            st.error(f"🚨 Tu plan vence HOY {t['ProximoCobro']}. Tienes 5 días de gracia hasta {(fc + timedelta(days=5)).strftime('%d/%m/%Y')}. Renueva ya al +{NUMERO_SOPORTE}")
+            st.error(f"🚨 Tu plan vence HOY {fecha_str}. Tienes 5 días de gracia. Renueva ya al +{NUMERO_SOPORTE}")
 
         elif -5 < dias < 0:
             dias_gracia = 5 + dias
-            st.error(f"🚨 PERÍODO DE GRACIA: Te quedan {dias_gracia} días. Renueva antes del {(fc + timedelta(days=5)).strftime('%d/%m/%Y')} o se bloqueará. +{NUMERO_SOPORTE}")
-
-        if fc < datetime.now(tz_peru).date() - timedelta(days=5):
+            st.error(f"🚨 PERÍODO DE GRACIA: Te quedan {dias_gracia} días. Renueva al +{NUMERO_SOPORTE}")
+            
+        # === ESTO ES LO NUEVO: BLOQUEO TOTAL DESPUÉS DE 5 DÍAS ===
+        elif dias <= -5:
             st.markdown(f"""
-                <div style='text-align:center; padding:80px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius:20px; margin:40px 0; color:white;'>
-                    <div style='font-size:120px; margin-bottom:20px;'>🚫</div>
-                    <h1 style='color:white; font-size:3rem; margin-bottom:10px;'>ACCESO SUSPENDIDO</h1>
-                    <p style='font-size:1.3rem; opacity:0.95; margin-bottom:30px;'>Tu plan venció hace más de 5 días</p>
-                    <div style='background:rgba(255,255,255,0.15); backdrop-filter:blur(10px); padding:30px; border-radius:16px; margin:30px auto; max-width:500px; border:1px solid rgba(255,255,255,0.2);'>
-                        <h3 style='color:white; margin-bottom:20px;'>💳 REACTIVA TU CUENTA</h3>
-                        <p style='font-size:1.1rem; margin:15px 0;'><strong>YAPE:</strong> {YAPE_SOPORTE}</p>
-                        <p style='font-size:1.1rem; margin:15px 0;'><strong>MONTO:</strong> S/ {t.get('PrecioMensual', '60')}</p>
-                        <p style='font-size:1.1rem; margin:15px 0;'><strong>WHATSAPP:</strong> +{NUMERO_SOPORTE}</p>
-                    </div>
-                    <p style='font-size:1rem; opacity:0.9; margin-top:20px;'>Envía tu comprobante por WhatsApp para reactivar en menos de 5 minutos</p>
+            <style>
+            .block-container {{padding: 0 !important;}}
+            [data-testid="stHeader"] {{display: none;}}
+            #MainMenu {{visibility: hidden;}}
+            footer {{visibility: hidden;}}
+            </style>
+            <div style="position:fixed; top:0; left:0; width:100vw; height:100vh; 
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        display:flex; align-items:center; justify-content:center; z-index:9999;">
+                <div style="background:white; padding:50px; border-radius:20px; text-align:center; 
+                            box-shadow:0 20px 60px rgba(0,0,0,0.3); max-width:400px;">
+                    <div style="font-size:70px; margin-bottom:20px;">🔒</div>
+                    <h1 style="color:#764ba2; margin:0 0 10px 0;">Suscripción Vencida</h1>
+                    <p style="color:#666; font-size:18px;">Tu acceso expiró el <b>{fecha_str}</b></p>
+                    <p style="color:#666; margin:20px 0;">Renueva tu plan para continuar</p>
+                    <a href="https://wa.me/{NUMERO_SOPORTE}?text=Hola, quiero renovar NEXUS" 
+                       target="_blank"
+                       style="display:inline-block; background:#25D366; color:white; padding:15px 35px; 
+                              border-radius:50px; text-decoration:none; font-weight:bold; font-size:18px;">
+                        💬 WhatsApp Soporte
+                    </a>
                 </div>
+            </div>
             """, unsafe_allow_html=True)
             st.stop()
+            
     except Exception as e:
-        st.error(f"❌ Error verificando vencimiento: {e}")
+        pass
 
 # === ESTADO ===
 for k in ['auth','rol','tenant','usuario','carrito','boleta','confirmar','modo_lectura','intentos_login','bloqueo_hasta','metodo_pago']:
