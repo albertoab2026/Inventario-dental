@@ -661,6 +661,42 @@ with tabs[0]:
     hora_cierre = max([c['Hora'] for c in res_cierre.get('Items', [])]) if ya_cerro else None
 
     if ya_cerro:
+        st.warning(f"⚠️ YA CERRASTE CAJA a las {hora_cierre}")
+        st.info("Las ventas que hagas ahora irán al siguiente turno")
+        if st.button("🔓 REABRIR CAJA - Solo Dueño"):
+            for c in res_cierre.get('Items', []):
+                tabla_cierres.delete_item(Key={'TenantID': c['TenantID'], 'CierreID': c['CierreID']})
+            st.success("✅ Caja reabierta")
+            st.rerun()
+
+    # AQUÍ SIGUE TODO TU CÓDIGO DE VENTA...
+
+# === TAB STOCK === ← SACADO AFUERA, MISMO NIVEL QUE tabs[0]
+with tabs[1]:
+    st.subheader("📦 Control de Stock")
+    st.dataframe(df_inv, use_container_width=True)
+    # AQUÍ VA TODO TU CÓDIGO DE STOCK
+
+# === TAB HISTORIAL ===
+with tabs[2]:
+    st.subheader("📈 Historial de Ventas")
+    # AQUÍ VA TU CÓDIGO DE HISTORIAL
+
+# === TAB REPORTE ===
+with tabs[3]:
+    st.subheader("📊 Reporte de Ventas")
+    # AQUÍ VA TU CÓDIGO DE REPORTE
+
+# === TABS SOLO PARA DUEÑO ===
+if st.session_state.rol == "DUEÑO" and not st.session_state.get('modo_lectura', False):
+    with tabs[4]:
+        st.subheader("📥 Cargar Inventario")
+        # AQUÍ VA TU CÓDIGO DE CARGAR
+
+    with tabs[5]:
+        st.subheader("🛠️ Mantenimiento")
+        # AQUÍ VA TU CÓDIGO DE MANT.
+    if ya_cerro:
         st.warning(f"⚠️ YA CERRASTE CAJA HOY A LAS {hora_cierre}")
         st.info("Las ventas que hagas ahora son POST-CIERRE. Se sumarán al reporte de mañana.")
         if st.button("🔓 REABRIR CAJA - SOLO DUEÑO", use_container_width=True, key="btn_reabrir_caja") and st.session_state.rol == "DUEÑO":
