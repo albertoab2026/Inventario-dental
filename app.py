@@ -665,16 +665,19 @@ sistema_vencimiento_inteligente()
 # === FONDO PRO ESTILO STRIPE/NOTION ===
 st.markdown("""
 <style>
-.stApp {
-    background: #f6f8fb;
+[data-testid="stAppViewContainer"] {
+    background-color: #f6f8fb !important;
+}
+[data-testid="stHeader"] {
+    background-color: rgba(0,0,0,0) !important;
 }
 .block-container {
-    background: white; 
-    padding: 2rem 3rem; 
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    max-width: 1200px;
-    margin-top: 1rem;
+    background-color: white !important; 
+    padding: 2rem 3rem !important; 
+    border-radius: 12px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+    max-width: 1200px !important;
+    margin-top: 1rem !important;
 }
 </style>
 """, unsafe_allow_html=True)
