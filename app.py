@@ -11,13 +11,7 @@ import urllib.parse
 from decimal import Decimal, ROUND_HALF_UP
 import io
 import uuid
-
-# === CONFIG STREAMLIT === ESTO VA PRIMERO SIEMPRE
-st.set_page_config(
-    page_title="Sistema Ventas", 
-    layout="wide",
-    initial_sidebar_state="expanded"
-)     
+import pytesseract
 # === CONFIG ===
 TABLA_STOCK = st.secrets["tablas"]["stock"]
 TABLA_VENTAS = st.secrets["tablas"]["ventas"]
