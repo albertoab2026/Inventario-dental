@@ -1389,9 +1389,10 @@ with tabs[3]:
                             time.sleep(1); st.rerun()
                 else:
                     st.warning("⚠️ Primero crea productos en PRODUCTO NUEVO")
-        # === TAB MANTENIMIENTO - SOLO DUEÑO ===
+
+    # === TAB MANTENIMIENTO - SOLO DUEÑO ===
     if st.session_state.rol == "DUEÑO":
-        with tabs[5]: # MANT. es el 6to tab = índice 5
+        with tabs[5]:
             st.subheader("🛠️ Mantenimiento")
             st.warning("⚠️ Zona peligrosa - Solo para dueños")
 
