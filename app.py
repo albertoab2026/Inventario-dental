@@ -663,6 +663,13 @@ if not st.session_state.auth:
 # === POST LOGIN ===
 sistema_vencimiento_inteligente()
 MAX_PRODUCTOS_TOTALES, MAX_STOCK_POR_PRODUCTO, PLAN_ACTUAL, PRECIO_ACTUAL = obtener_limites_tenant()
+st.write("🔍 DEBUG LIMITES:")
+st.write("MaxProductos:", MAX_PRODUCTOS_TOTALES)
+st.write("MaxStock:", MAX_STOCK_POR_PRODUCTO) 
+st.write("Productos en BD:", contarProductosEnBD())
+st.write("Stock Max Actual:", int(obtener_datos()['Stock'].max()) if not obtener_datos().empty else 0)
+st.write("MODO LECTURA:", st.session_state.modo_lectura)
+st.write("ROL:", st.session_state.rol)
 df_inv = obtener_datos()
 if st.session_state.get('modo_lectura', False): st.warning(st.session_state.mensaje_lectura)
 
