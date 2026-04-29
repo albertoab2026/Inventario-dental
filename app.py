@@ -1272,12 +1272,11 @@ with tabs[3]:
 
     # === TAB CARGAR - SOLO DUEÑO ===
     if st.session_state.rol == "DUEÑO" and len(tabs) > 4:
-        with tabs[4]: # ← Ajusta el número si tu tab CARGAR es otro
+        with tabs[4]: # Si tu CARGAR es el 5to tab. Si es el 4to usa tabs[3]
             st.subheader("📂 Cargar Productos")
             actual = contarProductosEnBD()
             st.info(f"Productos: {actual}/{MAX_PRODUCTOS}")
 
-            # ESTA LÍNEA CREA LOS SUBTABS - TE FALTABA
             tab_nuevo, tab_ingreso = st.tabs(["➕ PRODUCTO NUEVO", "📦 INGRESO DE STOCK"])
 
             with tab_nuevo:
