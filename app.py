@@ -1309,6 +1309,65 @@ with tabs[3]:
                     st.success("✅ Foto tomada")
                     st.info("Mañana le metemos OCR")
                 st.divider()
+                st.markdown("**📤 CARGA MASIVA DESDE EXCEL**")
+            st.caption("Columnas: PROD, CANTIDAD, COSTO. El VENTA no se toca")
+
+            archivo = st.file_uploader("Sube tu Excel/CSV", type=['csv', 'xlsx'], key="csv_carga")
+            if archivo:
+                try:
+                    if archivo.name.endswith('.csv'):
+                        df_csv = pd.read_csv(archivo)
+                    else:
+                        df_csv = pd.read_excel(archivo)
+
+                    st.write("**Vista previa:**")
+                    st.dataframe(df_csv, use_container_width=True)
+                    st.info(f"Se cargarán {len(df_csv)} filas")
+
+                    if st.button("📥 ACTUALIZAR STOCK MASIVO", type="primary", use_container_width=True, key="btn_csv"):
+                        ok = 0
+                        errores = 0
+
+                        for _, row in df_csv.iterrows():
+                            try:
+                                prod = str(row['PROD']).strip()
+                                cant = int(row['CANTIDAD'])
+                                costo = float(row['COSTO'])
+
+                                # Solo si el producto existe
+                                if prod in df_inv['Producto'].values:
+                                    df_prod = df_inv[df_inv['Producto'] == prod].iloc[0]
+                                    stock_viejo = int(df_prod['Stock'])
+                                    costo_viejo = float(df_prod['Precio_Compra'])
+                                    stock_nuevo = stock_viejo + cant
+
+                                    # Costo promedio ponderado
+                                    if stock_viejo > 0:
+                                        costo_promedio = ((stock_viejo * costo_viejo) + (cant * costo)) / stock_nuevo
+                                    else:
+                                        costo_promedio = costo
+
+                                    tabla_stock.update_item(
+                                        Key={'TenantID': st.session_state.tenant, 'Producto': prod},
+                                        UpdateExpression="SET Stock = :s, Precio_Compra = :pc",
+                                        ExpressionAttributeValues={':s': stock_nuevo, ':pc': to_decimal(costo_promedio)}
+                                    )
+                                    registrar_kardex(prod, cant, "INGRESO_MASIVO", cant * costo, costo, "INGRESO_DUENO")
+                                    ok += 1
+                                else:
+                                    errores += 1
+                                    st.warning(f"⚠️ {prod} no existe en inventario")
+                            except Exception as e:
+                                errores += 1
+                                st.error(f"Error en fila {prod}: {e}")
+
+                        st.success(f"✅ Carga terminada: {ok} actualizados, {errores} errores")
+                        time.sleep(2); st.rerun()
+
+                except Exception as e:
+                    st.error(f"❌ Error leyendo archivo: {e}")
+
+            st.divider()    
                 st.markdown("**✍️ INGRESO MANUAL**")
                 if not df_inv.empty:
                     prod_ing = st.selectbox("Producto:", df_inv['Producto'].tolist(), key="prod_ingreso")
