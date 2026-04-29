@@ -1364,12 +1364,12 @@ with tabs[3]:
                         st.success(f"✅ Carga terminada: {ok} actualizados, {errores} errores")
                         time.sleep(2); st.rerun()
 
-                except Exception as e:
-                    st.error(f"❌ Error leyendo archivo: {e}")
+        except Exception as e:
+            st.error(f"❌ Error leyendo archivo: {e}")
 
-            st.divider()    
-                st.markdown("**✍️ INGRESO MANUAL**")
-                if not df_inv.empty:
+            st.divider()
+            st.markdown("**✍️ INGRESO MANUAL**")
+            if not df_inv.empty:
                     prod_ing = st.selectbox("Producto:", df_inv['Producto'].tolist(), key="prod_ingreso")
                     df_prod = df_inv[df_inv['Producto'] == prod_ing].iloc[0]
                     cant_ing = st.number_input("Cantidad a ingresar:", min_value=1, value=1, key="cant_ingreso")
