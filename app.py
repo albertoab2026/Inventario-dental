@@ -887,7 +887,7 @@ with tabs[0]:
                                 registrar_kardex(prod_ingreso, cant_ingreso, "INGRESO_STOCK", cant_ingreso * nuevo_pc, nuevo_pc, f"INGRESO_{st.session_state.usuario}")
                                 st.success(f"✅ {st.session_state.usuario} ingresó {cant_ingreso} {prod_ingreso} | Nuevo costo: S/{pc_promedio:.2f}")
                                 time.sleep(1)
-                                st.ii8rerun()
+                                st.rerun()
                     else:
                         st.info("👆 Haz click en una fila de la tabla para seleccionar")
                 else:
