@@ -18,7 +18,8 @@ ENTORNO = "DEV" # Cambia a "PROD" para datos reales
 SUFIJO = "_PRUEBA" if ENTORNO == "DEV" else ""
 
 if ENTORNO == "DEV":
-    st.sidebar.error("🔥 MODO PRUEBA - Datos ficticios")
+    st.error("🔥 MODO PRUEBA - Datos ficticios - No afecta datos reales") 
+# === FIN ===
 
 # === NOMBRES DE TABLAS BASE ===
 TABLA_STOCK = 'SaaS_Stock'
