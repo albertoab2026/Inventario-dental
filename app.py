@@ -13,11 +13,20 @@ import io
 import uuid
 import pytesseract
 # === CONFIG ===
-TABLA_STOCK = st.secrets["tablas"]["stock"]
-TABLA_VENTAS = st.secrets["tablas"]["ventas"]
-TABLA_MOVS = st.secrets["tablas"]["movs"]
-TABLA_TENANTS = st.secrets["tablas"]["tenants"]
-TABLA_CIERRES = st.secrets["tablas"]["cierres"]
+# === CONFIGURACIÓN DE ENTORNO ===
+ENTORNO = "DEV"
+
+if ENTORNO == "DEV":
+    SUFIJO_TABLA = "_PRUEBA"
+        st.sidebar.error("🔥 MODO PRUEBA - DATOS FALSOS 🔥")
+        else:
+            SUFIJO_TABLA = "_Test"
+
+            TABLA_STOCK = 'SaaS_Stock' + SUFIJO_TABLA
+            TABLA_VENTAS = 'SaaS_Ventas' + SUFIJO_TABLA
+            TABLA_MOVS = 'SaaS_Movimientos' + SUFIJO_TABLA
+            TABLA_CIERRES = 'TABLA_CIERRE' + SUFIJO_TABLA
+            TABLA_TENANTS = st.secrets["tablas"]["tenants"]
 TABLA_PAGOS = st.secrets["tablas"]["pagos"]
 NUMERO_SOPORTE = "51914282688"
 YAPE_SOPORTE = "Alberto Ballarta"
