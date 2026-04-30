@@ -437,12 +437,12 @@ dynamodb = boto3.resource('dynamodb',
     region_name=st.secrets["aws"]["aws_region"],
     aws_access_key_id=st.secrets["aws"]["aws_access_key_id"],
     aws_secret_access_key=st.secrets["aws"]["aws_secret_access_key"])
-tabla_stock = dynamodb.Table(f"{TABLA_STOCK}{SUFIJO}")
-tabla_ventas = dynamodb.Table(f"{TABLA_VENTAS}{SUFIJO}")
-tabla_movs = dynamodb.Table(f"{TABLA_MOVS}{SUFIJO}")
-tabla_cierres = dynamodb.Table(f"{TABLA_CIERRES}{SUFIJO}")
-tabla_tenants = dynamodb.Table(f"{TABLA_TENANTS}{SUFIJO}")
-tabla_pagos = dynamodb.Table(f"{TABLA_PAGOS}{SUFIJO}")
+tabla_stock = dynamodb.Table(TABLA_STOCK)
+tabla_ventas = dynamodb.Table(TABLA_VENTAS)
+tabla_movs = dynamodb.Table(TABLA_MOVS)
+tabla_cierres = dynamodb.Table(TABLA_CIERRES)
+tabla_tenants = dynamodb.Table(TABLA_TENANTS)
+tabla_pagos = dynamodb.Table(TABLA_PAGOS)
 # === FUNCIONES CORE ===
 def verificar_suscripcion(tid):
     try:
