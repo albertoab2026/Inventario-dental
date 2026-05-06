@@ -117,46 +117,61 @@ def get_dynamodb_table(table_name):
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-def login_usuario(usuario_id, password):
+# NUEVO: LOGIN POR DNI O USUARIO_ID
+def autenticar_por_usuario_o_dni(usuario_o_dni, password):
+    """Busca por usuario_id primero, si no existe busca por DNI usando GSI"""
     table = get_dynamodb_table('NEXUS_USUARIOS')
     password_hash = hash_password(password)
 
-    try:
-        response = table.get_item(Key={'usuario_id': usuario_id})
-        if 'Item' not in response:
-            return False, "ID de usuario no existe"
+    # INTENTO 1: Buscar como usuario_id directo - ZERO SCAN
+    response = table.get_item(Key={'usuario_id': usuario_o_dni})
 
+    if 'Item' in response:
         user = response['Item']
-        if user['password_hash']!= password_hash:
-            return False, "Contraseña incorrecta"
+    else:
+        # INTENTO 2: Buscar como DNI usando GSI dni-index - 1ms
+        try:
+            response = table.query(
+                IndexName='dni-index',
+                KeyConditionExpression=Key('dni').eq(usuario_o_dni),
+                Limit=1
+            )
+            if response['Items']:
+                user = response['Items'][0]
+            else:
+                return False, "Usuario o DNI no encontrado"
+        except Exception as e:
+            return False, f"Error al buscar: {e}. ¿Creaste el GSI dni-index?"
 
-        # VERIFICAR TRIAL VENCIDO
-        if user.get('plan') == 'trial':
-            fecha_fin = datetime.fromisoformat(user['fecha_trial_fin'])
-            hoy = datetime.now(pytz.timezone('America/Lima'))
-            if hoy > fecha_fin:
-                codigo = f"ACT-{user['dni']}"
-                return False, f"TRIAL_VENCIDO|{codigo}"
+    # Verificar contraseña
+    if user['password_hash']!= password_hash:
+        return False, "Contraseña incorrecta"
 
-        # VERIFICAR PREMIUM VENCIDO
-        if user.get('plan') == 'premium' and 'fecha_vencimiento' in user:
-            fecha_venc = datetime.fromisoformat(user['fecha_vencimiento'])
-            hoy = datetime.now(pytz.timezone('America/Lima'))
-            if hoy > fecha_venc:
-                table.update_item(
-                    Key={'usuario_id': usuario_id},
-                    UpdateExpression='SET plan = :p',
-                    ExpressionAttributeValues={':p': 'trial'}
-                )
-                codigo = f"ACT-{user['dni']}"
-                return False, f"TRIAL_VENCIDO|{codigo}"
+    # VERIFICAR TRIAL VENCIDO
+    if user.get('plan') == 'trial':
+        fecha_fin = datetime.fromisoformat(user['fecha_trial_fin'])
+        hoy = datetime.now(pytz.timezone('America/Lima'))
+        if hoy > fecha_fin:
+            codigo = f"ACT-{user['dni']}"
+            return False, f"TRIAL_VENCIDO|{codigo}"
 
-        if not user.get('activo', True):
-            return False, "Usuario desactivado"
+    # VERIFICAR PREMIUM VENCIDO
+    if user.get('plan') == 'premium' and 'fecha_vencimiento' in user:
+        fecha_venc = datetime.fromisoformat(user['fecha_vencimiento'])
+        hoy = datetime.now(pytz.timezone('America/Lima'))
+        if hoy > fecha_venc:
+            table.update_item(
+                Key={'usuario_id': user['usuario_id']},
+                UpdateExpression='SET plan = :p',
+                ExpressionAttributeValues={':p': 'trial'}
+            )
+            codigo = f"ACT-{user['dni']}"
+            return False, f"TRIAL_VENCIDO|{codigo}"
 
-        return True, user
-    except Exception as e:
-        return False, f"Error: {e}"
+    if not user.get('activo', True):
+        return False, "Usuario desactivado"
+
+    return True, user
 
 # ====== 3.5. FUNCIONES DE REGISTRO NEXUS 5.0 - ZERO SCAN ======
 def generar_id_dueno():
@@ -333,11 +348,15 @@ def mostrar_login():
 
         with tab1:
             st.markdown('<h3 style="color: white; text-align: center;">Iniciar Sesión</h3>', unsafe_allow_html=True)
-            usuario_id = st.text_input("ID de Usuario", key="login_user")
+
+            # CAMBIO: Ahora acepta Usuario O DNI
+            usuario_o_dni = st.text_input("Usuario o DNI", placeholder="BODEGABOD005 o 22222222", key="login_user")
             password = st.text_input("Contraseña", type="password", key="login_pass")
+
             if st.button("Iniciar Sesión", use_container_width=True):
-                if usuario_id and password:
-                    success, result = login_usuario(usuario_id, password)
+                if usuario_o_dni and password:
+                    # CAMBIO: Usar nueva función que busca por DNI también
+                    success, result = autenticar_por_usuario_o_dni(usuario_o_dni, password)
                     if success:
                         st.session_state.logged_in = True
                         st.session_state.user_data = result
@@ -377,9 +396,20 @@ def mostrar_login():
                         st.error("WhatsApp debe tener 9 dígitos"); st.stop()
                     try:
                         usuario_id, id_dueno, id_empleado = registrar_local(nombre_local, dni, celular, email, password)
-                        st.success(f"¡Listo! Tu usuario es: {usuario_id}")
-                        st.info("Guárdalo. Ahora inicia sesión")
+
+                        # CAMBIO: MOSTRAR USUARIO Y DNI GENERADO
+                        st.success(f"✅ ¡Cuenta creada! Bienvenido {nombre_local}")
                         st.balloons()
+                        st.info(f"🔑 **Tu código de usuario es: `{usuario_id}`**")
+                        st.success(f"📱 **También puedes iniciar sesión con tu DNI: `{dni}`**")
+                        st.warning("👉 Anota tu usuario o DNI. Los necesitarás para entrar.")
+
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.code(f"Usuario: {usuario_id}")
+                        with col2:
+                            st.code(f"DNI: {dni}")
+
                     except Exception as e:
                         st.error(f"Error: {e}")
                 else:
