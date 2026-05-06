@@ -7,82 +7,88 @@ from decimal import Decimal
 from boto3.dynamodb.conditions import Key
 
 # ====== 1. CONFIGURACIÓN AWS ======
-st.set_page_config(page_title="NEXUS POS", page_icon="🏪", layout="wide")
-
-# ====== CSS FUTURISTA PRO ======  ← PEGA AQUÍ EN LA LÍNEA 11
+st.set_page_config(page_title="NEXUS", page_icon="⚡", layout="wide")
+# ====== CSS NEXUS PRO - ESTILO CORPORATIVO ======
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Roboto:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
 
 .stApp {
-    background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+    background: #1a1d29;
     color: #ffffff;
+    font-family: 'Inter', sans-serif;
 }
 
 h1, h2, h3 {
-    font-family: 'Orbitron', sans-serif !important;
-    color: #00f5ff !important;
-    text-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 700 !important;
+    color: #ffffff !important;
 }
 
+/* Header Bienvenido degradado azul-morado */
+.main-header {
+    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+}
+
+/* Botones morados */
 .stButton > button {
-    background: linear-gradient(90deg, #00f5ff 0%, #00d4ff 100%);
-    color: #0f0c29 !important;
+    background: #7C3AED;
+    color: white !important;
     border: none;
     border-radius: 8px;
-    font-family: 'Orbitron', sans-serif;
-    font-weight: 700;
-    padding: 12px 24px;
-    transition: all 0.3s;
-    box-shadow: 0 0 20px rgba(0, 245, 255, 0.4);
+    font-weight: 600;
+    padding: 10px 20px;
+    transition: all 0.2s;
 }
 .stButton > button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 30px rgba(0, 245, 255, 0.8);
+    background: #6D28D9;
+    transform: translateY(-1px);
 }
 
+/* Inputs oscuros */
 .stTextInput > div > div > input, .stNumberInput > div > div > input {
-    background-color: rgba(0, 0, 0, 0.3) !important;
-    color: #00f5ff !important;
-    border: 1px solid #00f5ff !important;
+    background-color: #252836 !important;
+    color: #ffffff !important;
+    border: 1px solid #3F4354 !important;
     border-radius: 8px;
 }
 
+/* Selectbox oscuro */
 .stSelectbox > div > div {
-    background-color: rgba(0, 0, 0, 0.3) !important;
-    border: 1px solid #00f5ff !important;
+    background-color: #252836 !important;
+    border: 1px solid #3F4354 !important;
     border-radius: 8px;
+    color: white !important;
 }
 
-.stTabs [data-baseweb="tab-list"] {
-    gap: 8px;
-}
+/* Tabs */
 .stTabs [data-baseweb="tab"] {
-    background-color: rgba(0, 245, 255, 0.1);
+    background-color: #252836;
     border-radius: 8px;
-    color: #00f5ff;
-    font-family: 'Orbitron', sans-serif;
+    color: #9CA3AF;
+    font-weight: 600;
 }
 .stTabs [aria-selected="true"] {
-    background: linear-gradient(90deg, #00f5ff 0%, #00d4ff 100%);
-    color: #0f0c29 !important;
+    background: #7C3AED;
+    color: white !important;
 }
 
+/* Metrics */
 div[data-testid="metric-container"] {
-    background: rgba(0, 245, 255, 0.1);
-    border: 1px solid #00f5ff;
-    border-radius: 10px;
-    padding: 15px;
-    box-shadow: 0 0 15px rgba(0, 245, 255, 0.2);
+    background: #252836;
+    border: 1px solid #3F4354;
+    border-radius: 12px;
+    padding: 20px;
 }
 
-.main-header {
-    background: rgba(0, 245, 255, 0.1);
-    border: 2px solid #00f5ff;
-    border-radius: 15px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 0 25px rgba(0, 245, 255, 0.3);
+/* Avisos */
+.stAlert {
+    border-radius: 8px;
+    border: none;
 }
 </style>
 """, unsafe_allow_html=True)
