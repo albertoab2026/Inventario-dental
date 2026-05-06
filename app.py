@@ -115,9 +115,10 @@ def init_dynamodb():
     return dynamodb
 
 dynamodb = init_dynamodb()
-tabla_usuarios = dynamodb.Table('nexus_usuarios')
-tabla_productos = dynamodb.Table('nexus_productos')
-tabla_ventas = dynamodb.Table('nexus_ventas')
+tabla_usuarios = dynamodb.Table('NEXUS_USUARIOS') # Tu tabla real
+tabla_productos = dynamodb.Table('NEXUS_PRODUCTOS')
+tabla_ventas = dynamodb.Table('NEXUS_VENTAS')
+tabla_trial = dynamodb.Table('NEXUS_TRIAL_USADOS') # Para validar trial
 
 # ====== 3. FUNCIONES DE USUARIOS ======
 def hash_password(password):
