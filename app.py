@@ -294,8 +294,7 @@ def mostrar_login():
     """
     
     with col1:
-        st.markdown(f"""
-        {card_style}
+        st.markdown(card_style + """
             <div style='font-size: 1.6rem; margin-bottom: 4px;'>📦</div>
             <h3 style='font-size: 0.8rem; margin: 4px 0; line-height: 1.1; word-wrap: break-word;'>Control Total</h3>
             <p style='color: #9CA3AF; font-size: 0.6rem; line-height: 1.2; margin: 0; word-wrap: break-word;'>
@@ -305,8 +304,7 @@ def mostrar_login():
         """, unsafe_allow_html=True)
     
     with col2:
-        st.markdown(f"""
-        {card_style}
+        st.markdown(card_style + """
             <div style='font-size: 1.6rem; margin-bottom: 4px;'>💰</div>
             <h3 style='font-size: 0.8rem; margin: 4px 0; line-height: 1.1; word-wrap: break-word;'>Más Ganancia</h3>
             <p style='color: #9CA3AF; font-size: 0.6rem; line-height: 1.2; margin: 0; word-wrap: break-word;'>
@@ -316,8 +314,7 @@ def mostrar_login():
         """, unsafe_allow_html=True)
     
     with col3:
-        st.markdown(f"""
-        {card_style}
+        st.markdown(card_style + """
             <div style='font-size: 1.6rem; margin-bottom: 4px;'>📱</div>
             <h3 style='font-size: 0.8rem; margin: 4px 0; line-height: 1.1; word-wrap: break-word;'>Desde tu Celular</h3>
             <p style='color: #9CA3AF; font-size: 0.6rem; line-height: 1.2; margin: 0; word-wrap: break-word;'>
@@ -327,8 +324,7 @@ def mostrar_login():
         """, unsafe_allow_html=True)
     
     with col4:
-        st.markdown(f"""
-        {card_style}
+        st.markdown(card_style + """
             <div style='font-size: 1.6rem; margin-bottom: 4px;'>⚡</div>
             <h3 style='font-size: 0.8rem; margin: 4px 0; line-height: 1.1; word-wrap: break-word;'>Súper Barato</h3>
             <p style='color: #9CA3AF; font-size: 0.6rem; line-height: 1.2; margin: 0; word-wrap: break-word;'>
