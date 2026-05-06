@@ -335,14 +335,72 @@ def mostrar_login():
         <p>Sistema de Gestión para Bodegas</p>
     </div>
     """, unsafe_allow_html=True)
-
+    
+    # ====== LANDING DE VENTAS PARA EL TÍO ======
+    st.markdown("""
+    <div style='text-align: center; padding: 1rem 0 2rem 0;'>
+        <h2 style='color: #60a5fa;'>¿Cansado de perder plata en tu bodega?</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col_a, col_b, col_c, col_d = st.columns(4)
+    with col_a:
+        st.markdown("""
+        <div style='background: rgba(59,130,246,0.1); padding: 1.5rem; border-radius: 15px; text-align: center; border: 1px solid rgba(59,130,246,0.3);'>
+            <h1 style='margin:0;'>📦</h1>
+            <h4 style='color: white; margin: 0.5rem 0;'>Control Total</h4>
+            <p style='color: rgba(255,255,255,0.7); font-size: 0.9rem;'>Sabes qué vendes y qué te falta. Adiós cuaderno.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_b:
+        st.markdown("""
+        <div style='background: rgba(139,92,246,0.1); padding: 1.5rem; border-radius: 15px; text-align: center; border: 1px solid rgba(139,92,246,0.3);'>
+            <h1 style='margin:0;'>💰</h1>
+            <h4 style='color: white; margin: 0.5rem 0;'>Más Ganancia</h4>
+            <p style='color: rgba(255,255,255,0.7); font-size: 0.9rem;'>Ve tus productos que más plata te dejan. Gana más.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_c:
+        st.markdown("""
+        <div style='background: rgba(34,197,94,0.1); padding: 1.5rem; border-radius: 15px; text-align: center; border: 1px solid rgba(34,197,94,0.3);'>
+            <h1 style='margin:0;'>📱</h1>
+            <h4 style='color: white; margin: 0.5rem 0;'>Desde tu Celular</h4>
+            <p style='color: rgba(255,255,255,0.7); font-size: 0.9rem;'>Sin computadoras. Solo tu WhatsApp y listo.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_d:
+        st.markdown("""
+        <div style='background: rgba(251,146,60,0.1); padding: 1.5rem; border-radius: 15px; text-align: center; border: 1px solid rgba(251,146,60,0.3);'>
+            <h1 style='margin:0;'>⚡</h1>
+            <h4 style='color: white; margin: 0.5rem 0;'>Súper Barato</h4>
+            <p style='color: rgba(255,255,255,0.7); font-size: 0.9rem;'>S/30 al mes. Otros cobran S/250.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    col1_temp, col2_temp, col3_temp = st.columns([1,2,1])
+    with col2_temp:
+        st.markdown("""
+        <div style='background: linear-gradient(135deg, #10b981, #059669); padding: 1.5rem; border-radius: 15px; text-align: center;'>
+            <h3 style='color: white; margin: 0;'>🎁 Prueba 7 DÍAS GRATIS</h3>
+            <p style='color: white; margin: 0.5rem 0 0 0;'>Sin tarjeta. Sin compromiso. Cancela cuando quieras.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    # ====== FIN LANDING ======
+    
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         tab1, tab2 = st.tabs(["🔐 Iniciar Sesión", "🆕 Prueba 7 días GRATIS"])
 
         with tab1:
             st.markdown('<h3 style="color: white; text-align: center;">Iniciar Sesión</h3>', unsafe_allow_html=True)
-
+            # ... resto del código igual
             usuario_o_dni = st.text_input("Usuario o DNI", placeholder="BODEGABOD005 o 22222222", key="login_user")
             password = st.text_input("Contraseña", type="password", key="login_pass")
 
