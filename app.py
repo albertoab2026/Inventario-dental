@@ -314,7 +314,7 @@ def mostrar_panel_admin():
                 st.warning("Completa ambos campos")
 
     with tab2:
-        st.markdown("### Activar Plan S/30 por 30 días - ZERO SCAN")
+        st.markdown("### Activar Plan S/30 por 30 días")
         dni_activar = st.text_input("DNI del cliente que pagó S/30", max_chars=8, key="dni_act")
         if st.button("Activar 30 días", use_container_width=True, key="btn_activar"):
             if dni_activar:
