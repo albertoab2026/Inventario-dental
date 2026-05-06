@@ -3,8 +3,8 @@ import boto3
 import hashlib
 import uuid
 import pytz
-from datetime import datetime, timedelta # AGREGUÉ timedelta
-from boto3.dynamodb.conditions import Attr, Key # AGREGUÉ ESTA LÍNEA
+from datetime import datetime, timedelta
+from boto3.dynamodb.conditions import Attr, Key
 
 # ====== CONFIGURACIÓN INICIAL ======
 st.set_page_config(page_title="NEXUS", page_icon="⚡", layout="wide")
@@ -117,19 +117,16 @@ def get_dynamodb_table(table_name):
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# NUEVO: LOGIN POR DNI O USUARIO_ID
 def autenticar_por_usuario_o_dni(usuario_o_dni, password):
     """Busca por usuario_id primero, si no existe busca por DNI usando GSI"""
     table = get_dynamodb_table('NEXUS_USUARIOS')
     password_hash = hash_password(password)
 
-    # INTENTO 1: Buscar como usuario_id directo - ZERO SCAN
     response = table.get_item(Key={'usuario_id': usuario_o_dni})
 
     if 'Item' in response:
         user = response['Item']
     else:
-        # INTENTO 2: Buscar como DNI usando GSI dni-index - 1ms
         try:
             response = table.query(
                 IndexName='dni-index',
@@ -143,26 +140,24 @@ def autenticar_por_usuario_o_dni(usuario_o_dni, password):
         except Exception as e:
             return False, f"Error al buscar: {e}. ¿Creaste el GSI dni-index?"
 
-    # Verificar contraseña
     if user['password_hash']!= password_hash:
         return False, "Contraseña incorrecta"
 
-    # VERIFICAR TRIAL VENCIDO
+    hoy = datetime.now(pytz.timezone('America/Lima'))
+
     if user.get('plan') == 'trial':
         fecha_fin = datetime.fromisoformat(user['fecha_trial_fin'])
-        hoy = datetime.now(pytz.timezone('America/Lima'))
         if hoy > fecha_fin:
             codigo = f"ACT-{user['dni']}"
             return False, f"TRIAL_VENCIDO|{codigo}"
 
-    # VERIFICAR PREMIUM VENCIDO
     if user.get('plan') == 'premium' and 'fecha_vencimiento' in user:
         fecha_venc = datetime.fromisoformat(user['fecha_vencimiento'])
-        hoy = datetime.now(pytz.timezone('America/Lima'))
         if hoy > fecha_venc:
             table.update_item(
                 Key={'usuario_id': user['usuario_id']},
-                UpdateExpression='SET plan = :p',
+                UpdateExpression='SET #p = :p',
+                ExpressionAttributeNames={'#p': 'plan'},
                 ExpressionAttributeValues={':p': 'trial'}
             )
             codigo = f"ACT-{user['dni']}"
@@ -173,7 +168,7 @@ def autenticar_por_usuario_o_dni(usuario_o_dni, password):
 
     return True, user
 
-# ====== 3.5. FUNCIONES DE REGISTRO NEXUS 5.0 - ZERO SCAN ======
+# ====== 3.5. FUNCIONES DE REGISTRO NEXUS 5.0 ======
 def generar_id_dueno():
     table = get_dynamodb_table('NEXUS_CONTADORES')
     response = table.update_item(
@@ -197,13 +192,11 @@ def generar_id_empleado():
     return f"EMP-{nuevo_contador:03d}"
 
 def verificar_trial_usado(tipo, valor):
-    """ZERO SCAN: Verifica si DNI, CEL o EMAIL ya usó trial"""
     table = get_dynamodb_table('NEXUS_TRIAL_USADOS')
     response = table.get_item(Key={'tipo_id': f'{tipo}-{valor}'})
     return 'Item' in response
 
 def guardar_trial_usado(tipo, valor):
-    """ZERO SCAN: Guarda DNI, CEL, EMAIL para bloquear futuros trials"""
     table = get_dynamodb_table('NEXUS_TRIAL_USADOS')
     table.put_item(Item={
         'tipo_id': f'{tipo}-{valor}',
@@ -214,7 +207,6 @@ def registrar_local(nombre_local, dni, celular, email, password):
     table_usuarios = get_dynamodb_table('NEXUS_USUARIOS')
     table_duenos = get_dynamodb_table('NEXUS_DUENOS')
 
-    # ANTI-VIVOS ZERO SCAN: Verificar triple con get_item
     if verificar_trial_usado('DNI', dni):
         raise Exception("Este DNI ya usó su prueba gratis")
     if verificar_trial_usado('CEL', celular):
@@ -237,7 +229,7 @@ def registrar_local(nombre_local, dni, celular, email, password):
         'password_hash': hash_password(password),
         'id_del_dueno': id_dueno,
         'id_del_empleado': id_empleado,
-        'cliente_id': id_dueno, # FIX: Para tus tablas PRODUCTOS/VENTAS
+        'cliente_id': id_dueno,
         'plan': 'trial',
         'fecha_registro': hoy.isoformat(),
         'fecha_trial_fin': (hoy + timedelta(days=7)).isoformat(),
@@ -249,7 +241,6 @@ def registrar_local(nombre_local, dni, celular, email, password):
         'nombre_local': nombre_local
     })
 
-    # Bloquear futuros trials - ZERO SCAN
     guardar_trial_usado('DNI', dni)
     guardar_trial_usado('CEL', celular)
     if email: guardar_trial_usado('EMAIL', email)
@@ -270,7 +261,7 @@ def cambiar_clave_usuario(usuario_id, nueva_clave):
         return False, f"Error: {e}"
 
 def activar_plan_por_dni(dni):
-    """ZERO SCAN: Activa usando GSI dni-index"""
+    """Activa usando GSI dni-index - FIX: plan es palabra reservada"""
     table = get_dynamodb_table('NEXUS_USUARIOS')
     try:
         response = table.query(
@@ -283,19 +274,19 @@ def activar_plan_por_dni(dni):
         user = response['Items'][0]
         hoy = datetime.now(pytz.timezone('America/Lima'))
 
-        # FIX: plan es palabra reservada, usar ExpressionAttributeNames
         table.update_item(
             Key={'usuario_id': user['usuario_id']},
             UpdateExpression='SET #p = :p, fecha_vencimiento = :f',
-            ExpressionAttributeNames={'#p': 'plan'}, # ← ESTA LÍNEA ARREGLA TODO
+            ExpressionAttributeNames={'#p': 'plan'},
             ExpressionAttributeValues={
                 ':p': 'premium',
                 ':f': (hoy + timedelta(days=30)).isoformat()
             }
         )
-        return True, f"Activado: {user['nombre']} - {user['usuario_id']}"
+        return True, f"Activado: {user['nombre']} - {user['usuario_id']} | WhatsApp: {user['celular']}"
     except Exception as e:
         return False, f"Error: {e}. ¿Creaste el GSI dni-index?"
+
 def mostrar_panel_admin():
     st.markdown('<h3 style="color: white;">🔧 Panel Admin</h3>', unsafe_allow_html=True)
 
@@ -324,6 +315,7 @@ def mostrar_panel_admin():
                 if success:
                     st.success(f"✅ {msg}")
                     st.info("Ya tiene productos ilimitados por 30 días")
+                    st.balloons()
                 else:
                     st.error(msg)
             else:
@@ -351,13 +343,11 @@ def mostrar_login():
         with tab1:
             st.markdown('<h3 style="color: white; text-align: center;">Iniciar Sesión</h3>', unsafe_allow_html=True)
 
-            # CAMBIO: Ahora acepta Usuario O DNI
             usuario_o_dni = st.text_input("Usuario o DNI", placeholder="BODEGABOD005 o 22222222", key="login_user")
             password = st.text_input("Contraseña", type="password", key="login_pass")
 
             if st.button("Iniciar Sesión", use_container_width=True):
                 if usuario_o_dni and password:
-                    # CAMBIO: Usar nueva función que busca por DNI también
                     success, result = autenticar_por_usuario_o_dni(usuario_o_dni, password)
                     if success:
                         st.session_state.logged_in = True
@@ -365,15 +355,14 @@ def mostrar_login():
                         st.success("¡Bienvenido!")
                         st.rerun()
                     else:
-                        # BLOQUEO TRIAL VENCIDO
                         if "TRIAL_VENCIDO" in str(result):
                             codigo = result.split("|")[1]
                             st.error("🔒 Tu prueba de 7 días terminó")
                             st.markdown("### Activa Plan S/30 - 30 días ilimitado")
-                            st.code("Yapea S/30 al 924 848 001")
-                            st.warning(f"IMPORTANTE: Pon este código en mensaje de Yape:")
+                            st.code("Yape/Plin S/30 al 914 282 688 - Alberto")
+                            st.warning(f"IMPORTANTE: Pon este código en mensaje de Yape/Plin:")
                             st.code(codigo)
-                            st.info("Manda captura a WhatsApp: 924 848 001. Activamos en 12h")
+                            st.info("Manda captura a WhatsApp: +51 914 282 688. Activamos en 12h")
                         else:
                             st.error(result)
                 else:
@@ -399,7 +388,6 @@ def mostrar_login():
                     try:
                         usuario_id, id_dueno, id_empleado = registrar_local(nombre_local, dni, celular, email, password)
 
-                        # CAMBIO: MOSTRAR USUARIO Y DNI GENERADO
                         st.success(f"✅ ¡Cuenta creada! Bienvenido {nombre_local}")
                         st.balloons()
                         st.info(f"🔑 **Tu código de usuario es: `{usuario_id}`**")
@@ -420,19 +408,33 @@ def mostrar_login():
 # ====== 6. DASHBOARD ======
 def mostrar_dashboard():
     user = st.session_state.user_data
+    hoy = datetime.now(pytz.timezone('America/Lima'))
 
-    # AVISO TRIAL
+    # AVISO TRIAL O PREMIUM POR VENCER
     if user.get('plan') == 'trial':
         fecha_fin = datetime.fromisoformat(user['fecha_trial_fin'])
-        hoy = datetime.now(pytz.timezone('America/Lima'))
         dias_restantes = (fecha_fin - hoy).days
 
-        if dias_restantes > 0:
+        if dias_restantes > 5:
             st.warning(f"⏰ Te quedan {dias_restantes} días de prueba GRATIS")
-            st.info(f"Para continuar sin límites: Yapea S/30 al 924 848 001 con código ACT-{user['dni']}")
+            st.info(f"Para continuar sin límites: Yape/Plin S/30 al 914 282 688 - ALBERTO BALLARTA con código ACT-{user['dni']}")
+        elif dias_restantes > 0:
+            st.error(f"🚨 URGENTE: Te quedan {dias_restantes} días de prueba GRATIS")
+            st.warning(f"Yape/Plin S/30 AHORA al 914 282 688 - ALBERTO BALLARTA con código ACT-{user['dni']} para no perder tu info")
         else:
             st.error("🔒 Tu prueba terminó. Activa S/30 para seguir usando NEXUS")
             st.stop()
+
+    elif user.get('plan') == 'premium' and 'fecha_vencimiento' in user:
+        fecha_venc = datetime.fromisoformat(user['fecha_vencimiento'])
+        dias_restantes = (fecha_venc - hoy).days
+
+        if dias_restantes <= 5 and dias_restantes > 0:
+            st.error(f"🚨 RENUEVA YA: Tu Plan S/30 vence en {dias_restantes} días")
+            st.warning(f"Yape/Plin S/30 al 914 282 688 - ALBERTO BALLARTA con código ACT-{user['dni']} | WhatsApp: +51 914 282 688")
+            st.info("Si no renuevas, tu cuenta vuelve a trial con límite de 30 productos")
+        elif dias_restantes <= 0:
+            st.error("🔒 Tu Plan S/30 venció. Renueva para quitar los límites")
 
     st.markdown(f"""
     <div class="main-header">
