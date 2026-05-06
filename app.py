@@ -222,22 +222,18 @@ def mostrar_login():
 
     col1, col2, col3, col4 = st.columns(4)
     
-    card_style = """
-    <div style='background: #252836; border: 1px solid #3F4354; border-radius: 12px; 
-                padding: 20px; text-align: center; height: 190px; 
-                transition: all 0.3s ease;
-                box-shadow: 0 0 15px rgba(124, 58, 237, 0.1);'
-         onmouseover="this.style.transform='translateY(-5px)'; 
-                      this.style.boxShadow='0 8px 25px rgba(124, 58, 237, 0.4)';
-                      this.style.border='1px solid #7C3AED';"
-         onmouseout="this.style.transform='translateY(0)'; 
-                     this.style.boxShadow='0 0 15px rgba(124, 58, 237, 0.1)';
-                     this.style.border='1px solid #3F4354';">
-    """
-    
     with col1:
-        st.markdown(f"""
-        {card_style}
+        st.markdown("""
+        <div style='background: #252836; border: 1px solid #3F4354; border-radius: 12px; 
+                    padding: 20px; text-align: center; height: 190px; 
+                    transition: all 0.3s ease;
+                    box-shadow: 0 0 15px rgba(124, 58, 237, 0.1);'
+             onmouseover="this.style.transform='translateY(-5px)'; 
+                          this.style.boxShadow='0 8px 25px rgba(124, 58, 237, 0.4)';
+                          this.style.border='1px solid #7C3AED';"
+             onmouseout="this.style.transform='translateY(0)'; 
+                         this.style.boxShadow='0 0 15px rgba(124, 58, 237, 0.1)';
+                         this.style.border='1px solid #3F4354';">
             <div style='font-size: 2.2rem; margin-bottom: 10px;'>📦</div>
             <h3 style='font-size: 1rem; margin: 10px 0;'>Control Total</h3>
             <p style='color: #9CA3AF; font-size: 0.8rem; line-height: 1.3;'>
@@ -247,8 +243,17 @@ def mostrar_login():
         """, unsafe_allow_html=True)
     
     with col2:
-        st.markdown(f"""
-        {card_style}
+        st.markdown("""
+        <div style='background: #252836; border: 1px solid #3F4354; border-radius: 12px; 
+                    padding: 20px; text-align: center; height: 190px; 
+                    transition: all 0.3s ease;
+                    box-shadow: 0 0 15px rgba(124, 58, 237, 0.1);'
+             onmouseover="this.style.transform='translateY(-5px)'; 
+                          this.style.boxShadow='0 8px 25px rgba(124, 58, 237, 0.4)';
+                          this.style.border='1px solid #7C3AED';"
+             onmouseout="this.style.transform='translateY(0)'; 
+                         this.style.boxShadow='0 0 15px rgba(124, 58, 237, 0.1)';
+                         this.style.border='1px solid #3F4354';">
             <div style='font-size: 2.2rem; margin-bottom: 10px;'>💰</div>
             <h3 style='font-size: 1rem; margin: 10px 0;'>Más Ganancia</h3>
             <p style='color: #9CA3AF; font-size: 0.8rem; line-height: 1.3;'>
@@ -258,8 +263,17 @@ def mostrar_login():
         """, unsafe_allow_html=True)
     
     with col3:
-        st.markdown(f"""
-        {card_style}
+        st.markdown("""
+        <div style='background: #252836; border: 1px solid #3F4354; border-radius: 12px; 
+                    padding: 20px; text-align: center; height: 190px; 
+                    transition: all 0.3s ease;
+                    box-shadow: 0 0 15px rgba(124, 58, 237, 0.1);'
+             onmouseover="this.style.transform='translateY(-5px)'; 
+                          this.style.boxShadow='0 8px 25px rgba(124, 58, 237, 0.4)';
+                          this.style.border='1px solid #7C3AED';"
+             onmouseout="this.style.transform='translateY(0)'; 
+                         this.style.boxShadow='0 0 15px rgba(124, 58, 237, 0.1)';
+                         this.style.border='1px solid #3F4354';">
             <div style='font-size: 2.2rem; margin-bottom: 10px;'>📱</div>
             <h3 style='font-size: 1rem; margin: 10px 0;'>Desde tu Celular</h3>
             <p style='color: #9CA3AF; font-size: 0.8rem; line-height: 1.3;'>
@@ -269,8 +283,17 @@ def mostrar_login():
         """, unsafe_allow_html=True)
     
     with col4:
-        st.markdown(f"""
-        {card_style}
+        st.markdown("""
+        <div style='background: #252836; border: 1px solid #3F4354; border-radius: 12px; 
+                    padding: 20px; text-align: center; height: 190px; 
+                    transition: all 0.3s ease;
+                    box-shadow: 0 0 15px rgba(124, 58, 237, 0.1);'
+             onmouseover="this.style.transform='translateY(-5px)'; 
+                          this.style.boxShadow='0 8px 25px rgba(124, 58, 237, 0.4)';
+                          this.style.border='1px solid #7C3AED';"
+             onmouseout="this.style.transform='translateY(0)'; 
+                         this.style.boxShadow='0 0 15px rgba(124, 58, 237, 0.1)';
+                         this.style.border='1px solid #3F4354';">
             <div style='font-size: 2.2rem; margin-bottom: 10px;'>⚡</div>
             <h3 style='font-size: 1rem; margin: 10px 0;'>Súper Barato</h3>
             <p style='color: #9CA3AF; font-size: 0.8rem; line-height: 1.3;'>
