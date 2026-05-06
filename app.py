@@ -9,9 +9,6 @@ from boto3.dynamodb.conditions import Key
 # ====== 1. CONFIGURACIÓN AWS ======
 st.set_page_config(page_title="NEXUS POS", page_icon="🏪", layout="wide")
 
-# ====== 1. CONFIGURACIÓN AWS ======
-st.set_page_config(page_title="NEXUS POS", page_icon="🏪", layout="wide")
-
 # ====== CSS FUTURISTA PRO ======  ← PEGA AQUÍ EN LA LÍNEA 11
 st.markdown("""
 <style>
