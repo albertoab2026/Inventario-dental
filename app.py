@@ -282,9 +282,12 @@ def activar_plan_por_dni(dni):
 
         user = response['Items'][0]
         hoy = datetime.now(pytz.timezone('America/Lima'))
+
+        # FIX: plan es palabra reservada, usar ExpressionAttributeNames
         table.update_item(
             Key={'usuario_id': user['usuario_id']},
-            UpdateExpression='SET plan = :p, fecha_vencimiento = :f',
+            UpdateExpression='SET #p = :p, fecha_vencimiento = :f',
+            ExpressionAttributeNames={'#p': 'plan'}, # ← ESTA LÍNEA ARREGLA TODO
             ExpressionAttributeValues={
                 ':p': 'premium',
                 ':f': (hoy + timedelta(days=30)).isoformat()
@@ -293,7 +296,6 @@ def activar_plan_por_dni(dni):
         return True, f"Activado: {user['nombre']} - {user['usuario_id']}"
     except Exception as e:
         return False, f"Error: {e}. ¿Creaste el GSI dni-index?"
-
 def mostrar_panel_admin():
     st.markdown('<h3 style="color: white;">🔧 Panel Admin</h3>', unsafe_allow_html=True)
 
