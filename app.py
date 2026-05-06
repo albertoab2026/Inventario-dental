@@ -391,7 +391,7 @@ else:
             <p style='margin:5px 0 0 0; font-size:0.9rem;'>Rol: {user['rol'].upper()} | Plan: {user['plan'].upper()}</p>
         </div>
         """, unsafe_allow_html=True)
-                st.write("")
+
         menu = st.selectbox("Menú", ["📦 Productos", "💰 Ventas", "📊 Dashboard", "🔧 Admin"])
 
         if menu == "🔧 Admin":
