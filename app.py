@@ -218,9 +218,14 @@ def login(usuario_o_dni, password):
 # ====== 4. FUNCIONES DE PRODUCTOS ======
 def obtener_productos():
     try:
-        response = tabla_productos.scan()
+        user_id = st.session_state.user_data['usuario_id']
+        response = tabla_productos.query(
+            IndexName='usuario-index',
+            KeyConditionExpression=Key('usuario_id').eq(user_id)
+        )
         return response.get('Items', [])
-    except:
+    except Exception as e:
+        st.error(f"Error cargando productos: {e}")
         return []
 
 def agregar_producto(nombre, precio, stock, categoria):
@@ -269,7 +274,11 @@ def registrar_venta(producto_id, cantidad, precio_unitario):
 
 def obtener_ventas():
     try:
-        response = tabla_ventas.scan()
+        user_id = st.session_state.user_data['usuario_id']
+        response = tabla_ventas.query(
+            IndexName='usuario-index',
+            KeyConditionExpression=Key('usuario_id').eq(user_id)
+        )
         return response.get('Items', [])
     except:
         return []
