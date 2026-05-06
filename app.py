@@ -177,18 +177,40 @@ def registrar_dueno(dni, nombre, email, password):
 
 def login(usuario_o_dni, password):
     try:
-        response = tabla_usuarios.scan(
-            FilterExpression=Key('dni').eq(usuario_o_dni) | Key('usuario_id').eq(usuario_o_dni)
-        )
-        if response['Items']:
-            user = response['Items'][0]
+        user = None
+
+        # 1. Intenta con usuario_id usando GET_ITEM - cuesta casi nada
+        try:
+            response = tabla_usuarios.get_item(Key={'usuario_id': usuario_o_dni})
+            if 'Item' in response:
+                user = response['Item']
+        except:
+            pass
+
+        # 2. Si no encontró, busca por DNI con QUERY al GSI - barato
+        if not user:
+            response = tabla_usuarios.query(
+                IndexName='dni-index',
+                KeyConditionExpression=Key('dni').eq(usuario_o_dni)
+            )
+            if response['Items']:
+                user = response['Items'][0]
+
+        # 3. Validar password y activo
+        if user:
             if user.get('password_hash') == hash_password(password):
-                if user.get('activo', False):
+                if user.get('activo', True): # True por defecto
                     return user
                 else:
                     st.error("❌ Cuenta desactivada")
                     return None
-        return None
+            else:
+                st.error("❌ Contraseña incorrecta")
+                return None
+        else:
+            st.error("❌ Usuario o DNI no encontrado")
+            return None
+
     except Exception as e:
         st.error(f"Error login: {e}")
         return None
