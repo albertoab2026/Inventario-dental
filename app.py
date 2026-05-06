@@ -251,14 +251,14 @@ def obtener_ventas():
     except:
         return []
 
-# ====== 6. UI LOGIN - TARJETAS ARREGLADAS ======
+# ====== 6. UI LOGIN - BONITO Y SIN COMPLICACIONES ======
 def mostrar_login():
     st.markdown("""
     <div style='text-align: center; margin-bottom: 40px;'>
         <div class='main-header'>
             <h1 style='font-size: 2.5rem; margin: 0; color: white;'>⚡ NEXUS</h1>
             <p style='color: rgba(255,255,255,0.9); font-size: 1rem; margin-top: 8px;'>
-                El Sistema que Controla tu Negocio
+                Sistema de Gestión para Negocios
             </p>
         </div>
     </div>
@@ -270,84 +270,56 @@ def mostrar_login():
 
     with col1:
         st.markdown("""
-        <div style='background: rgba(37, 40, 54, 0.9); border: 1px solid #4F46E5; border-radius: 12px;
-                    padding: 10px 8px; text-align: center; min-height: 250px; width: 100%;
-                    display: flex; flex-direction: column; justify-content: center; align-items: center;
-                    transition: all 0.3s ease; overflow: hidden; box-sizing: border-box;
-                    box-shadow: 0 0 20px rgba(124, 58, 237, 0.2);'
-             onmouseover="this.style.transform='translateY(-8px) scale(1.02)';
-                          this.style.boxShadow='0 12px 30px rgba(124, 58, 237, 0.6)';
-                          this.style.border='1px solid #7C3AED';"
-             onmouseout="this.style.transform='translateY(0) scale(1)';
-                         this.style.boxShadow='0 0 20px rgba(124, 58, 237, 0.2)';
-                         this.style.border='1px solid #4F46E5';">
-            <div style='font-size: 1.6rem; margin-bottom: 4px;'>📦</div>
-            <h3 style='font-size: 0.8rem; margin: 4px 0; line-height: 1.1;'>Control Total</h3>
-            <p style='color: #9CA3AF; font-size: 0.6rem; line-height: 1.2; margin: 0;'>
-                Qué vendes. Adiós cuaderno.
+        <div style='background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); 
+                    border: 1px solid #334155; border-radius: 16px;
+                    padding: 24px 16px; text-align: center; 
+                    box-shadow: 0 8px 20px rgba(0,0,0,0.3);'>
+            <div style='font-size: 2.5rem; margin-bottom: 12px;'>📦</div>
+            <h3 style='font-size: 1.1rem; margin: 0 0 10px 0; color: white; font-weight: 700;'>Control Total</h3>
+            <p style='color: #CBD5E1; font-size: 0.8rem; line-height: 1.4; margin: 0;'>
+                Sabes qué vendes y qué te falta. Adiós cuaderno.
             </p>
         </div>
         """, unsafe_allow_html=True)
 
     with col2:
         st.markdown("""
-        <div style='background: rgba(37, 40, 54, 0.9); border: 1px solid #4F46E5; border-radius: 12px;
-                    padding: 10px 8px; text-align: center; min-height: 250px; width: 100%;
-                    display: flex; flex-direction: column; justify-content: center; align-items: center;
-                    transition: all 0.3s ease; overflow: hidden; box-sizing: border-box;
-                    box-shadow: 0 0 20px rgba(124, 58, 237, 0.2);'
-             onmouseover="this.style.transform='translateY(-8px) scale(1.02)';
-                          this.style.boxShadow='0 12px 30px rgba(124, 58, 237, 0.6)';
-                          this.style.border='1px solid #7C3AED';"
-             onmouseout="this.style.transform='translateY(0) scale(1)';
-                         this.style.boxShadow='0 0 20px rgba(124, 58, 237, 0.2)';
-                         this.style.border='1px solid #4F46E5';">
-            <div style='font-size: 1.6rem; margin-bottom: 4px;'>💰</div>
-            <h3 style='font-size: 0.8rem; margin: 4px 0; line-height: 1.1;'>Más Ganancia</h3>
-            <p style='color: #9CA3AF; font-size: 0.6rem; line-height: 1.2; margin: 0;'>
-                Ve qué da más plata.
+        <div style='background: linear-gradient(135deg, #2D1B3D 0%, #1E1B4B 100%); 
+                    border: 1px solid #4C1D95; border-radius: 16px;
+                    padding: 24px 16px; text-align: center; 
+                    box-shadow: 0 8px 20px rgba(0,0,0,0.3);'>
+            <div style='font-size: 2.5rem; margin-bottom: 12px;'>💰</div>
+            <h3 style='font-size: 1.1rem; margin: 0 0 10px 0; color: white; font-weight: 700;'>Más Ganancia</h3>
+            <p style='color: #CBD5E1; font-size: 0.8rem; line-height: 1.4; margin: 0;'>
+                Ve tus productos que más plata te dejan. Gana más.
             </p>
         </div>
         """, unsafe_allow_html=True)
 
     with col3:
         st.markdown("""
-        <div style='background: rgba(37, 40, 54, 0.9); border: 1px solid #4F46E5; border-radius: 12px;
-                    padding: 10px 8px; text-align: center; min-height: 250px; width: 100%;
-                    display: flex; flex-direction: column; justify-content: center; align-items: center;
-                    transition: all 0.3s ease; overflow: hidden; box-sizing: border-box;
-                    box-shadow: 0 0 20px rgba(124, 58, 237, 0.2);'
-             onmouseover="this.style.transform='translateY(-8px) scale(1.02)';
-                          this.style.boxShadow='0 12px 30px rgba(124, 58, 237, 0.6)';
-                          this.style.border='1px solid #7C3AED';"
-             onmouseout="this.style.transform='translateY(0) scale(1)';
-                         this.style.boxShadow='0 0 20px rgba(124, 58, 237, 0.2)';
-                         this.style.border='1px solid #4F46E5';">
-            <div style='font-size: 1.6rem; margin-bottom: 4px;'>📱</div>
-            <h3 style='font-size: 0.8rem; margin: 4px 0; line-height: 1.1;'>Desde tu Celular</h3>
-            <p style='color: #9CA3AF; font-size: 0.6rem; line-height: 1.2; margin: 0;'>
-                Sin PC. Donde estés.
+        <div style='background: linear-gradient(135deg, #1E3A3A 0%, #0F2624 100%); 
+                    border: 1px solid #134E4A; border-radius: 16px;
+                    padding: 24px 16px; text-align: center; 
+                    box-shadow: 0 8px 20px rgba(0,0,0,0.3);'>
+            <div style='font-size: 2.5rem; margin-bottom: 12px;'>📱</div>
+            <h3 style='font-size: 1.1rem; margin: 0 0 10px 0; color: white; font-weight: 700;'>Desde tu Celular</h3>
+            <p style='color: #CBD5E1; font-size: 0.8rem; line-height: 1.4; margin: 0;'>
+                Sin computadoras. Solo tu WhatsApp y listo.
             </p>
         </div>
         """, unsafe_allow_html=True)
 
     with col4:
         st.markdown("""
-        <div style='background: rgba(37, 40, 54, 0.9); border: 1px solid #4F46E5; border-radius: 12px;
-                    padding: 10px 8px; text-align: center; min-height: 250px; width: 100%;
-                    display: flex; flex-direction: column; justify-content: center; align-items: center;
-                    transition: all 0.3s ease; overflow: hidden; box-sizing: border-box;
-                    box-shadow: 0 0 20px rgba(124, 58, 237, 0.2);'
-             onmouseover="this.style.transform='translateY(-8px) scale(1.02)';
-                          this.style.boxShadow='0 12px 30px rgba(124, 58, 237, 0.6)';
-                          this.style.border='1px solid #7C3AED';"
-             onmouseout="this.style.transform='translateY(0) scale(1)';
-                         this.style.boxShadow='0 0 20px rgba(124, 58, 237, 0.2)';
-                         this.style.border='1px solid #4F46E5';">
-            <div style='font-size: 1.6rem; margin-bottom: 4px;'>⚡</div>
-            <h3 style='font-size: 0.8rem; margin: 4px 0; line-height: 1.1;'>Súper Barato</h3>
-            <p style='color: #9CA3AF; font-size: 0.6rem; line-height: 1.2; margin: 0;'>
-                S/30 mes. Otros S/250.
+        <div style='background: linear-gradient(135deg, #3D2E1E 0%, #292016 100%); 
+                    border: 1px solid #92400E; border-radius: 16px;
+                    padding: 24px 16px; text-align: center; 
+                    box-shadow: 0 8px 20px rgba(0,0,0,0.3);'>
+            <div style='font-size: 2.5rem; margin-bottom: 12px;'>⚡</div>
+            <h3 style='font-size: 1.1rem; margin: 0 0 10px 0; color: white; font-weight: 700;'>Súper Barato</h3>
+            <p style='color: #CBD5E1; font-size: 0.8rem; line-height: 1.4; margin: 0;'>
+                S/30 al mes. Otros cobran S/250.
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -357,16 +329,12 @@ def mostrar_login():
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         st.markdown("""
-        <div style='background: #10B981; border-radius: 12px; padding: 20px;
-                    text-align: center; margin: 20px 0; cursor: pointer;
-                    transition: all 0.3s ease;
-                    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);'
-             onmouseover="this.style.transform='scale(1.03)';
-                          this.style.boxShadow='0 0 35px rgba(16, 185, 129, 0.8)';"
-             onmouseout="this.style.transform='scale(1)';
-                         this.style.boxShadow='0 0 20px rgba(16, 185, 129, 0.4)';">
-            <h3 style='margin: 0; color: white; font-size: 1.1rem;'>🎁 Prueba 7 DÍAS GRATIS</h3>
-            <p style='color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 0.85rem;'>
+        <div style='background: linear-gradient(135deg, #10B981 0%, #059669 100%); 
+                    border-radius: 16px; padding: 24px;
+                    text-align: center; margin: 20px 0;
+                    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.5);'>
+            <h3 style='margin: 0; color: white; font-size: 1.2rem; font-weight: 700;'>🎁 Prueba 7 DÍAS GRATIS</h3>
+            <p style='color: rgba(255,255,255,0.95); margin: 10px 0 0 0; font-size: 0.9rem;'>
                 Sin tarjeta. Sin compromiso. Cancela cuando quieras.
             </p>
         </div>
