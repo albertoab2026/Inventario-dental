@@ -1,501 +1,152 @@
 import streamlit as st
 import boto3
-import hashlib
 import uuid
-import pytz
 from datetime import datetime, timedelta
-from boto3.dynamodb.conditions import Attr, Key
+import pytz
+from decimal import Decimal
+from boto3.dynamodb.conditions import Key
 
-# ====== CONFIGURACIÓN INICIAL ======
-st.set_page_config(page_title="NEXUS", page_icon="⚡", layout="wide")
+# ====== 1. CONFIGURACIÓN AWS ======
+st.set_page_config(page_title="NEXUS POS", page_icon="🏪", layout="wide")
 
-# ====== 1. CSS FUTURISTA ======
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+AWS_ACCESS_KEY_ID = st.secrets["AWS_ACCESS_KEY_ID"]
+AWS_SECRET_ACCESS_KEY = st.secrets["AWS_SECRET_ACCESS_KEY"]
+AWS_REGION = st.secrets["AWS_REGION"]
 
-html, body, [class*="css"] {
-    font-family: 'Outfit', sans-serif;
-}
-
-.stApp {
-    background: linear-gradient(135deg, #0f172a, #1e293b, #334155, #1e293b);
-    background-size: 400% 400%;
-    animation: gradient 15s ease infinite;
-}
-
-@keyframes gradient {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-.main-header {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-    padding: 2rem;
-    border-radius: 20px;
-    text-align: center;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    margin-bottom: 2rem;
-    animation: glow 2s ease-in-out infinite alternate;
-}
-
-@keyframes glow {
-    0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.5); }
-    50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.8); }
-}
-
-.main-header h1 {
-    color: white;
-    font-size: 3rem;
-    font-weight: 700;
-    margin: 0;
-    text-shadow: 0 0 20px rgba(255,255,255,0.5);
-}
-
-.main-header p {
-    color: rgba(255,255,255,0.9);
-    font-size: 1.2rem;
-    margin: 0.5rem 0 0 0;
-}
-
-.stButton > button {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    padding: 0.75rem 2rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-}
-
-.stButton > button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.6);
-}
-
-/* FORZAR BLANCO EN TODO */
-.stTextInput > label,.stSelectbox > label,.stTextInput > div > div > input {
-    color: white!important;
-}
-
-.stTextInput > div > div > input {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 10px;
-}
-
-.stTextInput > div > div > input::placeholder {
-    color: rgba(255, 255, 255, 0.7)!important;
-}
-
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
-
-# ====== 2. CONFIGURACIÓN AWS ======
 def get_dynamodb_table(table_name):
-    try:
-        aws_access_key = st.secrets["AWS_ACCESS_KEY_ID"]
-        aws_secret_key = st.secrets["AWS_SECRET_ACCESS_KEY"]
-        region = st.secrets.get("AWS_DEFAULT_REGION", "us-east-1")
+    dynamodb = boto3.resource(
+        'dynamodb',
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        region_name=AWS_REGION
+    )
+    return dynamodb.Table(table_name)
 
-        dynamodb = boto3.resource(
-            'dynamodb',
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_key,
-            region_name=region
-        )
-        return dynamodb.Table(table_name)
-    except Exception as e:
-        st.error(f"Error conectando a DynamoDB: {e}")
-        st.stop()
-
-# ====== 3. FUNCIONES DE USUARIO ======
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def autenticar_por_usuario_o_dni(usuario_o_dni, password):
-    """Busca por usuario_id primero, si no existe busca por DNI usando GSI"""
+# ====== 2. FUNCIONES USUARIOS ======
+def registrar_dueno(dni, nombre, email, password):
     table = get_dynamodb_table('NEXUS_USUARIOS')
-    password_hash = hash_password(password)
-
-    response = table.get_item(Key={'usuario_id': usuario_o_dni})
-
-    if 'Item' in response:
-        user = response['Item']
-    else:
-        try:
-            response = table.query(
-                IndexName='dni-index',
-                KeyConditionExpression=Key('dni').eq(usuario_o_dni),
-                Limit=1
-            )
-            if response['Items']:
-                user = response['Items'][0]
-            else:
-                return False, "Usuario o DNI no encontrado"
-        except Exception as e:
-            return False, f"Error al buscar: {e}. ¿Creaste el GSI dni-index?"
-
-    if user['password_hash']!= password_hash:
-        return False, "Contraseña incorrecta"
-
+    id_dueno = str(uuid.uuid4())
     hoy = datetime.now(pytz.timezone('America/Lima'))
+    fecha_fin = hoy + timedelta(days=7)
 
-    if user.get('plan') == 'trial':
-        fecha_fin = datetime.fromisoformat(user['fecha_trial_fin'])
-        if hoy > fecha_fin:
-            codigo = f"ACT-{user['dni']}"
-            return False, f"TRIAL_VENCIDO|{codigo}"
-
-    if user.get('plan') == 'premium' and 'fecha_vencimiento' in user:
-        fecha_venc = datetime.fromisoformat(user['fecha_vencimiento'])
-        if hoy > fecha_venc:
-            table.update_item(
-                Key={'usuario_id': user['usuario_id']},
-                UpdateExpression='SET #p = :p',
-                ExpressionAttributeNames={'#p': 'plan'},
-                ExpressionAttributeValues={':p': 'trial'}
-            )
-            codigo = f"ACT-{user['dni']}"
-            return False, f"TRIAL_VENCIDO|{codigo}"
-
-    if not user.get('activo', True):
-        return False, "Usuario desactivado"
-
-    return True, user
-
-# ====== 3.5. FUNCIONES DE REGISTRO NEXUS 5.0 ======
-def generar_id_dueno():
-    table = get_dynamodb_table('NEXUS_CONTADORES')
-    response = table.update_item(
-        Key={'tipo': 'dueno'},
-        UpdateExpression='ADD contador :inc',
-        ExpressionAttributeValues={':inc': 1},
-        ReturnValues='UPDATED_NEW'
-    )
-    nuevo_contador = int(response['Attributes']['contador'])
-    return f"DUENO-{nuevo_contador:03d}"
-
-def generar_id_empleado():
-    table = get_dynamodb_table('NEXUS_CONTADORES')
-    response = table.update_item(
-        Key={'tipo': 'empleado'},
-        UpdateExpression='ADD contador :inc',
-        ExpressionAttributeValues={':inc': 1},
-        ReturnValues='UPDATED_NEW'
-    )
-    nuevo_contador = int(response['Attributes']['contador'])
-    return f"EMP-{nuevo_contador:03d}"
-
-def verificar_trial_usado(tipo, valor):
-    table = get_dynamodb_table('NEXUS_TRIAL_USADOS')
-    response = table.get_item(Key={'tipo_id': f'{tipo}-{valor}'})
-    return 'Item' in response
-
-def guardar_trial_usado(tipo, valor):
-    table = get_dynamodb_table('NEXUS_TRIAL_USADOS')
     table.put_item(Item={
-        'tipo_id': f'{tipo}-{valor}',
-        'fecha': datetime.now(pytz.timezone('America/Lima')).isoformat()
-    })
-
-def registrar_local(nombre_local, dni, celular, email, password):
-    table_usuarios = get_dynamodb_table('NEXUS_USUARIOS')
-    table_duenos = get_dynamodb_table('NEXUS_DUENOS')
-
-    if verificar_trial_usado('DNI', dni):
-        raise Exception("Este DNI ya usó su prueba gratis")
-    if verificar_trial_usado('CEL', celular):
-        raise Exception("Este WhatsApp ya usó su prueba gratis")
-    if email and verificar_trial_usado('EMAIL', email):
-        raise Exception("Este Email ya usó su prueba gratis")
-
-    id_dueno = generar_id_dueno()
-    id_empleado = generar_id_empleado()
-    usuario_id = f"DUENO{nombre_local[:3].upper()}{id_dueno[-3:]}"
-    hoy = datetime.now(pytz.timezone('America/Lima'))
-
-    table_usuarios.put_item(Item={
-        'usuario_id': usuario_id,
-        'nombre': nombre_local,
-        'rol': 'dueño',
+        'id_del_empleado': str(uuid.uuid4()),
+        'id_del_dueno': id_dueno,
         'dni': dni,
-        'celular': celular,
-        'email': email or 'no-tiene',
-        'password_hash': hash_password(password),
-        'id_del_dueno': id_dueno,
-        'id_del_empleado': id_empleado,
-        'cliente_id': id_dueno,
+        'nombre': nombre,
+        'email': email,
+        'password': password,
+        'rol': 'dueño',
         'plan': 'trial',
-        'fecha_registro': hoy.isoformat(),
-        'fecha_trial_fin': (hoy + timedelta(days=7)).isoformat(),
-        'activo': True
+        'fecha_trial_fin': fecha_fin.isoformat(),
+        'fecha_registro': hoy.isoformat()
     })
+    return True
 
-    table_duenos.put_item(Item={
-        'id_del_dueno': id_dueno,
-        'nombre_local': nombre_local
-    })
-
-    guardar_trial_usado('DNI', dni)
-    guardar_trial_usado('CEL', celular)
-    if email: guardar_trial_usado('EMAIL', email)
-
-    return usuario_id, id_dueno, id_empleado
-
-def cambiar_clave_usuario(usuario_id, nueva_clave):
+def login(dni, password):
     table = get_dynamodb_table('NEXUS_USUARIOS')
-    hash_nuevo = hash_password(nueva_clave)
-    try:
-        table.update_item(
-            Key={'usuario_id': usuario_id},
-            UpdateExpression='SET password_hash = :h',
-            ExpressionAttributeValues={':h': hash_nuevo}
-        )
-        return True, "Clave actualizada"
-    except Exception as e:
-        return False, f"Error: {e}"
+    response = table.scan(
+        FilterExpression=Key('dni').eq(dni) & Key('password').eq(password)
+    )
+    return response['Items'][0] if response['Items'] else None
 
-def activar_plan_por_dni(dni):
-    """Activa usando GSI dni-index - FIX: plan es palabra reservada"""
+def activar_premium(dni_activar):
     table = get_dynamodb_table('NEXUS_USUARIOS')
-    try:
-        response = table.query(
-            IndexName='dni-index',
-            KeyConditionExpression=Key('dni').eq(dni)
-        )
-        if not response['Items']:
-            return False, "DNI no encontrado"
-
+    response = table.scan(FilterExpression=Key('dni').eq(dni_activar))
+    if response['Items']:
         user = response['Items'][0]
-        hoy = datetime.now(pytz.timezone('America/Lima'))
-
         table.update_item(
-            Key={'usuario_id': user['usuario_id']},
-            UpdateExpression='SET #p = :p, fecha_vencimiento = :f',
-            ExpressionAttributeNames={'#p': 'plan'},
-            ExpressionAttributeValues={
-                ':p': 'premium',
-                ':f': (hoy + timedelta(days=30)).isoformat()
-            }
+            Key={'id_del_empleado': user['id_del_empleado']},
+            UpdateExpression='SET plan = :p',
+            ExpressionAttributeValues={':p': 'premium'}
         )
-        return True, f"Activado: {user['nombre']} - {user['usuario_id']} | WhatsApp: {user['celular']}"
-    except Exception as e:
-        return False, f"Error: {e}. ¿Creaste el GSI dni-index?"
+        return True
+    return False
 
+# ====== 3. FUNCIONES PRODUCTOS Y VENTAS ======
+def contar_productos_dueno(id_dueno):
+    table = get_dynamodb_table('NEXUS_PRODUCTOS')
+    response = table.query(KeyConditionExpression=Key('id_del_dueno').eq(id_dueno))
+    return len(response['Items'])
+
+def registrar_producto(id_dueno, nombre, precio, costo, stock, categoria):
+    table = get_dynamodb_table('NEXUS_PRODUCTOS')
+    table.put_item(Item={
+        'id_del_dueno': id_dueno,
+        'producto_id': str(uuid.uuid4()),
+        'nombre': nombre,
+        'precio_venta': Decimal(str(precio)),
+        'costo': Decimal(str(costo)),
+        'stock': int(stock),
+        'categoria': categoria,
+        'fecha_registro': datetime.now(pytz.timezone('America/Lima')).isoformat()
+    })
+
+def listar_productos(id_dueno):
+    table = get_dynamodb_table('NEXUS_PRODUCTOS')
+    response = table.query(KeyConditionExpression=Key('id_del_dueno').eq(id_dueno))
+    return response['Items']
+
+def registrar_venta(id_dueno, id_empleado, productos_vendidos, total):
+    table_ventas = get_dynamodb_table('NEXUS_VENTAS')
+    table_productos = get_dynamodb_table('NEXUS_PRODUCTOS')
+
+    for item in productos_vendidos:
+        table_productos.update_item(
+            Key={'id_del_dueno': id_dueno, 'producto_id': item['producto_id']},
+            UpdateExpression='SET stock = stock - :cant',
+            ExpressionAttributeValues={':cant': item['cantidad']}
+        )
+
+    table_ventas.put_item(Item={
+        'id_del_dueno': id_dueno,
+        'venta_id': str(uuid.uuid4()),
+        'id_del_empleado': id_empleado,
+        'fecha': datetime.now(pytz.timezone('America/Lima')).isoformat(),
+        'productos': productos_vendidos,
+        'total': Decimal(str(total)),
+        'ganancia': Decimal(str(sum([i['ganancia'] for i in productos_vendidos])))
+    })
+
+def obtener_ventas_hoy(id_dueno):
+    table = get_dynamodb_table('NEXUS_VENTAS')
+    hoy = datetime.now(pytz.timezone('America/Lima')).date().isoformat()
+    response = table.query(
+        KeyConditionExpression=Key('id_del_dueno').eq(id_dueno) & Key('fecha').begins_with(hoy)
+    )
+    return response['Items']
+
+# ====== 4. PANEL ADMIN ======
 def mostrar_panel_admin():
-    st.markdown('<h3 style="color: white;">🔧 Panel Admin</h3>', unsafe_allow_html=True)
+    st.markdown("### 🔧 Panel Admin - Activar Premium")
+    dni_activar = st.text_input("DNI del cliente a activar")
+    if st.button("Activar Plan S/30"):
+        if activar_premium(dni_activar):
+            st.success(f"✅ Cliente {dni_activar} activado a PREMIUM")
+            st.balloons()
+        else:
+            st.error("DNI no encontrado")
 
-    tab1, tab2 = st.tabs(["🔑 Cambiar Claves", "🔓 Activar Plan S/30"])
-
-    with tab1:
-        usuario_id = st.text_input("ID del Usuario", placeholder="DUENOCHA001", key="admin_user")
-        nueva_clave = st.text_input("Nueva Clave Temporal", type="password", key="admin_pass")
-
-        if st.button("Actualizar Clave", use_container_width=True, key="btn_admin"):
-            if usuario_id and nueva_clave:
-                success, msg = cambiar_clave_usuario(usuario_id, nueva_clave)
-                if success:
-                    st.success(f"Listo. Dile al cliente: usuario `{usuario_id}` clave `{nueva_clave}`")
-                else:
-                    st.error(msg)
-            else:
-                st.warning("Completa ambos campos")
-
-    with tab2:
-        st.markdown("### Activar Plan S/30 por 30 días")
-        dni_activar = st.text_input("DNI del cliente que pagó S/30", max_chars=8, key="dni_act")
-        if st.button("Activar 30 días", use_container_width=True, key="btn_activar"):
-            if dni_activar:
-                success, msg = activar_plan_por_dni(dni_activar)
-                if success:
-                    st.success(f"✅ {msg}")
-                    st.info("Ya tiene productos ilimitados por 30 días")
-                    st.balloons()
-                else:
-                    st.error(msg)
-            else:
-                st.warning("Ingresa el DNI")
-
-# ====== 4. MANEJO DE SESIÓN ======
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-if 'user_data' not in st.session_state:
-    st.session_state.user_data = None
-
-# ====== 5. PANTALLA LOGIN NEXUS 5.0 ======
-def mostrar_login():
-    st.markdown("""
-    <div class="main-header">
-        <h1>⚡ NEXUS</h1>
-        <p>Sistema de Gestión para Bodegas</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # ====== LANDING DE VENTAS PARA EL TÍO ======
-    st.markdown("""
-    <div style='text-align: center; padding: 1rem 0 2rem 0;'>
-        <h2 style='color: #60a5fa;'>¿Cansado de perder plata en tu bodega?</h2>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    col_a, col_b, col_c, col_d = st.columns(4)
-    with col_a:
-        st.markdown("""
-        <div style='background: rgba(59,130,246,0.1); padding: 1.5rem; border-radius: 15px; text-align: center; border: 1px solid rgba(59,130,246,0.3);'>
-            <h1 style='margin:0;'>📦</h1>
-            <h4 style='color: white; margin: 0.5rem 0;'>Control Total</h4>
-            <p style='color: rgba(255,255,255,0.7); font-size: 0.9rem;'>Sabes qué vendes y qué te falta. Adiós cuaderno.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col_b:
-        st.markdown("""
-        <div style='background: rgba(139,92,246,0.1); padding: 1.5rem; border-radius: 15px; text-align: center; border: 1px solid rgba(139,92,246,0.3);'>
-            <h1 style='margin:0;'>💰</h1>
-            <h4 style='color: white; margin: 0.5rem 0;'>Más Ganancia</h4>
-            <p style='color: rgba(255,255,255,0.7); font-size: 0.9rem;'>Ve tus productos que más plata te dejan. Gana más.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col_c:
-        st.markdown("""
-        <div style='background: rgba(34,197,94,0.1); padding: 1.5rem; border-radius: 15px; text-align: center; border: 1px solid rgba(34,197,94,0.3);'>
-            <h1 style='margin:0;'>📱</h1>
-            <h4 style='color: white; margin: 0.5rem 0;'>Desde tu Celular</h4>
-            <p style='color: rgba(255,255,255,0.7); font-size: 0.9rem;'>Sin computadoras. Solo tu WhatsApp y listo.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col_d:
-        st.markdown("""
-        <div style='background: rgba(251,146,60,0.1); padding: 1.5rem; border-radius: 15px; text-align: center; border: 1px solid rgba(251,146,60,0.3);'>
-            <h1 style='margin:0;'>⚡</h1>
-            <h4 style='color: white; margin: 0.5rem 0;'>Súper Barato</h4>
-            <p style='color: rgba(255,255,255,0.7); font-size: 0.9rem;'>S/30 al mes. Otros cobran S/250.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col1_temp, col2_temp, col3_temp = st.columns([1,2,1])
-    with col2_temp:
-        st.markdown("""
-        <div style='background: linear-gradient(135deg, #10b981, #059669); padding: 1.5rem; border-radius: 15px; text-align: center;'>
-            <h3 style='color: white; margin: 0;'>🎁 Prueba 7 DÍAS GRATIS</h3>
-            <p style='color: white; margin: 0.5rem 0 0 0;'>Sin tarjeta. Sin compromiso. Cancela cuando quieras.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    # ====== FIN LANDING ======
-    
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        tab1, tab2 = st.tabs(["🔐 Iniciar Sesión", "🆕 Prueba 7 días GRATIS"])
-
-        with tab1:
-            st.markdown('<h3 style="color: white; text-align: center;">Iniciar Sesión</h3>', unsafe_allow_html=True)
-            # ... resto del código igual
-            usuario_o_dni = st.text_input("Usuario o DNI", placeholder="BODEGABOD005 o 22222222", key="login_user")
-            password = st.text_input("Contraseña", type="password", key="login_pass")
-
-            if st.button("Iniciar Sesión", use_container_width=True):
-                if usuario_o_dni and password:
-                    success, result = autenticar_por_usuario_o_dni(usuario_o_dni, password)
-                    if success:
-                        st.session_state.logged_in = True
-                        st.session_state.user_data = result
-                        st.success("¡Bienvenido!")
-                        st.rerun()
-                    else:
-                        if "TRIAL_VENCIDO" in str(result):
-                            codigo = result.split("|")[1]
-                            st.error("🔒 Tu prueba de 7 días terminó")
-                            st.markdown("### Activa Plan S/30 - 30 días ilimitado")
-                            st.code("Yape/Plin S/30 al 914 282 688 - Alberto")
-                            st.warning(f"IMPORTANTE: Pon este código en mensaje de Yape/Plin:")
-                            st.code(codigo)
-                            st.info("Manda captura a WhatsApp: +51 914 282 688. Activamos en 12h")
-                        else:
-                            st.error(result)
-                else:
-                    st.warning("Completa todos los campos")
-
-        with tab2:
-            st.markdown('<h3 style="color: white; text-align: center;">🎁 Prueba 7 días GRATIS</h3>', unsafe_allow_html=True)
-            st.caption("Luego S/30 al mes. Sin instalación. Productos ilimitados.")
-            nombre_local = st.text_input("Nombre de tu bodega", key="reg_local")
-            dni = st.text_input("DNI *1 prueba gratis por DNI*", max_chars=8, key="reg_dni")
-            celular = st.text_input("WhatsApp *Te avisamos antes que venza*", max_chars=9, key="reg_cel")
-            email = st.text_input("Email *Opcional*", key="reg_email")
-            password = st.text_input("Crea contraseña", type="password", key="reg_pass")
-
-            st.caption("✅ Límite trial: 30 productos + 50 ventas. Plan S/30 es ilimitado.")
-
-            if st.button("🚀 Empezar prueba GRATIS", use_container_width=True):
-                if nombre_local and dni and celular and password:
-                    if len(dni)!= 8:
-                        st.error("DNI debe tener 8 dígitos"); st.stop()
-                    if len(celular)!= 9:
-                        st.error("WhatsApp debe tener 9 dígitos"); st.stop()
-                    try:
-                        usuario_id, id_dueno, id_empleado = registrar_local(nombre_local, dni, celular, email, password)
-
-                        st.success(f"✅ ¡Cuenta creada! Bienvenido {nombre_local}")
-                        st.balloons()
-                        st.info(f"🔑 **Tu código de usuario es: `{usuario_id}`**")
-                        st.success(f"📱 **También puedes iniciar sesión con tu DNI: `{dni}`**")
-                        st.warning("👉 Anota tu usuario o DNI. Los necesitarás para entrar.")
-
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.code(f"Usuario: {usuario_id}")
-                        with col2:
-                            st.code(f"DNI: {dni}")
-
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-                else:
-                    st.warning("Completa DNI, WhatsApp, Nombre y Contraseña")
-
-# ====== 6. DASHBOARD ======
+# ====== 5. DASHBOARD ======
 def mostrar_dashboard():
     user = st.session_state.user_data
     hoy = datetime.now(pytz.timezone('America/Lima'))
+    id_dueno = user['id_del_dueno']
 
-    # AVISO TRIAL O PREMIUM POR VENCER
     if user.get('plan') == 'trial':
         fecha_fin = datetime.fromisoformat(user['fecha_trial_fin'])
         dias_restantes = (fecha_fin - hoy).days
-
         if dias_restantes > 5:
             st.warning(f"⏰ Te quedan {dias_restantes} días de prueba GRATIS")
-            st.info(f"Para continuar sin límites: Yape/Plin S/30 al 914 282 688 - ALBERTO BALLARTA con código ACT-{user['dni']}")
         elif dias_restantes > 0:
             st.error(f"🚨 URGENTE: Te quedan {dias_restantes} días de prueba GRATIS")
-            st.warning(f"Yape/Plin S/30 AHORA al 914 282 688 - ALBERTO BALLARTA con código ACT-{user['dni']} para no perder tu info")
+            st.warning(f"Yape/Plin S/30 AHORA al 914 282 688 - ALBERTO BALLARTA con código ACT-{user['dni']}")
         else:
             st.error("🔒 Tu prueba terminó. Activa S/30 para seguir usando NEXUS")
             st.stop()
 
-    elif user.get('plan') == 'premium' and 'fecha_vencimiento' in user:
-        fecha_venc = datetime.fromisoformat(user['fecha_vencimiento'])
-        dias_restantes = (fecha_venc - hoy).days
-
-        if dias_restantes <= 5 and dias_restantes > 0:
-            st.error(f"🚨 RENUEVA YA: Tu Plan S/30 vence en {dias_restantes} días")
-            st.warning(f"Yape/Plin S/30 al 914 282 688 - ALBERTO BALLARTA con código ACT-{user['dni']} | WhatsApp: +51 914 282 688")
-            st.info("Si no renuevas, tu cuenta vuelve a trial con límite de 30 productos")
-        elif dias_restantes <= 0:
-            st.error("🔒 Tu Plan S/30 venció. Renueva para quitar los límites")
-
     st.markdown(f"""
-    <div class="main-header">
+    <div style='background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 10px; color: white;'>
         <h1>Bienvenido, {user['nombre']}!</h1>
         <p>Rol: {user['rol'].upper()} | Plan: {user.get('plan','').upper()}</p>
     </div>
@@ -508,18 +159,159 @@ def mostrar_dashboard():
     else:
         menu = st.selectbox("Menú", ["📦 Productos", "💰 Ventas"])
 
-    if menu == "🔧 Admin":
+    if menu == "📊 Dashboard":
+        ventas_hoy = obtener_ventas_hoy(id_dueno)
+        total_hoy = sum([float(v['total']) for v in ventas_hoy])
+        ganancia_hoy = sum([float(v['ganancia']) for v in ventas_hoy])
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Ventas Hoy", f"S/{total_hoy:.2f}")
+        col2.metric("Ganancia Hoy", f"S/{ganancia_hoy:.2f}")
+        col3.metric("N° Ventas", len(ventas_hoy))
+
+        st.markdown("### Últimas Ventas")
+        if ventas_hoy:
+            for v in ventas_hoy[-5:]:
+                st.text(f"S/{v['total']} - {v['fecha'][11:16]}")
+        else:
+            st.info("Aún no vendes hoy. ¡Vamos!")
+
+    elif menu == "📦 Productos":
+        st.markdown("### 📦 Gestión de Productos")
+        total_productos = contar_productos_dueno(id_dueno)
+
+        if user.get('plan') == 'trial' and total_productos >= 30:
+            st.error("🔒 Límite de 30 productos en Trial alcanzado")
+            st.warning(f"Activa Plan S/30 con código ACT-{user['dni']} para productos ilimitados")
+            st.stop()
+
+        with st.expander("➕ Registrar Producto Nuevo"):
+            nombre = st.text_input("Nombre producto")
+            col1, col2 = st.columns(2)
+            precio = col1.number_input("Precio Venta", min_value=0.1, step=0.1)
+            costo = col2.number_input("Costo", min_value=0.1, step=0.1)
+            col3, col4 = st.columns(2)
+            stock = col3.number_input("Stock", min_value=1, step=1)
+            categoria = col4.selectbox("Categoría", ["Abarrotes","Bebidas","Limpieza","Otros"])
+
+            if st.button("Guardar Producto"):
+                if nombre and precio > costo:
+                    registrar_producto(id_dueno, nombre, precio, costo, stock, categoria)
+                    st.success(f"✅ {nombre} guardado")
+                    st.rerun()
+                else:
+                    st.error("Precio debe ser mayor al costo")
+
+        st.markdown("### Tus Productos")
+        productos = listar_productos(id_dueno)
+        if productos:
+            for p in productos:
+                col1, col2, col3, col4 = st.columns([3,1,1,1])
+                col1.write(f"**{p['nombre']}**")
+                col2.write(f"S/{p['precio_venta']}")
+                col3.write(f"Stock: {p['stock']}")
+                col4.write(f"Gana: S/{float(p['precio_venta'])-float(p['costo']):.2f}")
+        else:
+            st.info("No tienes productos. Registra el primero arriba ☝️")
+
+        st.caption(f"Productos: {total_productos}/{'30' if user.get('plan')=='trial' else '∞'}")
+
+    elif menu == "💰 Ventas":
+        st.markdown("### 💰 Registrar Venta")
+        productos = listar_productos(id_dueno)
+
+        if not productos:
+            st.warning("Primero registra productos en 📦 Productos")
+            st.stop()
+
+        if 'carrito' not in st.session_state:
+            st.session_state.carrito = []
+
+        col1, col2 = st.columns([2,1])
+        producto_sel = col1.selectbox("Producto", options=[p['nombre'] for p in productos])
+        cantidad = col2.number_input("Cantidad", min_value=1, step=1)
+
+        if st.button("Agregar al Carrito"):
+            prod = next(p for p in productos if p['nombre']==producto_sel)
+            if prod['stock'] >= cantidad:
+                st.session_state.carrito.append({
+                    'producto_id': prod['producto_id'],
+                    'nombre': prod['nombre'],
+                    'cantidad': cantidad,
+                    'precio': float(prod['precio_venta']),
+                    'costo': float(prod['costo']),
+                    'ganancia': (float(prod['precio_venta'])-float(prod['costo']))*cantidad
+                })
+                st.rerun()
+            else:
+                st.error(f"Solo tienes {prod['stock']} en stock")
+
+        if st.session_state.carrito:
+            st.markdown("### Carrito")
+            total = 0
+            for item in st.session_state.carrito:
+                st.text(f"{item['cantidad']}x {item['nombre']} = S/{item['precio']*item['cantidad']:.2f}")
+                total += item['precio']*item['cantidad']
+
+            st.markdown(f"## Total: S/{total:.2f}")
+
+            if st.button("💰 Cobrar Venta", use_container_width=True):
+                registrar_venta(id_dueno, user['id_del_empleado'], st.session_state.carrito, total)
+                st.success("✅ Venta registrada")
+                st.balloons()
+                st.session_state.carrito = []
+                st.rerun()
+
+    elif menu == "🔧 Admin":
         mostrar_panel_admin()
-    else:
-        st.info(f"Menú: {menu} - Aquí va el contenido")
+    elif menu == "👥 Usuarios":
+        st.info("Módulo Empleados - Próximamente")
 
     if st.button("🚪 Cerrar Sesión", use_container_width=True):
         st.session_state.logged_in = False
         st.session_state.user_data = None
         st.rerun()
 
-# ====== 7. ROUTER ======
-if not st.session_state.logged_in:
-    mostrar_login()
-else:
-    mostrar_dashboard()
+# ====== 6. LOGIN Y REGISTRO ======
+def mostrar_login():
+    st.markdown("<h1 style='text-align: center;'>🏪 NEXUS POS</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Sistema para Bodegas del Perú</p>", unsafe_allow_html=True)
+
+    tab1, tab2 = st.tabs(["Iniciar Sesión", "Registrarse 7 Días Gratis"])
+
+    with tab1:
+        dni = st.text_input("DNI", key="login_dni")
+        password = st.text_input("Contraseña", type="password", key="login_pass")
+        if st.button("Ingresar", use_container_width=True):
+            user = login(dni, password)
+            if user:
+                st.session_state.logged_in = True
+                st.session_state.user_data = user
+                st.rerun()
+            else:
+                st.error("DNI o contraseña incorrectos")
+
+    with tab2:
+        nombre = st.text_input("Nombre completo")
+        dni = st.text_input("DNI", key="reg_dni")
+        email = st.text_input("Email")
+        password = st.text_input("Contraseña", type="password", key="reg_pass")
+        if st.button("Crear Cuenta Gratis", use_container_width=True):
+            if registrar_dueno(dni, nombre, email, password):
+                st.success("✅ Cuenta creada. 7 días gratis activados")
+                st.info("Ahora inicia sesión")
+            else:
+                st.error("Error al registrar")
+
+# ====== 7. MAIN ======
+def main():
+    if 'logged_in' not in st.session_state:
+        st.session_state.logged_in = False
+
+    if st.session_state.logged_in:
+        mostrar_dashboard()
+    else:
+        mostrar_login()
+
+if __name__ == "__main__":
+    main()
