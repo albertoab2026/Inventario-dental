@@ -253,16 +253,19 @@ def obtener_ventas():
 
 # ====== 6. UI LOGIN - BONITO Y SIN COMPLICACIONES ======
 def mostrar_login():
-    st.markdown("""
-    <div style='text-align: center; margin-bottom: 40px;'>
-        <div class='main-header'>
-            <h1 style='font-size: 2.5rem; margin: 0; color: white;'>⚡ NEXUS</h1>
-            <p style='color: rgba(255,255,255,0.9); font-size: 1rem; margin-top: 8px;'>
-                Sistema de Gestión para Negocios
-            </p>
-        </div>
+st.markdown("""
+<div style='text-align: center; margin-bottom: 45px;'>
+    <div class='main-header'>
+        <h1 style='font-size: 3.2rem; margin: 0; color: #FFFFFF; font-weight: 800; 
+                   text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);'>
+            ⚡ NEXUS
+        </h1>
+        <p style='color: #E0E7FF; font-size: 1.15rem; margin-top: 12px; font-weight: 500;'>
+            Sistema de Gestión para Negocios
+        </p>
     </div>
-    """, unsafe_allow_html=True)
+</div>
+""", unsafe_allow_html=True)
 
     st.markdown("<h2 style='text-align: center; color: #60A5FA; margin-bottom: 30px; font-size: 1.5rem;'>¿Cansado de perder plata en tu negocio?</h2>", unsafe_allow_html=True)
 
