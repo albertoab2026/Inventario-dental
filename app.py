@@ -277,22 +277,6 @@ def mostrar_login():
 
     st.markdown("<h2 style='text-align: center; color: #60A5FA; margin-bottom: 30px; font-size: 1.5rem;'>¿Cansado de perder plata en tu negocio?</h2>", unsafe_allow_html=True)
 
-    col1, col2, col3, col4 = st.columns(4)
-    
-    card_style = """
-    <div style='background: rgba(37, 40, 54, 0.9); border: 1px solid #4F46E5; border-radius: 12px; 
-                padding: 10px 8px; text-align: center; min-height: 250px; width: 100%;
-                display: flex; flex-direction: column; justify-content: center; align-items: center;
-                transition: all 0.3s ease; overflow: hidden; box-sizing: border-box;
-                box-shadow: 0 0 20px rgba(124, 58, 237, 0.2);'
-         onmouseover="this.style.transform='translateY(-8px) scale(1.02)'; 
-                      this.style.boxShadow='0 12px 30px rgba(124, 58, 237, 0.6)';
-                      this.style.border='1px solid #7C3AED';"
-         onmouseout="this.style.transform='translateY(0) scale(1)'; 
-                     this.style.boxShadow='0 0 20px rgba(124, 58, 237, 0.2)';
-                     this.style.border='1px solid #4F46E5';">
-    """
-    
     with col1:
         st.markdown(card_style + """
             <div style='font-size: 1.6rem; margin-bottom: 4px;'>📦</div>
