@@ -415,7 +415,7 @@ else:
     with st.sidebar:
         user = st.session_state.user_data
         
-        # === ALERTA DE DÍAS RESTANTES - LÍNEA 416 ===
+        # === ALERTA DE DÍAS RESTANTES ===
         if user.get('plan') in ['trial', 'premium']:
             fecha_fin = user.get('fecha_trial_fin')
             if fecha_fin:
@@ -434,12 +434,12 @@ else:
                 except:
                     pass
         
-        st.markdown(f"""  # <- ESTA ES TU LÍNEA 417 ACTUAL
+        st.markdown(f"""
         <div style='background: linear-gradient(135deg, #7B2FF7 0%, #4A00E0 100%);
-                    padding: 20px; border-radius: 15px; text-align: center; color: white;
-                    box-shadow: 0 0 30px rgba(123, 47, 247, 0.6);'>
-            <h3 style='margin:0; font-size:1.3rem;'>Bienvenido, {user['nombre']}!</h3>
-            <p style='margin:5px 0 0 0; font-size:0.9rem;'>Rol: {user['rol'].upper()} | Plan: {user['plan'].upper()}</p>
+            padding: 20px; border-radius: 15px; margin: 10px 0;
+            box-shadow: 0 0 30px rgba(123, 47, 247, 0.6);'>
+            <h3 style='margin:0; font-size:16px; opacity:0.9;'>ALBERTO BALLARTA</h3>
+            <p style='margin:5px 0 0 0; font-size:24px; font-weight:bold;'>ADMIN</p>
         </div>
         """, unsafe_allow_html=True)
 
