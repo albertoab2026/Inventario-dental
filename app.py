@@ -400,7 +400,7 @@ else:
             st.session_state.logged_in = False
             st.rerun()
 
-    # === DESPLEGABLE AFUERA EN EL CONTENIDO PRINCIPAL ===
+    # === DESPLEGABLE AFUERA - SOLO DEBE HABER 1 VEZ EN TODO EL CÓDIGO ===
     menu = st.selectbox("Menú", ["📦 Productos", "💰 Ventas", "📊 Dashboard", "🔧 Admin"], label_visibility="collapsed")
 
     st.write("")
@@ -490,52 +490,3 @@ else:
                         st.error("DNI no encontrado")
                 except Exception as e:
                     st.error(f"Error: {e}")
-
-    # === CONTENIDO PRINCIPAL ===
-    if menu == "📦 Productos":
-        st.header("📦 Gestión de Productos")
-        with st.form("form_producto"):
-            nombre = st.text_input("Nombre del producto")
-            precio = st.number_input("Precio", min_value=0.0, format="%.2f")
-            stock = st.number_input("Stock inicial", min_value=0)
-            categoria = st.selectbox("Categoría", ["Abarrotes", "Bebidas", "Limpieza", "Otros"])
-            if st.form_submit_button("Agregar Producto"):
-                if agregar_producto(nombre, precio, stock, categoria):
-                    st.success("Producto agregado")
-                    st.rerun()
-
-        productos = obtener_productos()
-        if productos:
-            df = pd.DataFrame(productos)
-            st.dataframe(df[['nombre', 'precio', 'stock', 'categoria']], use_container_width=True)
-
-    elif menu == "💰 Ventas":
-        st.header("💰 Registrar Venta")
-        productos = obtener_productos()
-        if productos:
-            nombres = [p['nombre'] for p in productos]
-            producto_sel = st.selectbox("Producto", nombres)
-            cantidad = st.number_input("Cantidad", min_value=1, value=1)
-            producto = next((p for p in productos if p['nombre'] == producto_sel), None)
-            if producto:
-                st.write(f"Precio unitario: S/{producto['precio']:.2f}")
-                st.write(f"Total: S/{producto['precio'] * cantidad:.2f}")
-                if st.button("Registrar Venta"):
-                    if registrar_venta(producto['producto_id'], cantidad, producto['precio']):
-                        st.success("Venta registrada")
-                        st.rerun()
-        else:
-            st.warning("Primero agrega productos")
-
-    elif menu == "📊 Dashboard":
-        st.header("📊 Dashboard")
-        ventas = obtener_ventas()
-        productos = obtener_productos()
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Productos", len(productos))
-        with col2:
-            total_ventas = sum([v['total'] for v in ventas])
-            st.metric("Ventas Totales", f"S/{total_ventas:.2f}")
-        with col3:
-            st.metric("Transacciones", len(ventas))
