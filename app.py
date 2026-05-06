@@ -414,7 +414,27 @@ else:
     # === SIDEBAR SOLO CAJA MORADA + YAPE + CERRAR SESIÓN ===
     with st.sidebar:
         user = st.session_state.user_data
-        st.markdown(f"""
+        
+        # === ALERTA DE DÍAS RESTANTES - LÍNEA 416 ===
+        if user.get('plan') in ['trial', 'premium']:
+            fecha_fin = user.get('fecha_trial_fin')
+            if fecha_fin:
+                try:
+                    if isinstance(fecha_fin, str):
+                        fecha_fin = datetime.fromisoformat(fecha_fin.replace('Z', '+00:00'))
+                    
+                    dias_restantes = (fecha_fin - datetime.now()).days
+                    
+                    if dias_restantes <= 0:
+                        st.error("❌ **PLAN VENCIDO**\n\nYapea S/30 al 914282688")
+                    elif dias_restantes <= 5:
+                        st.warning(f"⚠️ **Te quedan {dias_restantes} días**\n\nYapea S/30 al 914282688")
+                    else:
+                        st.success(f"✅ **Plan activo**\n\n{dias_restantes} días restantes")
+                except:
+                    pass
+        
+        st.markdown(f"""  # <- ESTA ES TU LÍNEA 417 ACTUAL
         <div style='background: linear-gradient(135deg, #7B2FF7 0%, #4A00E0 100%);
                     padding: 20px; border-radius: 15px; text-align: center; color: white;
                     box-shadow: 0 0 30px rgba(123, 47, 247, 0.6);'>
@@ -506,18 +526,33 @@ else:
             st.subheader("Activar Plan S/30 por 30 días")
             dni_cliente = st.text_input("DNI del cliente que pagó S/30")
             if st.button("Activar 30 días"):
-                try:
-                    nueva_fecha = (datetime.now() + timedelta(days=30)).isoformat()
-                    response = tabla_usuarios.scan(FilterExpression=Key('dni').eq(dni_cliente))
-                    if response['Items']:
-                        uid = response['Items'][0]['usuario_id']
-                        tabla_usuarios.update_item(
-                            Key={'usuario_id': uid},
-                            UpdateExpression='SET plan = :p, fecha_trial_fin = :f',
-                            ExpressionAttributeValues={':p': 'premium', ':f': nueva_fecha}
+                if not dni_cliente:
+                    st.error("Ingresa el DNI")
+                else:
+                    try:
+                        nueva_fecha = (datetime.now() + timedelta(days=30)).isoformat()
+
+                        response = tabla_usuarios.query(
+                            IndexName='dni-index',
+                            KeyConditionExpression=Key('dni').eq(dni_cliente)
                         )
-                        st.success(f"✅ Plan PREMIUM activado para DNI {dni_cliente} por 30 días")
-                    else:
-                        st.error("DNI no encontrado")
-                except Exception as e:
-                    st.error(f"Error: {e}")
+
+                        if response['Items']:
+                            uid = response['Items'][0]['usuario_id']
+
+                            tabla_usuarios.update_item(
+                                Key={'usuario_id': uid},
+                                UpdateExpression='SET #p = :p, fecha_trial_fin = :f, activo = :a',
+                                ExpressionAttributeNames={'#p': 'plan'},
+                                ExpressionAttributeValues={
+                                    ':p': 'premium',
+                                    ':f': nueva_fecha,
+                                    ':a': True
+                                }
+                            )
+                            st.success(f"✅ Plan PREMIUM activado para DNI {dni_cliente} por 30 días")
+                            st.balloons()
+                        else:
+                            st.error("DNI no encontrado")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
