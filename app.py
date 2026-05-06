@@ -341,50 +341,60 @@ def mostrar_login():
     st.markdown("<h2 style='text-align: center; color: #60A5FA; margin-bottom: 30px; font-size: 1.5rem;'>¿Cansado de perder plata en tu negocio?</h2>", unsafe_allow_html=True)
 
     col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4)
+    
+    card_style = """
+    <div style='background: #252836; border: 1px solid #3F4354; border-radius: 12px; 
+                padding: 20px; text-align: center; height: 190px; 
+                transition: all 0.3s ease;
+                box-shadow: 0 0 15px rgba(124, 58, 237, 0.1);'
+         onmouseover="this.style.transform='translateY(-5px)'; 
+                      this.style.boxShadow='0 8px 25px rgba(124, 58, 237, 0.4)';
+                      this.style.border='1px solid #7C3AED';"
+         onmouseout="this.style.transform='translateY(0)'; 
+                     this.style.boxShadow='0 0 15px rgba(124, 58, 237, 0.1)';
+                     this.style.border='1px solid #3F4354';">
+    """
     
     with col1:
-        st.markdown("""
-        <div style='background: #252836; border: 1px solid #3F4354; border-radius: 12px; 
-                    padding: 20px; text-align: center; height: 180px;'>
+        st.markdown(f"""
+        {card_style}
             <div style='font-size: 2.2rem; margin-bottom: 10px;'>📦</div>
             <h3 style='font-size: 1rem; margin: 10px 0;'>Control Total</h3>
-            <p style='color: #9CA3AF; font-size: 0.8rem;'>
+            <p style='color: #9CA3AF; font-size: 0.8rem; line-height: 1.3;'>
                 Sabes qué vendes y qué te falta. Adiós cuaderno.
             </p>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
-        st.markdown("""
-        <div style='background: #252836; border: 1px solid #3F4354; border-radius: 12px; 
-                    padding: 20px; text-align: center; height: 180px;'>
+        st.markdown(f"""
+        {card_style}
             <div style='font-size: 2.2rem; margin-bottom: 10px;'>💰</div>
             <h3 style='font-size: 1rem; margin: 10px 0;'>Más Ganancia</h3>
-            <p style='color: #9CA3AF; font-size: 0.8rem;'>
+            <p style='color: #9CA3AF; font-size: 0.8rem; line-height: 1.3;'>
                 Ve qué productos más plata te dejan. Gana más.
             </p>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
-        st.markdown("""
-        <div style='background: #252836; border: 1px solid #3F4354; border-radius: 12px; 
-                    padding: 20px; text-align: center; height: 180px;'>
+        st.markdown(f"""
+        {card_style}
             <div style='font-size: 2.2rem; margin-bottom: 10px;'>📱</div>
             <h3 style='font-size: 1rem; margin: 10px 0;'>Desde tu Celular</h3>
-            <p style='color: #9CA3AF; font-size: 0.8rem;'>
-                Sin computadoras. Gestiona desde donde estés.
+            <p style='color: #9CA3AF; font-size: 0.8rem; line-height: 1.3;'>
+                Sin computadoras. Gestiona donde estés.
             </p>
         </div>
         """, unsafe_allow_html=True)
     
     with col4:
-        st.markdown("""
-        <div style='background: #252836; border: 1px solid #3F4354; border-radius: 12px; 
-                    padding: 20px; text-align: center; height: 180px;'>
+        st.markdown(f"""
+        {card_style}
             <div style='font-size: 2.2rem; margin-bottom: 10px;'>⚡</div>
             <h3 style='font-size: 1rem; margin: 10px 0;'>Súper Barato</h3>
-            <p style='color: #9CA3AF; font-size: 0.8rem;'>
+            <p style='color: #9CA3AF; font-size: 0.8rem; line-height: 1.3;'>
                 S/30 al mes. Otros cobran S/250.
             </p>
         </div>
