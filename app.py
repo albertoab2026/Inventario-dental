@@ -380,7 +380,7 @@ if 'logged_in' not in st.session_state:
 if not st.session_state.logged_in:
     mostrar_login()
 else:
-    # === SIDEBAR CON DISEÑO DE LA FOTO ===
+    # === SIDEBAR SOLO CAJA MORADA + YAPE + CERRAR SESIÓN ===
     with st.sidebar:
         user = st.session_state.user_data
         st.markdown(f"""
@@ -392,52 +392,104 @@ else:
         </div>
         """, unsafe_allow_html=True)
 
-        menu = st.selectbox("Menú", ["📦 Productos", "💰 Ventas", "📊 Dashboard", "🔧 Admin"])
-
-        if menu == "🔧 Admin":
-            st.subheader("🔧 Panel Admin")
-
-            with st.expander("🔑 Cambiar Claves"):
-                st.info("Función para cambiar tu clave")
-                nueva_clave = st.text_input("Nueva Clave", type="password", key="new_pass")
-                if st.button("Cambiar Clave"):
-                    try:
-                        tabla_usuarios.update_item(
-                            Key={'usuario_id': user['usuario_id']},
-                            UpdateExpression='SET password_hash = :val',
-                            ExpressionAttributeValues={':val': hash_password(nueva_clave)}
-                        )
-                        st.success("✅ Clave cambiada")
-                    except:
-                        st.error("Error al cambiar clave")
-
-            with st.expander("🔒 Activar Plan S/30"):
-                st.write("**Activar Plan S/30 por 30 días**")
-                dni_cliente = st.text_input("DNI del cliente que pagó S/30")
-                if st.button("Activar 30 días"):
-                    try:
-                        nueva_fecha = (datetime.now() + timedelta(days=30)).isoformat()
-                        response = tabla_usuarios.scan(FilterExpression=Key('dni').eq(dni_cliente))
-                        if response['Items']:
-                            uid = response['Items'][0]['usuario_id']
-                            tabla_usuarios.update_item(
-                                Key={'usuario_id': uid},
-                                UpdateExpression='SET plan = :p, fecha_trial_fin = :f',
-                                ExpressionAttributeValues={':p': 'premium', ':f': nueva_fecha}
-                            )
-                            st.success(f"✅ Plan PREMIUM activado para DNI {dni_cliente} por 30 días")
-                        else:
-                            st.error("DNI no encontrado")
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-
         st.write("")
         st.write("**YAPE/PLIN**")
         st.info("914 282 688\nALBERTO BALLARTA")
 
-        if st.button("🚪 Cerrar Sesión"):
+        if st.button("🚪 Cerrar Sesión", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
+
+    # === DESPLEGABLE AFUERA EN EL CONTENIDO PRINCIPAL ===
+    menu = st.selectbox("Menú", ["📦 Productos", "💰 Ventas", "📊 Dashboard", "🔧 Admin"], label_visibility="collapsed")
+
+    st.write("")
+
+    if menu == "📦 Productos":
+        st.header("📦 Gestión de Productos")
+        with st.form("form_producto"):
+            nombre = st.text_input("Nombre del producto")
+            precio = st.number_input("Precio", min_value=0.0, format="%.2f")
+            stock = st.number_input("Stock inicial", min_value=0)
+            categoria = st.selectbox("Categoría", ["Abarrotes", "Bebidas", "Limpieza", "Otros"])
+            if st.form_submit_button("Agregar Producto"):
+                if agregar_producto(nombre, precio, stock, categoria):
+                    st.success("Producto agregado")
+                    st.rerun()
+
+        productos = obtener_productos()
+        if productos:
+            df = pd.DataFrame(productos)
+            st.dataframe(df[['nombre', 'precio', 'stock', 'categoria']], use_container_width=True)
+
+    elif menu == "💰 Ventas":
+        st.header("💰 Registrar Venta")
+        productos = obtener_productos()
+        if productos:
+            nombres = [p['nombre'] for p in productos]
+            producto_sel = st.selectbox("Producto", nombres)
+            cantidad = st.number_input("Cantidad", min_value=1, value=1)
+            producto = next((p for p in productos if p['nombre'] == producto_sel), None)
+            if producto:
+                st.write(f"Precio unitario: S/{producto['precio']:.2f}")
+                st.write(f"Total: S/{producto['precio'] * cantidad:.2f}")
+                if st.button("Registrar Venta"):
+                    if registrar_venta(producto['producto_id'], cantidad, producto['precio']):
+                        st.success("Venta registrada")
+                        st.rerun()
+        else:
+            st.warning("Primero agrega productos")
+
+    elif menu == "📊 Dashboard":
+        st.header("📊 Dashboard")
+        ventas = obtener_ventas()
+        productos = obtener_productos()
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Productos", len(productos))
+        with col2:
+            total_ventas = sum([v['total'] for v in ventas])
+            st.metric("Ventas Totales", f"S/{total_ventas:.2f}")
+        with col3:
+            st.metric("Transacciones", len(ventas))
+
+    elif menu == "🔧 Admin":
+        st.header("🔧 Panel Admin")
+        tab_clave, tab_plan = st.tabs(["🔑 Cambiar Claves", "🔒 Activar Plan S/30"])
+
+        with tab_clave:
+            st.subheader("Cambiar Claves")
+            nueva_clave = st.text_input("Nueva Clave", type="password", key="new_pass")
+            if st.button("Cambiar Clave"):
+                try:
+                    tabla_usuarios.update_item(
+                        Key={'usuario_id': user['usuario_id']},
+                        UpdateExpression='SET password_hash = :val',
+                        ExpressionAttributeValues={':val': hash_password(nueva_clave)}
+                    )
+                    st.success("✅ Clave cambiada")
+                except:
+                    st.error("Error al cambiar clave")
+
+        with tab_plan:
+            st.subheader("Activar Plan S/30 por 30 días")
+            dni_cliente = st.text_input("DNI del cliente que pagó S/30")
+            if st.button("Activar 30 días"):
+                try:
+                    nueva_fecha = (datetime.now() + timedelta(days=30)).isoformat()
+                    response = tabla_usuarios.scan(FilterExpression=Key('dni').eq(dni_cliente))
+                    if response['Items']:
+                        uid = response['Items'][0]['usuario_id']
+                        tabla_usuarios.update_item(
+                            Key={'usuario_id': uid},
+                            UpdateExpression='SET plan = :p, fecha_trial_fin = :f',
+                            ExpressionAttributeValues={':p': 'premium', ':f': nueva_fecha}
+                        )
+                        st.success(f"✅ Plan PREMIUM activado para DNI {dni_cliente} por 30 días")
+                    else:
+                        st.error("DNI no encontrado")
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
     # === CONTENIDO PRINCIPAL ===
     if menu == "📦 Productos":
