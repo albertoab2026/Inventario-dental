@@ -124,35 +124,82 @@ tabla_trial = dynamodb.Table('NEXUS_TRIAL_USADOS') # Para validar trial
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-def registrar_dueno(dni, nombre, email, password):
+def verificar_trial_usado(dni, email):
+    """Revisa si ya usó trial con DNI o EMAIL"""
     try:
-        tabla_usuarios.put_item(
-            Item={
-                'usuario_id': dni,
-                'dni': dni,
-                'nombre': nombre,
-                'email': email,
-                'password': hash_password(password),
-                'rol': 'dueno',
-                'estado_suscripcion': 'trial',
-                'fecha_registro': datetime.now().isoformat(),
-                'fecha_vencimiento': (datetime.now() + timedelta(days=7)).isoformat(),
-                'ventas_acumuladas': 0
-            }
-        )
-        return True
+        # Revisa DNI
+        resp_dni = tabla_trial.get_item(Key={'tipo_id': f'DNI-{dni}'})
+        if 'Item' in resp_dni:
+            return True
+        # Revisa EMAIL 
+        resp_email = tabla_trial.get_item(Key={'tipo_id': f'EMAIL-{email}'})
+        if 'Item' in resp_email:
+            return True
+        return False
     except:
         return False
 
-def login(dni, password):
+def registrar_dueno(dni, nombre, email, password):
     try:
-        response = tabla_usuarios.get_item(Key={'usuario_id': dni})
-        if 'Item' in response:
-            user = response['Item']
-            if user['password'] == hash_password(password):
-                return user
+        # 1. Validar si ya usó trial
+        if verificar_trial_usado(dni, email):
+            st.error("❌ Este DNI o Email ya usó los 7 días gratis")
+            return False
+        
+        # 2. Generar IDs como tu estructura
+        timestamp = str(int(datetime.now().timestamp()))[-5:]
+        usuario_id = f"DUENO{timestamp}"
+        cliente_id = f"DUENO-{timestamp[-3:]}"
+        
+        # 3. Crear usuario en NEXUS_USUARIOS
+        tabla_usuarios.put_item(
+            Item={
+                'usuario_id': usuario_id, # Clave primaria
+                'cliente_id': cliente_id,
+                'id_del_dueno': cliente_id,
+                'id_del_empleado': f"EMP-{timestamp[-3:]}",
+                'dni': dni,
+                'nombre': nombre,
+                'email': email,
+                'password_hash': hash_password(password), # Tu campo real
+                'rol': 'dueno',
+                'plan': 'trial',
+                'activo': True,
+                'celular': '',
+                'fecha_registro': datetime.now().isoformat(),
+                'fecha_trial_fin': (datetime.now() + timedelta(days=7)).isoformat(),
+                'ventas_acumuladas': 0
+            }
+        )
+        
+        # 4. Marcar DNI y EMAIL como usados en NEXUS_TRIAL_USADOS
+        tabla_trial.put_item(Item={'tipo_id': f'DNI-{dni}', 'fecha': datetime.now().isoformat()})
+        tabla_trial.put_item(Item={'tipo_id': f'EMAIL-{email}', 'fecha': datetime.now().isoformat()})
+        
+        return True
+    except Exception as e:
+        st.error(f"Error: {e}")
+        return False
+
+def login(usuario_o_dni, password):
+    try:
+        # Busca por DNI o usuario_id
+        response = tabla_usuarios.scan(
+            FilterExpression=Key('dni').eq(usuario_o_dni) | Key('usuario_id').eq(usuario_o_dni)
+        )
+        if response['Items']:
+            user = response['Items'][0]
+            # Valida con password_hash
+            if user.get('password_hash') == hash_password(password):
+                # Valida que esté activo
+                if user.get('activo', False):
+                    return user
+                else:
+                    st.error("❌ Cuenta desactivada")
+                    return None
         return None
-    except:
+    except Exception as e:
+        st.error(f"Error login: {e}")
         return None
 
 # ====== 4. FUNCIONES DE PRODUCTOS ======
@@ -230,13 +277,13 @@ def mostrar_login():
 
     st.markdown("<h2 style='text-align: center; color: #60A5FA; margin-bottom: 30px; font-size: 1.5rem;'>¿Cansado de perder plata en tu negocio?</h2>", unsafe_allow_html=True)
 
-    col1, col2, col3, col4 = st.columns([1,1,1,1])  # Fuerza mismo ancho
+    col1, col2, col3, col4 = st.columns(4)
     
     card_style = """
-    <div style='background: rgba(37, 40, 54, 0.8); border: 1px solid #4F46E5; border-radius: 12px; 
-                padding: 16px; text-align: center; min-height: 230px; 
-                display: flex; flex-direction: column; justify-content: center;
-                transition: all 0.3s ease; overflow-wrap: break-word; word-break: break-word;
+    <div style='background: rgba(37, 40, 54, 0.9); border: 1px solid #4F46E5; border-radius: 12px; 
+                padding: 10px 8px; text-align: center; min-height: 250px; width: 100%;
+                display: flex; flex-direction: column; justify-content: center; align-items: center;
+                transition: all 0.3s ease; overflow: hidden; box-sizing: border-box;
                 box-shadow: 0 0 20px rgba(124, 58, 237, 0.2);'
          onmouseover="this.style.transform='translateY(-8px) scale(1.02)'; 
                       this.style.boxShadow='0 12px 30px rgba(124, 58, 237, 0.6)';
@@ -249,10 +296,10 @@ def mostrar_login():
     with col1:
         st.markdown(f"""
         {card_style}
-            <div style='font-size: 2rem; margin-bottom: 6px;'>📦</div>
-            <h3 style='font-size: 0.9rem; margin: 6px 0; line-height: 1.2;'>Control Total</h3>
-            <p style='color: #9CA3AF; font-size: 0.7rem; line-height: 1.3; margin: 0;'>
-                Sabes qué vendes y qué falta. Adiós cuaderno.
+            <div style='font-size: 1.6rem; margin-bottom: 4px;'>📦</div>
+            <h3 style='font-size: 0.8rem; margin: 4px 0; line-height: 1.1; word-wrap: break-word;'>Control Total</h3>
+            <p style='color: #9CA3AF; font-size: 0.6rem; line-height: 1.2; margin: 0; word-wrap: break-word;'>
+                Qué vendes. Adiós cuaderno.
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -260,10 +307,10 @@ def mostrar_login():
     with col2:
         st.markdown(f"""
         {card_style}
-            <div style='font-size: 2rem; margin-bottom: 6px;'>💰</div>
-            <h3 style='font-size: 0.9rem; margin: 6px 0; line-height: 1.2;'>Más Ganancia</h3>
-            <p style='color: #9CA3AF; font-size: 0.7rem; line-height: 1.3; margin: 0;'>
-                Ve qué da más plata. Gana más.
+            <div style='font-size: 1.6rem; margin-bottom: 4px;'>💰</div>
+            <h3 style='font-size: 0.8rem; margin: 4px 0; line-height: 1.1; word-wrap: break-word;'>Más Ganancia</h3>
+            <p style='color: #9CA3AF; font-size: 0.6rem; line-height: 1.2; margin: 0; word-wrap: break-word;'>
+                Ve qué da más plata.
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -271,10 +318,10 @@ def mostrar_login():
     with col3:
         st.markdown(f"""
         {card_style}
-            <div style='font-size: 2rem; margin-bottom: 6px;'>📱</div>
-            <h3 style='font-size: 0.9rem; margin: 6px 0; line-height: 1.2;'>Desde tu Celular</h3>
-            <p style='color: #9CA3AF; font-size: 0.7rem; line-height: 1.3; margin: 0;'>
-                Sin PC. Gestiona donde estés.
+            <div style='font-size: 1.6rem; margin-bottom: 4px;'>📱</div>
+            <h3 style='font-size: 0.8rem; margin: 4px 0; line-height: 1.1; word-wrap: break-word;'>Desde tu Celular</h3>
+            <p style='color: #9CA3AF; font-size: 0.6rem; line-height: 1.2; margin: 0; word-wrap: break-word;'>
+                Sin PC. Donde estés.
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -282,10 +329,10 @@ def mostrar_login():
     with col4:
         st.markdown(f"""
         {card_style}
-            <div style='font-size: 2rem; margin-bottom: 6px;'>⚡</div>
-            <h3 style='font-size: 0.9rem; margin: 6px 0; line-height: 1.2;'>Súper Barato</h3>
-            <p style='color: #9CA3AF; font-size: 0.7rem; line-height: 1.3; margin: 0;'>
-                S/30 al mes. Otros S/250.
+            <div style='font-size: 1.6rem; margin-bottom: 4px;'>⚡</div>
+            <h3 style='font-size: 0.8rem; margin: 4px 0; line-height: 1.1; word-wrap: break-word;'>Súper Barato</h3>
+            <p style='color: #9CA3AF; font-size: 0.6rem; line-height: 1.2; margin: 0; word-wrap: break-word;'>
+                S/30 mes. Otros S/250.
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -296,8 +343,13 @@ def mostrar_login():
     with col2:
         st.markdown("""
         <div style='background: #10B981; border-radius: 12px; padding: 20px; 
-                    text-align: center; margin: 20px 0;
-                    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);'>
+                    text-align: center; margin: 20px 0; cursor: pointer;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);'
+             onmouseover="this.style.transform='scale(1.03)'; 
+                          this.style.boxShadow='0 0 35px rgba(16, 185, 129, 0.8)';"
+             onmouseout="this.style.transform='scale(1)'; 
+                         this.style.boxShadow='0 0 20px rgba(16, 185, 129, 0.4)';">
             <h3 style='margin: 0; color: white; font-size: 1.1rem;'>🎁 Prueba 7 DÍAS GRATIS</h3>
             <p style='color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 0.85rem;'>
                 Sin tarjeta. Sin compromiso. Cancela cuando quieras.
@@ -311,7 +363,7 @@ def mostrar_login():
         st.markdown("<h3 style='text-align: center;'>Iniciar Sesión</h3>", unsafe_allow_html=True)
         dni = st.text_input("Usuario o DNI", placeholder="12345678")
         password = st.text_input("Contraseña", type="password")
-        if st.button("Iniciar Sesión", use_container_width=True):
+        if st.button("Iniciar Sesión", use_container_width=True):  # <- AQUÍ ESTABA ROTO
             user = login(dni, password)
             if user:
                 st.session_state.logged_in = True
