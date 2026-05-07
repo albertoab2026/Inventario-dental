@@ -417,6 +417,42 @@ else:
     # === SIDEBAR SOLO CAJA MORADA + YAPE + CERRAR SESIÓN ===
     with st.sidebar:
         user = st.session_state.user_data
+
+        # ===== PAYWALL S/30 - BLOQUEA SI ESTÁ VENCIDO =====
+from datetime import datetime
+
+plan = user.get('plan', 'trial')
+fecha_fin = user.get('fecha_trial_fin')
+dni_usuario = user['dni']
+
+# Convertir fecha si viene como string
+if isinstance(fecha_fin, str):
+    fecha_fin = datetime.fromisoformat(fecha_fin.replace('Z', ''))
+
+    # BLOQUEAR SI ESTÁ VENCIDO Y NO ES PREMIUM
+    if plan != 'premium' and fecha_fin and datetime.now() > fecha_fin:
+        st.error("🚫 Tu prueba gratis terminó")
+        
+        st.markdown("### 💎 Renueva tu Plan Premium - S/30")
+        st.markdown(f"""
+        **📱 Paso 1: Yapea o Plinea S/30 a:** 
+        '''
+        914 282 688
+        Alberto Ballarta
+        '''
+        
+        **📲 Paso 2: Envíanos por WhatsApp:**
+        1. Captura del pago
+        2. Tu DNI: **{dni_usuario}**
+        """)
+        
+        mensaje = f"Hola, pagué S/30. Mi DNI es {dni_usuario}. Adjunto captura."
+        whatsapp_url = f"https://wa.me/51914282688?text={mensaje.replace(' ', '%20')}"
+        st.link_button("📲 Enviar comprobante por WhatsApp", whatsapp_url, use_container_width=True)
+        
+        st.info("⚠️ Solo activamos pagos confirmados en Yape/Plin")
+        st.stop()
+    # ===== FIN PAYWALL =====
         
         # === ALERTA DE DÍAS RESTANTES ===
         if user.get('plan') in ['trial', 'premium']:
