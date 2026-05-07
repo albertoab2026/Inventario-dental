@@ -434,12 +434,16 @@ else:
                 except:
                     pass
         
+         # === CAJA DINÁMICA CON DATOS DEL CLIENTE ===
+        nombre_negocio = user.get('nombre_negocio', 'SIN NOMBRE')
+        plan_actual = user.get('plan', 'TRIAL')
+        
         st.markdown(f"""
         <div style='background: linear-gradient(135deg, #7B2FF7 0%, #4A00E0 100%);
             padding: 20px; border-radius: 15px; margin: 10px 0;
             box-shadow: 0 0 30px rgba(123, 47, 247, 0.6);'>
-            <h3 style='margin:0; font-size:16px; opacity:0.9;'>ALBERTO BALLARTA</h3>
-            <p style='margin:5px 0 0 0; font-size:24px; font-weight:bold;'>ADMIN</p>
+            <h3 style='margin:0; font-size:16px; opacity:0.9;'>{nombre_negocio.upper()}</h3>
+            <p style='margin:5px 0 0 0; font-size:24px; font-weight:bold;'>{plan_actual.upper()}</p>
         </div>
         """, unsafe_allow_html=True)
 
