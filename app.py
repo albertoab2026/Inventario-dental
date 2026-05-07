@@ -511,9 +511,9 @@ else:
         with col3:
             st.metric("Transacciones", len(ventas))
 
-elif menu == "🔧 Admin":
-    st.header("🔧 Panel Admin")
-    tab_clave, tab_plan = st.tabs(["🔑 Cambiar Claves", "🔒 Activar Plan S/30"])
+    elif menu == "⚙️ Admin":
+        st.header("⚙️ Panel Admin")
+        tab_clave, tab_plan = st.tabs(["🔑 Cambiar Claves", "🔒 Activar Plan S/30"])
 
     with tab_clave:
         st.subheader("Cambiar Claves")
