@@ -424,7 +424,7 @@ else:
     from datetime import datetime
     
     plan = user.get('plan', 'trial')
-    dni_usuario = user['dni']
+    dni_usuario = user.get('dni', 'ADMIN_SIN_DNI')
     
     # Agarra la fecha de vencimiento según el plan
     if plan == 'trial':
