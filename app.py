@@ -502,9 +502,6 @@ else:
             pass
     
     # ===== AQUÍ VA TU APP NORMAL =====
-    st.title("Dashboard Principal")
-    
-    st.title("Dashboard Principal")
     
     # === MENSAJE BIENVENIDA EN EL CENTRO ===
     user = st.session_state.user_data
@@ -567,11 +564,11 @@ else:
         with col3:
             st.metric("Transacciones", len(ventas))
 
-    elif menu == "ADMIN":
+    elif menu == "⚙️ ADMIN":
         st.header("⚙️ Panel Admin")
         tab_clave, tab_plan = st.tabs(["🔑 Cambiar Claves", "🔒 Activar Plan S/30"])
 
-        with tab_clave: # ← 8 ESPACIOS = ADENTRO DEL ELIF
+        with tab_clave:
             st.subheader("Cambiar Claves")
             nueva_clave = st.text_input("Nueva Clave", type="password", key="new_pass")
             if st.button("Cambiar Clave"):
@@ -582,21 +579,21 @@ else:
                         ExpressionAttributeValues={':val': hash_password(nueva_clave)}
                     )
                     st.success("✅ Clave cambiada")
-                except:
-                    st.error("Error al cambiar clave")
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
-        with tab_plan: # ← 8 ESPACIOS = ADENTRO DEL ELIF
+        with tab_plan:
             rol_usuario = st.session_state.user_data.get('rol', 'cliente')
-
             if rol_usuario == 'admin':
                 st.subheader("Activar Plan S/30 por 30 días")
                 dni_cliente = st.text_input("DNI del cliente que pagó S/30")
-
                 if st.button("Activar 30 días"):
                     if not dni_cliente:
                         st.error("Ingresa el DNI")
                     else:
                         try:
+                            from boto3.dynamodb.conditions import Key
+                            from datetime import datetime, timedelta
                             nueva_fecha = (datetime.now() + timedelta(days=30)).isoformat()
                             response = tabla_usuarios.query(
                                 IndexName='dni-index',
@@ -621,4 +618,4 @@ else:
                         except Exception as e:
                             st.error(f"Error: {e}")
             else:
-                st.error("🚫 No tienes permisos de administrador")
+                st.error(f"🚫 No tienes permisos. Tu rol: {rol_usuario}")
