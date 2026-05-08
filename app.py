@@ -451,7 +451,7 @@ else:
         fecha_vencimiento = user.get('fecha_trial_fin')
         nombre_plan = "prueba gratis"
     elif plan == 'premium':
-        fecha_vencimiento = user.get('fecha_premium_fin')
+        fecha_vencimiento = user.get('fecha_trial_fin')  # ← SOLO CAMBIAS ESTO
         nombre_plan = "Premium"
     else:
         fecha_vencimiento = None
