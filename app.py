@@ -467,12 +467,17 @@ else:
             lima = pytz.timezone('America/Lima')
             ahora = datetime.now(lima)
             hoy = ahora.date()
-            fecha_venc_date = fecha_vencimiento.astimezone(lima).date()
+            
+            # Forzar que DynamoDB se lea como UTC antes de pasar a Lima
+            fecha_venc_utc = fecha_vencimiento.replace(tzinfo=pytz.utc)
+            fecha_venc_lima = fecha_venc_utc.astimezone(lima)
+            fecha_venc_date = fecha_venc_lima.date()
+            
             dias_restantes = (fecha_venc_date - hoy).days
             texto_dia = "día" if dias_restantes == 1 else "días"
             
             # 1. YA VENCIÓ - BLOQUEA
-            if ahora >= fecha_vencimiento.astimezone(lima):
+            if ahora >= fecha_venc_lima:
                 st.error(f"🚫 Tu {nombre_plan} venció")
                 
                 st.markdown("### 💎 Renueva tu Plan Premium - S/30")
@@ -494,19 +499,19 @@ else:
                 st.info("⚠️ Solo activamos pagos confirmados en Yape/Plin")
                 st.stop()                                            
             
-            # 2. HOY VENCE - Solo si aún no llegó la hora
+            # 2. HOY VENCE
             elif dias_restantes == 0:
                 st.error(f"🚨 ¡HOY SE VENCE tu {nombre_plan}! Renueva ahora para no perder acceso")
             
-            # 3. FALTAN 1-3 DÍAS - WARNING
+            # 3. FALTAN 1-3 DÍAS
             elif dias_restantes >= 1 and dias_restantes <= 3:
                 st.warning(f"⚠️ Te quedan {dias_restantes} {texto_dia} de {nombre_plan} - Renueva pronto")
             
             # 4. FALTAN MÁS DE 3 DÍAS  
             else:
                 st.info(f"📅 Te quedan {dias_restantes} {texto_dia} de {nombre_plan}")
-        except:
-            pass
+        except Exception as e:
+            st.error(f"Error en paywall: {e}")
     # ===== FIN PAYWALL =====        
     # ===== AQUÍ VA TU APP NORMAL =====
     
