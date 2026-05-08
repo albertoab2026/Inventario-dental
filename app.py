@@ -473,9 +473,8 @@ else:
             if isinstance(fecha_vencimiento, str):
                 fecha_vencimiento = datetime.fromisoformat(fecha_vencimiento.replace('Z', ''))
             
-            # Forzar UTC y pasar a Lima
-            fecha_venc_utc = fecha_vencimiento.replace(tzinfo=pytz.utc)
-            fecha_venc_lima = fecha_venc_utc.astimezone(lima)
+            # TU FDCHS YA ESTS DN LIMA
+            fecha_venc_lima = lima.localize(fecha_vencimiento)
             
             # Calcular diferencia en HORAS, no días
             segundos_restantes = (fecha_venc_lima - ahora).total_seconds()
