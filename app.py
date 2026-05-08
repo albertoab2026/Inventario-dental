@@ -451,7 +451,7 @@ else:
         fecha_vencimiento = user.get('fecha_trial_fin')
         nombre_plan = "prueba gratis"
     elif plan == 'premium':
-        fecha_vencimiento = user.get('fecha_trial_fin')  # ← SOLO CAMBIAS ESTO
+        fecha_vencimiento = user.get('fecha_trial_fin')  # ← Cambia esto por tu campo real de premium
         nombre_plan = "Premium"
     else:
         fecha_vencimiento = None
@@ -459,6 +459,21 @@ else:
     # Convertir fecha si viene como string
     if isinstance(fecha_vencimiento, str):
         fecha_vencimiento = datetime.fromisoformat(fecha_vencimiento.replace('Z', ''))
+    
+    # ===== ALERTA DE DÍAS RESTANTES =====
+    if fecha_vencimiento:
+        try:
+            dias_restantes = (fecha_vencimiento - datetime.now()).days
+            texto_dia = "día" if dias_restantes == 1 else "días"
+            
+            if dias_restantes > 3:
+                st.info(f"📅 Te quedan {dias_restantes} {texto_dia} de {nombre_plan}")
+            elif dias_restantes >= 1:
+                st.warning(f"⚠️ Te quedan {dias_restantes} {texto_dia} de {nombre_plan} - Renueva pronto")
+            elif dias_restantes == 0:
+                st.error(f"🚨 ¡HOY SE VENCE tu {nombre_plan}! Renueva ahora para no perder acceso")
+        except:
+            pass
     
     # BLOQUEAR SI ESTÁ VENCIDO - TRIAL O PREMIUM
     if fecha_vencimiento and datetime.now() > fecha_vencimiento:
@@ -470,8 +485,7 @@ else:
         '''
         914 282 688
         Alberto Ballarta
-        ''' 
-        
+        '''   
         
         **📲 Paso 2: Envíanos por WhatsApp:**
         1. Captura del pago
