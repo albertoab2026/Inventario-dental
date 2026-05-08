@@ -464,7 +464,9 @@ else:
     if fecha_vencimiento:
         try:
             ahora = datetime.now()
-            dias_restantes = (fecha_vencimiento - ahora).days
+            hoy = ahora.date()
+            fecha_venc_date = fecha_vencimiento.date()
+            dias_restantes = (fecha_venc_date - hoy).days
             texto_dia = "día" if dias_restantes == 1 else "días"
             
             # 1. YA VENCIÓ - BLOQUEA
@@ -488,9 +490,9 @@ else:
                 st.link_button("📲 Enviar comprobante por WhatsApp", whatsapp_url, use_container_width=True)
                 
                 st.info("⚠️ Solo activamos pagos confirmados en Yape/Plin")
-                st.stop()
+                st.stop()                                            
             
-            # 2. HOY VENCE - Solo aviso
+            # 2. HOY VENCE - Solo si aún no llegó la hora
             elif dias_restantes == 0:
                 st.error(f"🚨 ¡HOY SE VENCE tu {nombre_plan}! Renueva ahora para no perder acceso")
             
@@ -503,23 +505,7 @@ else:
                 st.info(f"📅 Te quedan {dias_restantes} {texto_dia} de {nombre_plan}")
         except:
             pass
-    # ===== FIN PAYWALL =====
-    
-    # ===== ALERTA DE DÍAS RESTANTES =====
-    # ESTO TAMBIÉN VA ADENTRO DEL ELSE
-    if fecha_vencimiento:
-        try:
-            dias_restantes = (fecha_vencimiento - datetime.now()).days
-            
-            if dias_restantes <= 0:
-                st.error(f"🚫 Tu {nombre_plan} venció")
-            elif dias_restantes <= 3:
-                st.warning(f"⚠️ Te quedan {dias_restantes} días de {nombre_plan} - Renueva pronto")
-            else:
-                st.info(f"📅 Te quedan {dias_restantes} días de {nombre_plan}")
-        except:
-            pass
-    
+    # ===== FIN PAYWALL =====        
     # ===== AQUÍ VA TU APP NORMAL =====
     
     # === MENSAJE BIENVENIDA EN EL CENTRO ===
