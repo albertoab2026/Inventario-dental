@@ -468,6 +468,11 @@ else:
             ahora = datetime.now(lima)
             hoy = ahora.date()
             
+            st.error(f"DEBUG 1 - fecha_vencimiento: {fecha_vencimiento}")
+            st.error(f"DEBUG 2 - fecha_venc_lima: {fecha_venc_lima}")  
+            st.error(f"DEBUG 3 - dias_restantes: {dias_restantes}")
+            
+            
             # Forzar que DynamoDB se lea como UTC antes de pasar a Lima
             fecha_venc_utc = fecha_vencimiento.replace(tzinfo=pytz.utc)
             fecha_venc_lima = fecha_venc_utc.astimezone(lima)
