@@ -460,44 +460,49 @@ else:
     if isinstance(fecha_vencimiento, str):
         fecha_vencimiento = datetime.fromisoformat(fecha_vencimiento.replace('Z', ''))
     
-    # ===== ALERTA DE DÍAS RESTANTES =====
+    # ===== ALERTA + BLOQUEO =====
     if fecha_vencimiento:
         try:
-            dias_restantes = (fecha_vencimiento - datetime.now()).days
+            ahora = datetime.now()
+            dias_restantes = (fecha_vencimiento - ahora).days
             texto_dia = "día" if dias_restantes == 1 else "días"
             
-            if dias_restantes > 3:
-                st.info(f"📅 Te quedan {dias_restantes} {texto_dia} de {nombre_plan}")
-            elif dias_restantes >= 1:
-                st.warning(f"⚠️ Te quedan {dias_restantes} {texto_dia} de {nombre_plan} - Renueva pronto")
+            # 1. YA VENCIÓ - BLOQUEA
+            if ahora >= fecha_vencimiento:
+                st.error(f"🚫 Tu {nombre_plan} venció")
+                
+                st.markdown("### 💎 Renueva tu Plan Premium - S/30")
+                st.markdown(f"""
+                **📱 Paso 1: Yapea o Plinea S/30 a:**
+                '''
+                914 282 688
+                Alberto Ballarta
+                '''                          
+                **📲 Paso 2: Envíanos por WhatsApp:**
+                1. Captura del pago
+                2. Tu DNI: **{dni_usuario}**
+                """)
+                
+                mensaje = f"Hola, pagué S/30. Mi DNI es {dni_usuario}. Adjunto captura."
+                whatsapp_url = f"https://wa.me/51914282688?text={mensaje.replace(' ', '%20')}"
+                st.link_button("📲 Enviar comprobante por WhatsApp", whatsapp_url, use_container_width=True)
+                
+                st.info("⚠️ Solo activamos pagos confirmados en Yape/Plin")
+                st.stop()
+            
+            # 2. HOY VENCE - Solo aviso
             elif dias_restantes == 0:
                 st.error(f"🚨 ¡HOY SE VENCE tu {nombre_plan}! Renueva ahora para no perder acceso")
+            
+            # 3. FALTAN 1-3 DÍAS - WARNING
+            elif dias_restantes >= 1 and dias_restantes <= 3:
+                st.warning(f"⚠️ Te quedan {dias_restantes} {texto_dia} de {nombre_plan} - Renueva pronto")
+            
+            # 4. FALTAN MÁS DE 3 DÍAS  
+            else:
+                st.info(f"📅 Te quedan {dias_restantes} {texto_dia} de {nombre_plan}")
         except:
             pass
-    
-    # BLOQUEAR SI ESTÁ VENCIDO - TRIAL O PREMIUM
-    if fecha_vencimiento and datetime.now() > fecha_vencimiento:
-        st.error(f"🚫 Tu {nombre_plan} venció")
-        
-        st.markdown("### 💎 Renueva tu Plan Premium - S/30")
-        st.markdown(f"""
-        **📱 Paso 1: Yapea o Plinea S/30 a:** 
-        '''
-        914 282 688
-        Alberto Ballarta
-        '''   
-        
-        **📲 Paso 2: Envíanos por WhatsApp:**
-        1. Captura del pago
-        2. Tu DNI: **{dni_usuario}**
-        """)
-        
-        mensaje = f"Hola, pagué S/30. Mi DNI es {dni_usuario}. Adjunto captura."
-        whatsapp_url = f"https://wa.me/51914282688?text={mensaje.replace(' ', '%20')}"
-        st.link_button("📲 Enviar comprobante por WhatsApp", whatsapp_url, use_container_width=True)
-        
-        st.info("⚠️ Solo activamos pagos confirmados en Yape/Plin")
-        st.stop()
     # ===== FIN PAYWALL =====
     
     # ===== ALERTA DE DÍAS RESTANTES =====
