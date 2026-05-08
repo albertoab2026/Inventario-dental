@@ -464,14 +464,15 @@ else:
     if fecha_vencimiento:
         try:
             import pytz
+            from datetime import datetime
+            
             lima = pytz.timezone('America/Lima')
             ahora = datetime.now(lima)
             hoy = ahora.date()
             
-            st.error(f"DEBUG 1 - fecha_vencimiento: {fecha_vencimiento}")
-            st.error(f"DEBUG 2 - fecha_venc_lima: {fecha_venc_lima}")  
-            st.error(f"DEBUG 3 - dias_restantes: {dias_restantes}")
-            
+            # CONVIERTE A DATETIME SI VIENE COMO STRING
+            if isinstance(fecha_vencimiento, str):
+                fecha_vencimiento = datetime.fromisoformat(fecha_vencimiento.replace('Z', ''))
             
             # Forzar que DynamoDB se lea como UTC antes de pasar a Lima
             fecha_venc_utc = fecha_vencimiento.replace(tzinfo=pytz.utc)
@@ -484,7 +485,6 @@ else:
             # 1. YA VENCIÓ - BLOQUEA
             if ahora >= fecha_venc_lima:
                 st.error(f"🚫 Tu {nombre_plan} venció")
-                
                 st.markdown("### 💎 Renueva tu Plan Premium - S/30")
                 st.markdown(f"""
                 **📱 Paso 1: Yapea o Plinea S/30 a:**
@@ -496,11 +496,9 @@ else:
                 1. Captura del pago
                 2. Tu DNI: **{dni_usuario}**
                 """)
-                
                 mensaje = f"Hola, pagué S/30. Mi DNI es {dni_usuario}. Adjunto captura."
                 whatsapp_url = f"https://wa.me/51914282688?text={mensaje.replace(' ', '%20')}"
                 st.link_button("📲 Enviar comprobante por WhatsApp", whatsapp_url, use_container_width=True)
-                
                 st.info("⚠️ Solo activamos pagos confirmados en Yape/Plin")
                 st.stop()                                            
             
@@ -515,6 +513,7 @@ else:
             # 4. FALTAN MÁS DE 3 DÍAS  
             else:
                 st.info(f"📅 Te quedan {dias_restantes} {texto_dia} de {nombre_plan}")
+                
         except Exception as e:
             st.error(f"Error en paywall: {e}")
     # ===== FIN PAYWALL =====        
