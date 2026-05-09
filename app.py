@@ -546,196 +546,195 @@ else:
     menu = st.selectbox("Menu", ["📦 Productos", "💰 Ventas", "📊 Dashboard", "⚙️ ADMIN"], label_visibility="collapsed")
     st.write("")
 
-if menu == "📦 Productos":
-    st.header("📦 Gestión de Productos")
-    
-    # ====== CATEGORÍAS DINÁMICAS POR RUBRO - NUEVO ======
-    rubro_usuario = st.session_state.user_data.get('rubro', 'Otro')
-    categorias_base = CATEGORIAS_POR_RUBRO.get(rubro_usuario, [])
-    categorias_custom = st.session_state.user_data.get('categorias_custom', [])
-    
-    opciones_cat = categorias_base + categorias_custom + ["➕ Crear nueva categoría"]
-    
-    col1, col2 = st.columns([3,1])
-    with col1:
-        categoria_seleccionada = st.selectbox("Categoría", opciones_cat, key="cat_select_prod")
-    
-    with col2:
-        if categoria_seleccionada == "➕ Crear nueva categoría":
-            nueva_cat = st.text_input("Nueva", key="nueva_cat_prod", label_visibility="collapsed", placeholder="Nombre")
-            if st.button("Guardar") and nueva_cat:
-                if nueva_cat not in opciones_cat:
-                    categorias_custom.append(nueva_cat)
-                    tabla_usuarios.update_item(
-                        Key={'usuario_id': st.session_state.user_data['usuario_id']},
-                        UpdateExpression='SET categorias_custom = :c',
-                        ExpressionAttributeValues={':c': categorias_custom}
-                    )
-                    st.session_state.user_data['categorias_custom'] = categorias_custom
-                    st.success(f"'{nueva_cat}' creada")
-                    st.rerun()
-                else:
-                    st.error("Ya existe")
-            st.stop()
-    
-    # ====== FORM DE PRODUCTO ======
-    with st.form("form_producto", clear_on_submit=True):
-        nombre = st.text_input("Nombre del producto", placeholder="Ej: Paracetamol 500mg")
-        precio = st.number_input("Precio", min_value=0.0, format="%.2f")
-        stock = st.number_input("Stock inicial", min_value=0)
-        
-        if st.form_submit_button("Agregar Producto"):
-            if nombre and categoria_seleccionada != "➕ Crear nueva categoría":
-                if agregar_producto(nombre, precio, stock, categoria_seleccionada):
-                    st.success("Producto agregado")
-                    st.rerun()
-            else:
-                st.error("Completa el nombre y elige categoría válida")
+    if menu == "📦 Productos":
+        st.header("📦 Gestión de Productos")
 
-    st.divider()
-    
-    # ====== TABLA CON FILTRO ======
-    st.subheader("Mis Productos")
-    filtro = st.selectbox("Filtrar por categoría", ["Todas"] + categorias_base + categorias_custom, key="filtro_prod")
-    
-    productos = obtener_productos()
-    if productos:
-        df = pd.DataFrame(productos)
-        if filtro != "Todas":
-            df = df[df['categoria'] == filtro]
-        
-        if not df.empty:
-            st.dataframe(
-                df[['nombre', 'precio', 'stock', 'categoria']], 
-                use_container_width=True,
-                column_config={
-                    "precio": st.column_config.NumberColumn("Precio", format="S/ %.2f"),
-                    "stock": st.column_config.NumberColumn("Stock", format="%d und")
-                }
-            )
+        # ====== CATEGORÍAS DINÁMICAS POR RUBRO - NUEVO ======
+        rubro_usuario = st.session_state.user_data.get('rubro', 'Otro')
+        categorias_base = CATEGORIAS_POR_RUBRO.get(rubro_usuario, [])
+        categorias_custom = st.session_state.user_data.get('categorias_custom', [])
+
+        opciones_cat = categorias_base + categorias_custom + ["➕ Crear nueva categoría"]
+
+        col1, col2 = st.columns([3,1])
+        with col1:
+            categoria_seleccionada = st.selectbox("Categoría", opciones_cat, key="cat_select_prod")
+
+        with col2:
+            if categoria_seleccionada == "➕ Crear nueva categoría":
+                nueva_cat = st.text_input("Nueva", key="nueva_cat_prod", label_visibility="collapsed", placeholder="Nombre")
+                if st.button("Guardar") and nueva_cat:
+                    if nueva_cat not in opciones_cat:
+                        categorias_custom.append(nueva_cat)
+                        tabla_usuarios.update_item(
+                            Key={'usuario_id': st.session_state.user_data['usuario_id']},
+                            UpdateExpression='SET categorias_custom = :c',
+                            ExpressionAttributeValues={':c': categorias_custom}
+                        )
+                        st.session_state.user_data['categorias_custom'] = categorias_custom
+                        st.success(f"'{nueva_cat}' creada")
+                        st.rerun()
+                    else:
+                        st.error("Ya existe")
+                st.stop()
+
+        # ====== FORM DE PRODUCTO ======
+        with st.form("form_producto", clear_on_submit=True):
+            nombre = st.text_input("Nombre del producto", placeholder="Ej: Paracetamol 500mg")
+            precio = st.number_input("Precio", min_value=0.0, format="%.2f")
+            stock = st.number_input("Stock inicial", min_value=0)
+
+            if st.form_submit_button("Agregar Producto"):
+                if nombre and categoria_seleccionada!= "➕ Crear nueva categoría":
+                    if agregar_producto(nombre, precio, stock, categoria_seleccionada):
+                        st.success("Producto agregado")
+                        st.rerun()
+                else:
+                    st.error("Completa el nombre y elige categoría válida")
+
+        st.divider()
+
+        # ====== TABLA CON FILTRO ======
+        st.subheader("Mis Productos")
+        filtro = st.selectbox("Filtrar por categoría", ["Todas"] + categorias_base + categorias_custom, key="filtro_prod")
+
+        productos = obtener_productos()
+        if productos:
+            df = pd.DataFrame(productos)
+            if filtro!= "Todas":
+                df = df[df['categoria'] == filtro]
+
+            if not df.empty:
+                st.dataframe(
+                    df[['nombre', 'precio', 'stock', 'categoria']],
+                    use_container_width=True,
+                    column_config={
+                        "precio": st.column_config.NumberColumn("Precio", format="S/ %.2f"),
+                        "stock": st.column_config.NumberColumn("Stock", format="%d und")
+                    }
+                )
+            else:
+                st.info(f"Sin productos en '{filtro}'")
         else:
-            st.info(f"Sin productos en '{filtro}'")
-    else:
-        st.info("Aún no tienes productos. Agrega el primero arriba")
+            st.info("Aún no tienes productos. Agrega el primero arriba")
 
-elif menu == "💰 Ventas":
-    st.header("💰 Registrar Venta")
-    productos = obtener_productos()
-    if productos:
-        nombres = [p['nombre'] for p in productos]
-        producto_sel = st.selectbox("Producto", nombres)
-        cantidad = st.number_input("Cantidad", min_value=1, value=1)
-        producto = next((p for p in productos if p['nombre'] == producto_sel), None)
-        if producto:
-            st.write(f"Precio unitario: S/{producto['precio']:.2f}")
-            st.write(f"Total: S/{producto['precio'] * cantidad:.2f}")
-            if st.button("Registrar Venta"):
-                if registrar_venta(producto['producto_id'], cantidad, producto['precio']):
-                    st.success("Venta registrada")
-                    st.rerun()
-    else:
-        st.warning("Primero agrega productos")
+    elif menu == "💰 Ventas":
+        st.header("💰 Registrar Venta")
+        productos = obtener_productos()
+        if productos:
+            nombres = [p['nombre'] for p in productos]
+            producto_sel = st.selectbox("Producto", nombres)
+            cantidad = st.number_input("Cantidad", min_value=1, value=1)
+            producto = next((p for p in productos if p['nombre'] == producto_sel), None)
+            if producto:
+                st.write(f"Precio unitario: S/{producto['precio']:.2f}")
+                st.write(f"Total: S/{producto['precio'] * cantidad:.2f}")
+                if st.button("Registrar Venta"):
+                    if registrar_venta(producto['producto_id'], cantidad, producto['precio']):
+                        st.success("Venta registrada")
+                        st.rerun()
+        else:
+            st.warning("Primero agrega productos")
 
-elif menu == "📊 Dashboard":
-    st.header("📊 Dashboard")
-    ventas = obtener_ventas()
-    productos = obtener_productos()
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Total Productos", len(productos))
-    with col2:
-        total_ventas = sum([v['total'] for v in ventas])
-        st.metric("Ventas Totales", f"S/{total_ventas:.2f}")
-    with col3:
-        st.metric("Transacciones", len(ventas))
+    elif menu == "📊 Dashboard":
+        st.header("📊 Dashboard")
+        ventas = obtener_ventas()
+        productos = obtener_productos()
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Productos", len(productos))
+        with col2:
+            total_ventas = sum([v['total'] for v in ventas])
+            st.metric("Ventas Totales", f"S/{total_ventas:.2f}")
+        with col3:
+            st.metric("Transacciones", len(ventas))
 
-elif menu == "⚙️ ADMIN":
-    st.header("⚙️ Panel Admin")
+    elif menu == "⚙️ ADMIN":
+        st.header("⚙️ Panel Admin")
+        rol_usuario = st.session_state.user_data.get('rol', 'cliente')
 
-    rol_usuario = st.session_state.user_data.get('rol', 'cliente')
+        if rol_usuario == 'admin':
+            # SI ERES ADMIN: 2 PESTAÑAS
+            tab_clave_admin, tab_plan = st.tabs(["🔑 Cambiar Clave de Cliente", "🔒 Activar Plan S/30"])
 
-    if rol_usuario == 'admin':
-        # SI ERES ADMIN: 2 PESTAÑAS
-        tab_clave_admin, tab_plan = st.tabs(["🔑 Cambiar Clave de Cliente", "🔒 Activar Plan S/30"])
+            with tab_clave_admin:
+                st.subheader("Cambiar Clave de Cualquier Usuario")
+                dni_usuario = st.text_input("DNI del usuario")
+                nueva_clave_admin = st.text_input("Nueva Clave para el usuario", type="password", key="new_pass_admin")
+                if st.button("Cambiar Clave del Usuario"):
+                    if not dni_usuario or not nueva_clave_admin:
+                        st.error("Completa DNI y nueva clave")
+                    else:
+                        try:
+                            from boto3.dynamodb.conditions import Key
+                            response = tabla_usuarios.query(
+                                IndexName='dni-index',
+                                KeyConditionExpression=Key('dni').eq(dni_usuario)
+                            )
+                            if response['Items']:
+                                uid = response['Items'][0]['usuario_id']
+                                tabla_usuarios.update_item(
+                                    Key={'usuario_id': uid},
+                                    UpdateExpression='SET password_hash = :val',
+                                    ExpressionAttributeValues={':val': hash_password(nueva_clave_admin)}
+                                )
+                                st.success(f"✅ Clave cambiada para DNI {dni_usuario}")
+                            else:
+                                st.error("DNI no encontrado")
+                        except Exception as e:
+                            st.error(f"Error: {e}")
 
-        with tab_clave_admin:
-            st.subheader("Cambiar Clave de Cualquier Usuario")
-            dni_usuario = st.text_input("DNI del usuario")
-            nueva_clave_admin = st.text_input("Nueva Clave para el usuario", type="password", key="new_pass_admin")
-            if st.button("Cambiar Clave del Usuario"):
-                if not dni_usuario or not nueva_clave_admin:
-                    st.error("Completa DNI y nueva clave")
+            with tab_plan:
+                st.subheader("Activar Plan S/30 por 30 días")
+                dni_cliente = st.text_input("DNI del cliente que pagó S/30", key="dni_plan")
+                if st.button("Activar 30 días"):
+                    if not dni_cliente:
+                        st.error("Ingresa el DNI")
+                    else:
+                        try:
+                            from boto3.dynamodb.conditions import Key
+                            from datetime import datetime, timedelta
+                            nueva_fecha = (datetime.now() + timedelta(days=30)).isoformat()
+                            response = tabla_usuarios.query(
+                                IndexName='dni-index',
+                                KeyConditionExpression=Key('dni').eq(dni_cliente)
+                            )
+                            if response['Items']:
+                                uid = response['Items'][0]['usuario_id']
+                                tabla_usuarios.update_item(
+                                    Key={'usuario_id': uid},
+                                    UpdateExpression='SET #p = :p, fecha_trial_fin = :f, activo = :a',
+                                    ExpressionAttributeNames={'#p': 'plan'},
+                                    ExpressionAttributeValues={
+                                        ':p': 'premium',
+                                        ':f': nueva_fecha,
+                                        ':a': True
+                                    }
+                                )
+                                st.success(f"✅ Plan PREMIUM activado para DNI {dni_cliente} por 30 días")
+                                st.balloons()
+                            else:
+                                st.error("DNI no encontrado")
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+
+        else:
+            # SI ES CLIENTE: SOLO CAMBIAR SU PROPIA CLAVE
+            st.subheader("🔑 Cambiar Mi Clave")
+            nueva_clave = st.text_input("Nueva Clave", type="password", key="new_pass_cliente")
+            confirmar_clave = st.text_input("Confirmar Nueva Clave", type="password", key="confirm_pass_cliente")
+            if st.button("Cambiar Mi Clave"):
+                if nueva_clave!= confirmar_clave:
+                    st.error("Las claves no coinciden")
+                elif len(nueva_clave) < 6:
+                    st.error("Mínimo 6 caracteres")
                 else:
                     try:
-                        from boto3.dynamodb.conditions import Key
-                        response = tabla_usuarios.query(
-                            IndexName='dni-index',
-                            KeyConditionExpression=Key('dni').eq(dni_usuario)
+                        tabla_usuarios.update_item(
+                            Key={'usuario_id': user['usuario_id']},
+                            UpdateExpression='SET password_hash = :val',
+                            ExpressionAttributeValues={':val': hash_password(nueva_clave)}
                         )
-                        if response['Items']:
-                            uid = response['Items'][0]['usuario_id']
-                            tabla_usuarios.update_item(
-                                Key={'usuario_id': uid},
-                                UpdateExpression='SET password_hash = :val',
-                                ExpressionAttributeValues={':val': hash_password(nueva_clave_admin)}
-                            )
-                            st.success(f"✅ Clave cambiada para DNI {dni_usuario}")
-                        else:
-                            st.error("DNI no encontrado")
+                        st.success("✅ Tu clave fue cambiada")
                     except Exception as e:
                         st.error(f"Error: {e}")
-
-        with tab_plan:
-            st.subheader("Activar Plan S/30 por 30 días")
-            dni_cliente = st.text_input("DNI del cliente que pagó S/30", key="dni_plan")
-            if st.button("Activar 30 días"):
-                if not dni_cliente:
-                    st.error("Ingresa el DNI")
-                else:
-                    try:
-                        from boto3.dynamodb.conditions import Key
-                        from datetime import datetime, timedelta
-                        nueva_fecha = (datetime.now() + timedelta(days=30)).isoformat()
-                        response = tabla_usuarios.query(
-                            IndexName='dni-index',
-                            KeyConditionExpression=Key('dni').eq(dni_cliente)
-                        )
-                        if response['Items']:
-                            uid = response['Items'][0]['usuario_id']
-                            tabla_usuarios.update_item(
-                                Key={'usuario_id': uid},
-                                UpdateExpression='SET #p = :p, fecha_trial_fin = :f, activo = :a',
-                                ExpressionAttributeNames={'#p': 'plan'},
-                                ExpressionAttributeValues={
-                                    ':p': 'premium',
-                                    ':f': nueva_fecha,
-                                    ':a': True
-                                }
-                            )
-                            st.success(f"✅ Plan PREMIUM activado para DNI {dni_cliente} por 30 días")
-                            st.balloons()
-                        else:
-                            st.error("DNI no encontrado")
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-
-    else:
-        # SI ES CLIENTE: SOLO CAMBIAR SU PROPIA CLAVE
-        st.subheader("🔑 Cambiar Mi Clave")
-        nueva_clave = st.text_input("Nueva Clave", type="password", key="new_pass_cliente")
-        confirmar_clave = st.text_input("Confirmar Nueva Clave", type="password", key="confirm_pass_cliente")
-        if st.button("Cambiar Mi Clave"):
-            if nueva_clave!= confirmar_clave:
-                st.error("Las claves no coinciden")
-            elif len(nueva_clave) < 6:
-                st.error("Mínimo 6 caracteres")
-            else:
-                try:
-                    tabla_usuarios.update_item(
-                        Key={'usuario_id': user['usuario_id']},
-                        UpdateExpression='SET password_hash = :val',
-                        ExpressionAttributeValues={':val': hash_password(nueva_clave)}
-                    )
-                    st.success("✅ Tu clave fue cambiada")
-                except Exception as e:
-                    st.error(f"Error: {e}")
