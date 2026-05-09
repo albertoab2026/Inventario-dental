@@ -599,13 +599,13 @@ if menu == "📦 Productos":
     st.subheader("Mis Productos")
     filtro = st.selectbox("Filtrar por categoría", ["Todas"] + categorias_base + categorias_custom, key="filtro_prod")
     
-    productos = obtener_productos()
-    if productos:
-        df = pd.DataFrame(productos)
-        if filtro != "Todas":
-            df = df[df['categoria'] == filtro]
+    productos = obtener_productos()  # ← EXACTAMENTE 4 ESPACIOS
+    if productos:  # ← EXACTAMENTE 4 ESPACIOS, MISMO NIVEL QUE LA LÍNEA DE ARRIBA
+        df = pd.DataFrame(productos)  # ← 8 ESPACIOS
+        if filtro != "Todas":  # ← 8 ESPACIOS
+            df = df[df['categoria'] == filtro]  # ← 12 ESPACIOS
         
-        if not df.empty:
+        if not df.empty:  # ← 8 ESPACIOS
             st.dataframe(
                 df[['nombre', 'precio', 'stock', 'categoria']], 
                 use_container_width=True,
@@ -613,11 +613,11 @@ if menu == "📦 Productos":
                     "precio": st.column_config.NumberColumn("Precio", format="S/ %.2f"),
                     "stock": st.column_config.NumberColumn("Stock", format="%d und")
                 }
-            )
-        else:
-            st.info(f"Sin productos en '{filtro}'")
-    else:  # ← línea 619, 4 espacios
-        st.info("Aún no tienes productos...")  # ← línea 620, 8 espacios
+            )  # ← 12 ESPACIOS
+        else:  # ← 8 ESPACIOS
+            st.info(f"Sin productos en '{filtro}'")  # ← 12 ESPACIOS
+    else:  # ← 4 ESPACIOS, MISMO NIVEL QUE if productos
+        st.info("Aún no tienes productos. Agrega el primero arriba")  # ← 8 ESPACIOS
 
 elif menu == "💰 Ventas":  # ← línea 622, 0 ESPACIOS
     st.header("💰 Registrar Venta")  # ← 4 espacios
