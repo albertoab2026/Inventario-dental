@@ -6,6 +6,17 @@ import uuid
 from datetime import datetime, timedelta
 import hashlib
 
+# ====== RUBROS Y CATEGORÍAS BASE - NUEVO ======
+CATEGORIAS_POR_RUBRO = {
+    "Bodega": ["Abarrotes", "Bebidas", "Limpieza", "Golosinas", "Lácteos", "Panadería"],
+    "Farmacia": ["Medicinas", "Vitaminas", "Cuidado Personal", "Bebés", "Primeros Auxilios", "Recetas"],
+    "Librería": ["Cuadernos", "Lapiceros", "Papelería", "Arte y Manualidades", "Libros", "Oficina"],
+    "Ferretería": ["Herramientas", "Pinturas", "Electricidad", "Gasfitería", "Construcción"],
+    "Minimarket": ["Abarrotes", "Bebidas", "Limpieza", "Lácteos", "Librería y Papelería"],
+    "Almacén": ["Mayorista", "Distribución", "Inventario General"],
+    "Otro": [] # Arranca vacío, crea todo desde cero
+}
+
 # ====== 1. CONFIGURACIÓN AWS ======
 st.set_page_config(page_title="NEXUS", page_icon="⚡", layout="wide")
 
@@ -137,7 +148,7 @@ def verificar_trial_usado(dni, email):
     except:
         return False
 
-def registrar_dueno(dni, nombre, nombre_negocio, email, password):  # ← AGREGA nombre_negocio
+def registrar_dueno(dni, nombre, nombre_negocio, email, password, rubro):  # ← 1. AGREGA rubro AQUÍ
     try:
         if verificar_trial_usado(dni, email):
             st.error("❌ Este DNI o Email ya usó los 7 días gratis")
@@ -159,6 +170,8 @@ def registrar_dueno(dni, nombre, nombre_negocio, email, password):  # ← AGREGA
                 'email': email,
                 'password_hash': hash_password(password),
                 'rol': 'dueno',
+                'rubro': rubro,  # ← 2. LÍNEA NUEVA
+                'categorias_custom': [],  # ← 3. LÍNEA NUEVA
                 'plan': 'trial',
                 'activo': True,
                 'celular': '',
@@ -390,17 +403,18 @@ def mostrar_login():
                 st.rerun()
             else:
                 st.error("❌ DNI o contraseña incorrectos")
-
     with tab2:  # ← 4 ESPACIOS
         st.markdown("<h3 style='text-align: center;'>Crea tu cuenta GRATIS</h3>", unsafe_allow_html=True)
         nombre = st.text_input("Nombre completo", placeholder="Juan Pérez", key="reg_nom")
-        nombre_negocio = st.text_input("Nombre de tu Bodega/Local", placeholder="Bodega Don Juan", key="reg_negocio")
+        nombre_negocio = st.text_input("Nombre de tu Local", placeholder="Bodega Don Juan", key="reg_negocio") # ← Cambié "Bodega" por "Local"
         dni = st.text_input("DNI", placeholder="12345678", key="reg_dni")
         email = st.text_input("Email", placeholder="tu@email.com", key="reg_email")
         password = st.text_input("Contraseña", type="password", key="reg_pass")
+        rubro = st.selectbox("¿Qué tipo de negocio tienes?", list(CATEGORIAS_POR_RUBRO.keys()), key="reg_rubro") # ← LÍNEA NUEVA 1
+    
         if st.button("ACTIVAR 7 DÍAS GRATIS", use_container_width=True):
-            if nombre and nombre_negocio and dni and email and password:
-                if registrar_dueno(dni, nombre, nombre_negocio, email, password):
+            if nombre and nombre_negocio and dni and email and password and rubro: # ← AGREGA 'and rubro'
+                if registrar_dueno(dni, nombre, nombre_negocio, email, password, rubro): # ← LÍNEA NUEVA 2: pásale rubro
                     st.success("✅ Cuenta creada. 7 días gratis activados")
                     st.balloons()
                     st.info("Ahora inicia sesión en la pestaña de arriba")
@@ -533,22 +547,77 @@ else:
     menu = st.selectbox("Menu", ["📦 Productos", "💰 Ventas", "📊 Dashboard", "⚙️ ADMIN"], label_visibility="collapsed")
     st.write("")
 
-    if menu == "📦 Productos":
-        st.header("📦 Gestión de Productos")
-        with st.form("form_producto"):
-            nombre = st.text_input("Nombre del producto")
-            precio = st.number_input("Precio", min_value=0.0, format="%.2f")
-            stock = st.number_input("Stock inicial", min_value=0)
-            categoria = st.selectbox("Categoría", ["Abarrotes", "Bebidas", "Limpieza", "Otros"])
-            if st.form_submit_button("Agregar Producto"):
-                if agregar_producto(nombre, precio, stock, categoria):
+if menu == "📦 Productos":
+    st.header("📦 Gestión de Productos")
+    
+    # ====== CATEGORÍAS DINÁMICAS POR RUBRO - NUEVO ======
+    rubro_usuario = st.session_state.user_data.get('rubro', 'Otro')
+    categorias_base = CATEGORIAS_POR_RUBRO.get(rubro_usuario, [])
+    categorias_custom = st.session_state.user_data.get('categorias_custom', [])
+    
+    opciones_cat = categorias_base + categorias_custom + ["➕ Crear nueva categoría"]
+    
+    col1, col2 = st.columns([3,1])
+    with col1:
+        categoria_seleccionada = st.selectbox("Categoría", opciones_cat, key="cat_select_prod")
+    
+    with col2:
+        if categoria_seleccionada == "➕ Crear nueva categoría":
+            nueva_cat = st.text_input("Nueva", key="nueva_cat_prod", label_visibility="collapsed", placeholder="Nombre")
+            if st.button("Guardar") and nueva_cat:
+                if nueva_cat not in opciones_cat:
+                    categorias_custom.append(nueva_cat)
+                    tabla_usuarios.update_item(
+                        Key={'usuario_id': st.session_state.user_data['usuario_id']},
+                        UpdateExpression='SET categorias_custom = :c',
+                        ExpressionAttributeValues={':c': categorias_custom}
+                    )
+                    st.session_state.user_data['categorias_custom'] = categorias_custom
+                    st.success(f"'{nueva_cat}' creada")
+                    st.rerun()
+                else:
+                    st.error("Ya existe")
+            st.stop()
+    
+    # ====== FORM DE PRODUCTO ======
+    with st.form("form_producto", clear_on_submit=True):
+        nombre = st.text_input("Nombre del producto", placeholder="Ej: Paracetamol 500mg")
+        precio = st.number_input("Precio", min_value=0.0, format="%.2f")
+        stock = st.number_input("Stock inicial", min_value=0)
+        
+        if st.form_submit_button("Agregar Producto"):
+            if nombre and categoria_seleccionada != "➕ Crear nueva categoría":
+                if agregar_producto(nombre, precio, stock, categoria_seleccionada):
                     st.success("Producto agregado")
                     st.rerun()
+            else:
+                st.error("Completa el nombre y elige categoría válida")
 
-        productos = obtener_productos()
-        if productos:
-            df = pd.DataFrame(productos)
-            st.dataframe(df[['nombre', 'precio', 'stock', 'categoria']], use_container_width=True)
+    st.divider()
+    
+    # ====== TABLA CON FILTRO ======
+    st.subheader("Mis Productos")
+    filtro = st.selectbox("Filtrar por categoría", ["Todas"] + categorias_base + categorias_custom, key="filtro_prod")
+    
+    productos = obtener_productos()
+    if productos:
+        df = pd.DataFrame(productos)
+        if filtro != "Todas":
+            df = df[df['categoria'] == filtro]
+        
+        if not df.empty:
+            st.dataframe(
+                df[['nombre', 'precio', 'stock', 'categoria']], 
+                use_container_width=True,
+                column_config={
+                    "precio": st.column_config.NumberColumn("Precio", format="S/ %.2f"),
+                    "stock": st.column_config.NumberColumn("Stock", format="%d und")
+                }
+            )
+        else:
+            st.info(f"Sin productos en '{filtro}'")
+    else:
+        st.info("Aún no tienes productos. Agrega el primero arriba")
 
     elif menu == "💰 Ventas":
         st.header("💰 Registrar Venta")
