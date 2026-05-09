@@ -651,27 +651,43 @@ elif menu == "📊 Dashboard":
 
 elif menu == "⚙️ ADMIN":
     st.header("⚙️ Panel Admin")
-    tab_clave, tab_plan = st.tabs(["🔑 Cambiar Claves", "🔒 Activar Plan S/30"])
 
-    with tab_clave:
-        st.subheader("Cambiar Claves")
-        nueva_clave = st.text_input("Nueva Clave", type="password", key="new_pass")
-        if st.button("Cambiar Clave"):
-            try:
-                tabla_usuarios.update_item(
-                    Key={'usuario_id': user['usuario_id']},
-                    UpdateExpression='SET password_hash = :val',
-                    ExpressionAttributeValues={':val': hash_password(nueva_clave)}
-                )
-                st.success("✅ Clave cambiada")
-            except Exception as e:
-                st.error(f"Error: {e}")
+    rol_usuario = st.session_state.user_data.get('rol', 'cliente')
 
-    with tab_plan:
-        rol_usuario = st.session_state.user_data.get('rol', 'cliente')
-        if rol_usuario == 'admin':
+    if rol_usuario == 'admin':
+        # SI ERES ADMIN: 2 PESTAÑAS
+        tab_clave_admin, tab_plan = st.tabs(["🔑 Cambiar Clave de Cliente", "🔒 Activar Plan S/30"])
+
+        with tab_clave_admin:
+            st.subheader("Cambiar Clave de Cualquier Usuario")
+            dni_usuario = st.text_input("DNI del usuario")
+            nueva_clave_admin = st.text_input("Nueva Clave para el usuario", type="password", key="new_pass_admin")
+            if st.button("Cambiar Clave del Usuario"):
+                if not dni_usuario or not nueva_clave_admin:
+                    st.error("Completa DNI y nueva clave")
+                else:
+                    try:
+                        from boto3.dynamodb.conditions import Key
+                        response = tabla_usuarios.query(
+                            IndexName='dni-index',
+                            KeyConditionExpression=Key('dni').eq(dni_usuario)
+                        )
+                        if response['Items']:
+                            uid = response['Items'][0]['usuario_id']
+                            tabla_usuarios.update_item(
+                                Key={'usuario_id': uid},
+                                UpdateExpression='SET password_hash = :val',
+                                ExpressionAttributeValues={':val': hash_password(nueva_clave_admin)}
+                            )
+                            st.success(f"✅ Clave cambiada para DNI {dni_usuario}")
+                        else:
+                            st.error("DNI no encontrado")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+
+        with tab_plan:
             st.subheader("Activar Plan S/30 por 30 días")
-            dni_cliente = st.text_input("DNI del cliente que pagó S/30")
+            dni_cliente = st.text_input("DNI del cliente que pagó S/30", key="dni_plan")
             if st.button("Activar 30 días"):
                 if not dni_cliente:
                     st.error("Ingresa el DNI")
@@ -702,5 +718,24 @@ elif menu == "⚙️ ADMIN":
                             st.error("DNI no encontrado")
                     except Exception as e:
                         st.error(f"Error: {e}")
-        else:
-            st.error(f"🚫 No tienes permisos. Tu rol: {rol_usuario}")
+
+    else:
+        # SI ES CLIENTE: SOLO CAMBIAR SU PROPIA CLAVE
+        st.subheader("🔑 Cambiar Mi Clave")
+        nueva_clave = st.text_input("Nueva Clave", type="password", key="new_pass_cliente")
+        confirmar_clave = st.text_input("Confirmar Nueva Clave", type="password", key="confirm_pass_cliente")
+        if st.button("Cambiar Mi Clave"):
+            if nueva_clave!= confirmar_clave:
+                st.error("Las claves no coinciden")
+            elif len(nueva_clave) < 6:
+                st.error("Mínimo 6 caracteres")
+            else:
+                try:
+                    tabla_usuarios.update_item(
+                        Key={'usuario_id': user['usuario_id']},
+                        UpdateExpression='SET password_hash = :val',
+                        ExpressionAttributeValues={':val': hash_password(nueva_clave)}
+                    )
+                    st.success("✅ Tu clave fue cambiada")
+                except Exception as e:
+                    st.error(f"Error: {e}")
