@@ -532,8 +532,7 @@ else:
         except Exception as e:
             st.error(f"Error en paywall: {e}")
     # ===== FIN PAYWALL =====        
-    # ===== AQUÍ VA TU APP NORMAL =====
-    
+    # ===== AQUÍ VA TU APP NORMAL =====    
     # === MENSAJE BIENVENIDA EN EL CENTRO ===
     user = st.session_state.user_data
     nombre_negocio = user.get('nombre_negocio', 'NEXUS ADMIN')
@@ -599,13 +598,13 @@ if menu == "📦 Productos":
     st.subheader("Mis Productos")
     filtro = st.selectbox("Filtrar por categoría", ["Todas"] + categorias_base + categorias_custom, key="filtro_prod")
     
-    productos = obtener_productos()  # ← EXACTAMENTE 4 ESPACIOS
-    if productos:  # ← EXACTAMENTE 4 ESPACIOS, MISMO NIVEL QUE LA LÍNEA DE ARRIBA
-        df = pd.DataFrame(productos)  # ← 8 ESPACIOS
-        if filtro != "Todas":  # ← 8 ESPACIOS
-            df = df[df['categoria'] == filtro]  # ← 12 ESPACIOS
+    productos = obtener_productos()
+    if productos:
+        df = pd.DataFrame(productos)
+        if filtro != "Todas":
+            df = df[df['categoria'] == filtro]
         
-        if not df.empty:  # ← 8 ESPACIOS
+        if not df.empty:
             st.dataframe(
                 df[['nombre', 'precio', 'stock', 'categoria']], 
                 use_container_width=True,
@@ -613,29 +612,29 @@ if menu == "📦 Productos":
                     "precio": st.column_config.NumberColumn("Precio", format="S/ %.2f"),
                     "stock": st.column_config.NumberColumn("Stock", format="%d und")
                 }
-            )  # ← 12 ESPACIOS
-        else:  # ← 8 ESPACIOS
-            st.info(f"Sin productos en '{filtro}'")  # ← 12 ESPACIOS
-    else:  # ← 4 ESPACIOS, MISMO NIVEL QUE if productos
-        st.info("Aún no tienes productos. Agrega el primero arriba")  # ← 8 ESPACIOS
-
-elif menu == "💰 Ventas":  # ← línea 622, 0 ESPACIOS
-    st.header("💰 Registrar Venta")  # ← 4 espacios
-    productos = obtener_productos()  # ← 4 espacios
-        if productos:
-            nombres = [p['nombre'] for p in productos]
-            producto_sel = st.selectbox("Producto", nombres)
-            cantidad = st.number_input("Cantidad", min_value=1, value=1)
-            producto = next((p for p in productos if p['nombre'] == producto_sel), None)
-            if producto:
-                st.write(f"Precio unitario: S/{producto['precio']:.2f}")
-                st.write(f"Total: S/{producto['precio'] * cantidad:.2f}")
-                if st.button("Registrar Venta"):
-                    if registrar_venta(producto['producto_id'], cantidad, producto['precio']):
-                        st.success("Venta registrada")
-                        st.rerun()
+            )
         else:
-            st.warning("Primero agrega productos")
+            st.info(f"Sin productos en '{filtro}'")
+    else:
+        st.info("Aún no tienes productos. Agrega el primero arriba")
+
+elif menu == "💰 Ventas":
+    st.header("💰 Registrar Venta")
+    productos = obtener_productos()
+    if productos:  # ← ARREGLADO: 4 espacios, no 8
+        nombres = [p['nombre'] for p in productos]
+        producto_sel = st.selectbox("Producto", nombres)
+        cantidad = st.number_input("Cantidad", min_value=1, value=1)
+        producto = next((p for p in productos if p['nombre'] == producto_sel), None)
+        if producto:
+            st.write(f"Precio unitario: S/{producto['precio']:.2f}")
+            st.write(f"Total: S/{producto['precio'] * cantidad:.2f}")
+            if st.button("Registrar Venta"):
+                if registrar_venta(producto['producto_id'], cantidad, producto['precio']):
+                    st.success("Venta registrada")
+                    st.rerun()
+    else:  # ← ARREGLADO: 4 espacios, no 8
+        st.warning("Primero agrega productos")
 
     elif menu == "📊 Dashboard":
         st.header("📊 Dashboard")
