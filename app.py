@@ -621,7 +621,7 @@ if menu == "📦 Productos":
 elif menu == "💰 Ventas":
     st.header("💰 Registrar Venta")
     productos = obtener_productos()
-    if productos:  # ← ARREGLADO: 4 espacios, no 8
+    if productos:
         nombres = [p['nombre'] for p in productos]
         producto_sel = st.selectbox("Producto", nombres)
         cantidad = st.number_input("Cantidad", min_value=1, value=1)
@@ -636,23 +636,23 @@ elif menu == "💰 Ventas":
     else:
         st.warning("Primero agrega productos")
 
-    elif menu == "📊 Dashboard":
-        st.header("📊 Dashboard")
-        ventas = obtener_ventas()
-        productos = obtener_productos()
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Productos", len(productos))
-        with col2:
-            total_ventas = sum([v['total'] for v in ventas])
-            st.metric("Ventas Totales", f"S/{total_ventas:.2f}")
-        with col3:
-            st.metric("Transacciones", len(ventas))
+elif menu == "📊 Dashboard":
+    st.header("📊 Dashboard")
+    ventas = obtener_ventas()
+    productos = obtener_productos()
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Productos", len(productos))
+    with col2:
+        total_ventas = sum([v['total'] for v in ventas])
+        st.metric("Ventas Totales", f"S/{total_ventas:.2f}")
+    with col3:
+        st.metric("Transacciones", len(ventas))
 
-    elif menu == "⚙️ ADMIN":
-        st.header("⚙️ Panel Admin")
-        tab_clave, tab_plan = st.tabs(["🔑 Cambiar Claves", "🔒 Activar Plan S/30"])
-
+elif menu == "⚙️ ADMIN":
+    st.header("⚙️ Panel Admin")
+    tab_clave, tab_plan = st.tabs(["🔑 Cambiar Claves", "🔒 Activar Plan S/30"])
+    # ... resto igual
         with tab_clave:
             st.subheader("Cambiar Claves")
             nueva_clave = st.text_input("Nueva Clave", type="password", key="new_pass")
