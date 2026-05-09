@@ -633,7 +633,7 @@ elif menu == "💰 Ventas":
                 if registrar_venta(producto['producto_id'], cantidad, producto['precio']):
                     st.success("Venta registrada")
                     st.rerun()
-    else:  # ← ARREGLADO: 4 espacios, no 8
+    else:
         st.warning("Primero agrega productos")
 
     elif menu == "📊 Dashboard":
