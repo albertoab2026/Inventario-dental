@@ -262,6 +262,30 @@ def agregar_producto(nombre, precio, stock, categoria):
         st.error(f"Error: {e}")
         return False
 
+def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
+    try:
+        tabla_productos.update_item(
+            Key={'producto_id': producto_id},
+            UpdateExpression='SET precio = :p, stock = :s',
+            ExpressionAttributeValues={
+                ':p': Decimal(str(nuevo_precio)),
+                ':s': int(nuevo_stock)
+            }
+        )
+        return True
+    except Exception as e:
+        st.error(f"Error actualizando: {e}")
+        return False
+
+def eliminar_producto(producto_id):
+    try:
+        tabla_productos.delete_item(Key={'producto_id': producto_id})
+        return True
+    except Exception as e:
+        st.error(f"Error eliminando: {e}")
+        return False
+
+
 # ====== 5. FUNCIONES DE VENTAS ======
 def registrar_venta(producto_id, cantidad, precio_unitario):
     try:
@@ -430,8 +454,8 @@ if 'logged_in' not in st.session_state:
 
 if not st.session_state.logged_in:
     mostrar_login()
+    st.stop() # ← LÍNEA CLAVE QUE TE FALTA
 else:
-    # === SIDEBAR SOLO CAJA MORADA + YAPE + CERRAR SESIÓN ===
     with st.sidebar:
         user = st.session_state.user_data
         
@@ -819,23 +843,3 @@ elif menu == "⚙️ ADMIN":
                     st.success("✅ Tu clave fue cambiada")
                 except Exception as e:
                     st.error(f"Error: {e}")
-        else:
-            # SI ES CLIENTE: SOLO CAMBIAR SU PROPIA CLAVE
-            st.subheader("🔑 Cambiar Mi Clave")
-            nueva_clave = st.text_input("Nueva Clave", type="password", key="new_pass_cliente")
-            confirmar_clave = st.text_input("Confirmar Nueva Clave", type="password", key="confirm_pass_cliente")
-            if st.button("Cambiar Mi Clave"):
-                if nueva_clave!= confirmar_clave:
-                    st.error("Las claves no coinciden")
-                elif len(nueva_clave) < 6:
-                    st.error("Mínimo 6 caracteres")
-                else:
-                    try:
-                        tabla_usuarios.update_item(
-                            Key={'usuario_id': user['usuario_id']},
-                            UpdateExpression='SET password_hash = :val',
-                            ExpressionAttributeValues={':val': hash_password(nueva_clave)}
-                        )
-                        st.success("✅ Tu clave fue cambiada")
-                    except Exception as e:
-                        st.error(f"Error: {e}")
