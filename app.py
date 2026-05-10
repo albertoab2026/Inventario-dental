@@ -611,193 +611,214 @@ else:
         st.divider()
 
 # ---------- MIS PRODUCTOS ----------
-st.subheader("📦 Mis Productos")
+if menu == "📦 Productos":
+    st.subheader("📦 Mis Productos")
 
-if 'editando' in st.session_state and st.session_state.editando:
-    prod_a_editar = next((p for p in obtener_productos() if p['producto_id'] == st.session_state.editando), None)
-    if prod_a_editar:
-        with st.form("form_editar", clear_on_submit=True):
-            st.write(f"**Editando: {prod_a_editar['nombre']}**")
-            nuevo_precio = st.number_input("Precio", value=float(prod_a_editar['precio']), min_value=0.0, format="%.2f")
-            nuevo_stock = st.number_input("Stock", value=int(prod_a_editar['stock']), min_value=0, step=1)
-            col1, col2 = st.columns(2)
+    if 'editando' in st.session_state and st.session_state.editando:
+        prod_a_editar = next((p for p in obtener_productos() if p['producto_id'] == st.session_state.editando), None)
+        if prod_a_editar:
+            with st.form("form_editar", clear_on_submit=True):
+                st.write(f"**Editando: {prod_a_editar['nombre']}**")
+                nuevo_precio = st.number_input("Precio", value=float(prod_a_editar['precio']), min_value=0.0, format="%.2f")
+                nuevo_stock = st.number_input("Stock", value=int(prod_a_editar['stock']), min_value=0, step=1)
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.form_submit_button("💾 Guardar"):
+                        actualizar_producto(prod_a_editar['producto_id'], nuevo_precio, nuevo_stock)
+                        st.session_state.editando = None
+                        st.rerun()
+                with col2:
+                    if st.form_submit_button("❌ Cancelar"):
+                        st.session_state.editando = None
+                        st.rerun()
+            st.divider()
+
+    productos = obtener_productos()
+
+    if productos:
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            busqueda = st.text_input("🔍 Buscar producto", placeholder="Escribe el nombre...")
+        with col2:
+            categorias = ["Todas"] + sorted(list(set([p.get('categoria', 'Sin categoría') for p in productos])))
+            categoria_filtro = st.selectbox("Filtrar por categoría", categorias)
+        
+        productos_filtrados = productos
+        if busqueda:
+            productos_filtrados = [p for p in productos_filtrados if busqueda.lower() in p['nombre'].lower()]
+        if categoria_filtro != "Todas":
+            productos_filtrados = [p for p in productos_filtrados if p.get('categoria') == categoria_filtro]
+        
+        st.write(f"**Mostrando {len(productos_filtrados)} de {len(productos)} productos**")
+        
+        ITEMS_POR_PAGINA = 10
+        total_paginas = (len(productos_filtrados) - 1) // ITEMS_POR_PAGINA + 1 if productos_filtrados else 1
+        
+        if 'pagina_actual' not in st.session_state:
+            st.session_state.pagina_actual = 1
+        if st.session_state.pagina_actual > total_paginas:
+            st.session_state.pagina_actual = 1
+        
+        inicio = (st.session_state.pagina_actual - 1) * ITEMS_POR_PAGINA
+        fin = inicio + ITEMS_POR_PAGINA
+        productos_pagina = productos_filtrados[inicio:fin]
+        
+        for prod in productos_pagina:
+            col1, col2, col3, col4, col5 = st.columns([3, 2, 2, 1, 1])
             with col1:
-                if st.form_submit_button("💾 Guardar"):
-                    actualizar_producto(prod_a_editar['producto_id'], nuevo_precio, nuevo_stock)
-                    st.session_state.editando = None
-                    st.rerun()
+                st.write(f"**{prod['nombre']}**")
             with col2:
-                if st.form_submit_button("❌ Cancelar"):
-                    st.session_state.editando = None
+                st.write(prod.get('categoria', 'Sin categoría'))
+            with col3:
+                st.write(f"S/ {prod['precio']} | Stock: {prod['stock']}")
+            with col4:
+                if st.button("✏️", key=f"edit_{prod['producto_id']}"):
+                    st.session_state.editando = prod['producto_id']
                     st.rerun()
-        st.divider()
-
-productos = obtener_productos()
-
-if productos:
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        busqueda = st.text_input("🔍 Buscar producto", placeholder="Escribe el nombre...")
-    with col2:
-        categorias = ["Todas"] + sorted(list(set([p.get('categoria', 'Sin categoría') for p in productos])))
-        categoria_filtro = st.selectbox("Filtrar por categoría", categorias)
-    
-    productos_filtrados = productos
-    if busqueda:
-        productos_filtrados = [p for p in productos_filtrados if busqueda.lower() in p['nombre'].lower()]
-    if categoria_filtro != "Todas":
-        productos_filtrados = [p for p in productos_filtrados if p.get('categoria') == categoria_filtro]
-    
-    st.write(f"**Mostrando {len(productos_filtrados)} de {len(productos)} productos**")
-    
-    ITEMS_POR_PAGINA = 10
-    total_paginas = (len(productos_filtrados) - 1) // ITEMS_POR_PAGINA + 1 if productos_filtrados else 1
-    
-    if 'pagina_actual' not in st.session_state:
-        st.session_state.pagina_actual = 1
-    if st.session_state.pagina_actual > total_paginas:
-        st.session_state.pagina_actual = 1
-    
-    inicio = (st.session_state.pagina_actual - 1) * ITEMS_POR_PAGINA
-    fin = inicio + ITEMS_POR_PAGINA
-    productos_pagina = productos_filtrados[inicio:fin]
-    
-    for prod in productos_pagina:
-        col1, col2, col3, col4, col5 = st.columns([3, 2, 2, 1, 1])
-        with col1:
-            st.write(f"**{prod['nombre']}**")
-        with col2:
-            st.write(prod.get('categoria', 'Sin categoría'))
-        with col3:
-            st.write(f"S/ {prod['precio']} | Stock: {prod['stock']}")
-        with col4:
-            if st.button("✏️", key=f"edit_{prod['producto_id']}"):
-                st.session_state.editando = prod['producto_id']
-                st.rerun()
-        with col5:
-            if st.button("🗑️", key=f"del_{prod['producto_id']}"):
-                eliminar_producto(prod['producto_id'])
-                st.success("Producto eliminado")
-                st.rerun()
-        st.divider()
-    
-    if total_paginas > 1:
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col1:
-            if st.session_state.pagina_actual > 1:
-                if st.button("⬅️ Anterior"):
-                    st.session_state.pagina_actual -= 1
+            with col5:
+                if st.button("🗑️", key=f"del_{prod['producto_id']}"):
+                    eliminar_producto(prod['producto_id'])
+                    st.success("Producto eliminado")
                     st.rerun()
-        with col2:
-            st.markdown(f"<center>Página {st.session_state.pagina_actual} de {total_paginas}</center>", unsafe_allow_html=True)
-        with col3:
-            if st.session_state.pagina_actual < total_paginas:
-                if st.button("Siguiente ➡️"):
-                    st.session_state.pagina_actual += 1
-                    st.rerun()
-else:
-    st.info("Aún no tienes productos. Agrega el primero arriba")
+            st.divider()
+        
+        if total_paginas > 1:
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col1:
+                if st.session_state.pagina_actual > 1:
+                    if st.button("⬅️ Anterior"):
+                        st.session_state.pagina_actual -= 1
+                        st.rerun()
+            with col2:
+                st.markdown(f"<center>Página {st.session_state.pagina_actual} de {total_paginas}</center>", unsafe_allow_html=True)
+            with col3:
+                if st.session_state.pagina_actual < total_paginas:
+                    if st.button("Siguiente ➡️"):
+                        st.session_state.pagina_actual += 1
+                        st.rerun()
+    else:
+        st.info("Aún no tienes productos. Agrega el primero arriba")
 
-elif menu == "💰 Ventas":  # ← SIN ESPACIOS ADELANTE
+elif menu == "💰 Ventas":
     st.header("💰 Registrar Venta")
     productos = obtener_productos()
-        if productos:
-            nombres = [p['nombre'] for p in productos]
-            producto_sel = st.selectbox("Producto", nombres)
-            cantidad = st.number_input("Cantidad", min_value=1, value=1)
-            producto = next((p for p in productos if p['nombre'] == producto_sel), None)
-            if producto:
-                st.write(f"Precio unitario: S/{producto['precio']:.2f}")
-                st.write(f"Total: S/{producto['precio'] * cantidad:.2f}")
-                if st.button("Registrar Venta"):
-                    if registrar_venta(producto['producto_id'], cantidad, producto['precio']):
-                        st.success("Venta registrada")
-                        st.rerun()
-        else:
-            st.warning("Primero agrega productos")
+    if productos:
+        nombres = [p['nombre'] for p in productos]
+        producto_sel = st.selectbox("Producto", nombres)
+        cantidad = st.number_input("Cantidad", min_value=1, value=1)
+        producto = next((p for p in productos if p['nombre'] == producto_sel), None)
+        if producto:
+            st.write(f"Precio unitario: S/{producto['precio']:.2f}")
+            st.write(f"Total: S/{producto['precio'] * cantidad:.2f}")
+            if st.button("Registrar Venta"):
+                if registrar_venta(producto['producto_id'], cantidad, producto['precio']):
+                    st.success("Venta registrada")
+                    st.rerun()
+    else:
+        st.warning("Primero agrega productos")
 
-    elif menu == "📊 Dashboard":
-        st.header("📊 Dashboard")
-        ventas = obtener_ventas()
-        productos = obtener_productos()
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Productos", len(productos))
-        with col2:
-            total_ventas = sum([v['total'] for v in ventas])
-            st.metric("Ventas Totales", f"S/{total_ventas:.2f}")
-        with col3:
-            st.metric("Transacciones", len(ventas))
+elif menu == "📊 Dashboard":
+    st.header("📊 Dashboard")
+    ventas = obtener_ventas()
+    productos = obtener_productos()
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Productos", len(productos))
+    with col2:
+        total_ventas = sum([v['total'] for v in ventas])
+        st.metric("Ventas Totales", f"S/{total_ventas:.2f}")
+    with col3:
+        st.metric("Transacciones", len(ventas))
 
-    elif menu == "⚙️ ADMIN":
-        st.header("⚙️ Panel Admin")
-        rol_usuario = st.session_state.user_data.get('rol', 'cliente')
+elif menu == "⚙️ ADMIN":
+    st.header("⚙️ Panel Admin")
+    rol_usuario = st.session_state.user_data.get('rol', 'cliente')
 
-        if rol_usuario == 'admin':
-            # SI ERES ADMIN: 2 PESTAÑAS
-            tab_clave_admin, tab_plan = st.tabs(["🔑 Cambiar Clave de Cliente", "🔒 Activar Plan S/30"])
+    if rol_usuario == 'admin':
+        # SI ERES ADMIN: 2 PESTAÑAS
+        tab_clave_admin, tab_plan = st.tabs(["🔑 Cambiar Clave de Cliente", "🔒 Activar Plan S/30"])
 
-            with tab_clave_admin:
-                st.subheader("Cambiar Clave de Cualquier Usuario")
-                dni_usuario = st.text_input("DNI del usuario")
-                nueva_clave_admin = st.text_input("Nueva Clave para el usuario", type="password", key="new_pass_admin")
-                if st.button("Cambiar Clave del Usuario"):
-                    if not dni_usuario or not nueva_clave_admin:
-                        st.error("Completa DNI y nueva clave")
-                    else:
-                        try:
-                            from boto3.dynamodb.conditions import Key
-                            response = tabla_usuarios.query(
-                                IndexName='dni-index',
-                                KeyConditionExpression=Key('dni').eq(dni_usuario)
+        with tab_clave_admin:
+            st.subheader("Cambiar Clave de Cualquier Usuario")
+            dni_usuario = st.text_input("DNI del usuario")
+            nueva_clave_admin = st.text_input("Nueva Clave para el usuario", type="password", key="new_pass_admin")
+            if st.button("Cambiar Clave del Usuario"):
+                if not dni_usuario or not nueva_clave_admin:
+                    st.error("Completa DNI y nueva clave")
+                else:
+                    try:
+                        from boto3.dynamodb.conditions import Key
+                        response = tabla_usuarios.query(
+                            IndexName='dni-index',
+                            KeyConditionExpression=Key('dni').eq(dni_usuario)
+                        )
+                        if response['Items']:
+                            uid = response['Items'][0]['usuario_id']
+                            tabla_usuarios.update_item(
+                                Key={'usuario_id': uid},
+                                UpdateExpression='SET password_hash = :val',
+                                ExpressionAttributeValues={':val': hash_password(nueva_clave_admin)}
                             )
-                            if response['Items']:
-                                uid = response['Items'][0]['usuario_id']
-                                tabla_usuarios.update_item(
-                                    Key={'usuario_id': uid},
-                                    UpdateExpression='SET password_hash = :val',
-                                    ExpressionAttributeValues={':val': hash_password(nueva_clave_admin)}
-                                )
-                                st.success(f"✅ Clave cambiada para DNI {dni_usuario}")
-                            else:
-                                st.error("DNI no encontrado")
-                        except Exception as e:
-                            st.error(f"Error: {e}")
+                            st.success(f"✅ Clave cambiada para DNI {dni_usuario}")
+                        else:
+                            st.error("DNI no encontrado")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
 
-            with tab_plan:
-                st.subheader("Activar Plan S/30 por 30 días")
-                dni_cliente = st.text_input("DNI del cliente que pagó S/30", key="dni_plan")
-                if st.button("Activar 30 días"):
-                    if not dni_cliente:
-                        st.error("Ingresa el DNI")
-                    else:
-                        try:
-                            from boto3.dynamodb.conditions import Key
-                            from datetime import datetime, timedelta
-                            nueva_fecha = (datetime.now() + timedelta(days=30)).isoformat()
-                            response = tabla_usuarios.query(
-                                IndexName='dni-index',
-                                KeyConditionExpression=Key('dni').eq(dni_cliente)
+        with tab_plan:
+            st.subheader("Activar Plan S/30 por 30 días")
+            dni_cliente = st.text_input("DNI del cliente que pagó S/30", key="dni_plan")
+            if st.button("Activar 30 días"):
+                if not dni_cliente:
+                    st.error("Ingresa el DNI")
+                else:
+                    try:
+                        from boto3.dynamodb.conditions import Key
+                        from datetime import datetime, timedelta
+                        nueva_fecha = (datetime.now() + timedelta(days=30)).isoformat()
+                        response = tabla_usuarios.query(
+                            IndexName='dni-index',
+                            KeyConditionExpression=Key('dni').eq(dni_cliente)
+                        )
+                        if response['Items']:
+                            uid = response['Items'][0]['usuario_id']
+                            tabla_usuarios.update_item(
+                                Key={'usuario_id': uid},
+                                UpdateExpression='SET #p = :p, fecha_trial_fin = :f, activo = :a',
+                                ExpressionAttributeNames={'#p': 'plan'},
+                                ExpressionAttributeValues={
+                                    ':p': 'premium',
+                                    ':f': nueva_fecha,
+                                    ':a': True
+                                }
                             )
-                            if response['Items']:
-                                uid = response['Items'][0]['usuario_id']
-                                tabla_usuarios.update_item(
-                                    Key={'usuario_id': uid},
-                                    UpdateExpression='SET #p = :p, fecha_trial_fin = :f, activo = :a',
-                                    ExpressionAttributeNames={'#p': 'plan'},
-                                    ExpressionAttributeValues={
-                                        ':p': 'premium',
-                                        ':f': nueva_fecha,
-                                        ':a': True
-                                    }
-                                )
-                                st.success(f"✅ Plan PREMIUM activado para DNI {dni_cliente} por 30 días")
-                                st.balloons()
-                            else:
-                                st.error("DNI no encontrado")
-                        except Exception as e:
-                            st.error(f"Error: {e}")
+                            st.success(f"✅ Plan PREMIUM activado para DNI {dni_cliente} por 30 días")
+                            st.balloons()
+                        else:
+                            st.error("DNI no encontrado")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
 
+    else:
+        # SI ES CLIENTE: SOLO CAMBIAR SU PROPIA CLAVE
+        st.subheader("🔑 Cambiar Mi Clave")
+        nueva_clave = st.text_input("Nueva Clave", type="password", key="new_pass_cliente")
+        confirmar_clave = st.text_input("Confirmar Nueva Clave", type="password", key="confirm_pass_cliente")
+        if st.button("Cambiar Mi Clave"):
+            if nueva_clave!= confirmar_clave:
+                st.error("Las claves no coinciden")
+            elif len(nueva_clave) < 6:
+                st.error("Mínimo 6 caracteres")
+            else:
+                try:
+                    tabla_usuarios.update_item(
+                        Key={'usuario_id': user['usuario_id']},
+                        UpdateExpression='SET password_hash = :val',
+                        ExpressionAttributeValues={':val': hash_password(nueva_clave)}
+                    )
+                    st.success("✅ Tu clave fue cambiada")
+                except Exception as e:
+                    st.error(f"Error: {e}")
         else:
             # SI ES CLIENTE: SOLO CAMBIAR SU PROPIA CLAVE
             st.subheader("🔑 Cambiar Mi Clave")
