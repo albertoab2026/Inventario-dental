@@ -609,9 +609,6 @@ else:
                     st.error("Completa el nombre y elige categoría válida")
 
         st.divider()
-        # ====== TABLA CON FILTRO + EDITAR/BORRAR ======
-        st.subheader("Mis Productos")
-        filtro = st.selectbox("Filtrar por categoría", ["Todas"] + categorias_base + categorias_custom, key="filtro_prod")
 
 # ---------- MIS PRODUCTOS ----------
 st.subheader("📦 Mis Productos")
