@@ -613,36 +613,80 @@ else:
         st.subheader("Mis Productos")
         filtro = st.selectbox("Filtrar por categoría", ["Todas"] + categorias_base + categorias_custom, key="filtro_prod")
 
-        productos = obtener_productos()
-        if productos:
-            df = pd.DataFrame(productos)
-            if filtro != "Todas":
-                df = df[df['categoria'] == filtro]
+# ---------- MIS PRODUCTOS CON PAGINACIÓN ----------
+st.subheader("📦 Mis Productos")
 
-            if not df.empty:
-                # Tabla + botones de acción
-                for idx, row in df.iterrows():
-                    col1, col2, col3, col4, col5 = st.columns([3, 2, 2, 1, 1])
-                    with col1:
-                        st.write(f"**{row['nombre']}**")
-                        st.caption(row['categoria'])
-                    with col2:
-                        st.write(f"S/ {row['precio']:.2f}")
-                    with col3:
-                        st.write(f"{row['stock']} und")
-                    with col4:
-                        if st.button("✏️", key=f"edit_{row['producto_id']}"):
-                            st.session_state.editando_producto = row['producto_id']
-                            st.rerun()
-                    with col5:
-                        if st.button("🗑️", key=f"del_{row['producto_id']}"):
-                            tabla_productos.delete_item(Key={'producto_id': row['producto_id']})
-                            st.success("Producto borrado")
-                            st.rerun()
-            else:
-                st.info(f"Sin productos en '{filtro}'")
-        else:
-            st.info("Aún no tienes productos. Agrega el primero arriba")
+productos = obtener_productos()
+
+if productos:
+    # FILTROS
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        busqueda = st.text_input("🔍 Buscar producto", placeholder="Escribe el nombre...")
+    with col2:
+        categorias = ["Todas"] + sorted(list(set([p.get('categoria', 'Sin categoría') for p in productos])))
+        categoria_filtro = st.selectbox("Filtrar por categoría", categorias)
+    
+    # APLICAR FILTROS
+    productos_filtrados = productos
+    if busqueda:
+        productos_filtrados = [p for p in productos_filtrados if busqueda.lower() in p['nombre'].lower()]
+    if categoria_filtro != "Todas":
+        productos_filtrados = [p for p in productos_filtrados if p.get('categoria') == categoria_filtro]
+    
+    st.write(f"**Mostrando {len(productos_filtrados)} de {len(productos)} productos**")
+    
+    # PAGINACIÓN
+    ITEMS_POR_PAGINA = 10
+    total_paginas = (len(productos_filtrados) - 1) // ITEMS_POR_PAGINA + 1
+    
+    if 'pagina_actual' not in st.session_state:
+        st.session_state.pagina_actual = 1
+    
+    # Resetear página si cambia el filtro
+    if st.session_state.pagina_actual > total_paginas:
+        st.session_state.pagina_actual = 1
+    
+    inicio = (st.session_state.pagina_actual - 1) * ITEMS_POR_PAGINA
+    fin = inicio + ITEMS_POR_PAGINA
+    productos_pagina = productos_filtrados[inicio:fin]
+    
+    # MOSTRAR PRODUCTOS EN TABLA
+    for prod in productos_pagina:
+        col1, col2, col3, col4, col5 = st.columns([3, 2, 1])
+        with col1:
+            st.write(f"**{prod['nombre']}**")
+        with col2:
+            st.write(prod.get('categoria', 'Sin categoría'))
+        with col3:
+            st.write(f"S/ {prod['precio']} | Stock: {prod['stock']}")
+        with col4:
+            if st.button("✏️", key=f"edit_{prod['producto_id']}"):
+                st.session_state.editando = prod['producto_id']
+                st.rerun()
+        with col5:
+            if st.button("🗑️", key=f"del_{prod['producto_id']}"):
+                eliminar_producto(prod['producto_id'])
+                st.rerun()
+        st.divider()
+    
+    # CONTROLES DE PÁGINA
+    if total_paginas > 1:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col1:
+            if st.session_state.pagina_actual > 1:
+                if st.button("⬅️ Anterior"):
+                    st.session_state.pagina_actual -= 1
+                    st.rerun()
+        with col2:
+            st.write(f"Página {st.session_state.pagina_actual} de {total_paginas}")
+        with col3:
+            if st.session_state.pagina_actual < total_paginas:
+                if st.button("Siguiente ➡️"):
+                    st.session_state.pagina_actual += 1
+                    st.rerun()
+else:
+    st.info("Aún no tienes productos. Agrega el primero arriba")
 
         # ====== FORMULARIO DE EDICIÓN ======
         if 'editando_producto' in st.session_state:
