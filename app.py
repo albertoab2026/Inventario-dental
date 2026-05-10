@@ -235,7 +235,7 @@ def obtener_productos():
         user_id = st.session_state.user_data['usuario_id']
         response = tabla_productos.query(
             IndexName='usuario-index',
-            KeyConditionExpression=Key('usuario_id').eq(user_id)
+            KeyConditionExpression=Key('id_del_dueno').eq(user_id)
         )
         return response.get('Items', [])
     except Exception as e:
@@ -250,7 +250,7 @@ def agregar_producto(nombre, precio, stock, categoria):
         tabla_productos.put_item(
             Item={
                 'producto_id': producto_id,
-                'usuario_id': st.session_state.user_data['usuario_id'],  # ← LÍNEA CLAVE
+                'id_del_dueno': st.session_state.user_data['usuario_id'],
                 'nombre': nombre,
                 'precio': Decimal(str(precio)),
                 'stock': int(stock),
