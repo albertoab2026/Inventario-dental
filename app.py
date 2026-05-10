@@ -241,6 +241,8 @@ def obtener_productos():
     except Exception as e:
         st.error(f"Error cargando productos: {e}")
         return []
+        
+from decimal import Decimal        
 
 def agregar_producto(nombre, precio, stock, categoria):
     try:
@@ -250,7 +252,7 @@ def agregar_producto(nombre, precio, stock, categoria):
                 'producto_id': producto_id,
                 'usuario_id': st.session_state.user_data['usuario_id'],  # ← LÍNEA CLAVE
                 'nombre': nombre,
-                'precio': float(precio),
+                'precio': Decimal(str(precio)),
                 'stock': int(stock),
                 'categoria': categoria,
                 'fecha_creacion': datetime.now().isoformat()
