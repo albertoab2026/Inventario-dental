@@ -616,6 +616,28 @@ else:
 # ---------- MIS PRODUCTOS CON PAGINACIÓN ----------
 st.subheader("📦 Mis Productos")
 
+# FORM DE EDICIÓN - Va arriba de la lista
+if 'editando' in st.session_state and st.session_state.editando:
+    prod_a_editar = next((p for p in obtener_productos() if p['producto_id'] == st.session_state.editando), None)
+    if prod_a_editar:
+        with st.form("form_editar", clear_on_submit=True):
+            st.write(f"**Editando: {prod_a_editar['nombre']}**")
+            nuevo_precio = st.number_input("Precio", value=float(prod_a_editar['precio']), min_value=0.0, format="%.2f")
+            nuevo_stock = st.number_input("Stock", value=int(prod_a_editar['stock']), min_value=0, step=1)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.form_submit_button("💾 Guardar"):
+                    actualizar_producto(prod_a_editar['producto_id'], nuevo_precio, nuevo_stock)
+                    st.session_state.editando = None
+                    st.rerun()
+            with col2:
+                if st.form_submit_button("❌ Cancelar"):
+                    st.session_state.editando = None
+                    st.rerun()
+        st.divider()
+
+# LISTA DE PRODUCTOS CON FILTROS Y PAGINACIÓN
 productos = obtener_productos()
 
 if productos:
@@ -638,12 +660,11 @@ if productos:
     
     # PAGINACIÓN
     ITEMS_POR_PAGINA = 10
-    total_paginas = (len(productos_filtrados) - 1) // ITEMS_POR_PAGINA + 1
+    total_paginas = (len(productos_filtrados) - 1) // ITEMS_POR_PAGINA + 1 if productos_filtrados else 1
     
     if 'pagina_actual' not in st.session_state:
         st.session_state.pagina_actual = 1
     
-    # Resetear página si cambia el filtro
     if st.session_state.pagina_actual > total_paginas:
         st.session_state.pagina_actual = 1
     
@@ -651,9 +672,9 @@ if productos:
     fin = inicio + ITEMS_POR_PAGINA
     productos_pagina = productos_filtrados[inicio:fin]
     
-    # MOSTRAR PRODUCTOS EN TABLA
+    # MOSTRAR PRODUCTOS
     for prod in productos_pagina:
-        col1, col2, col3, col4, col5 = st.columns([3, 2, 1])
+        col1, col2, col3, col4, col5 = st.columns([3, 2, 2, 1, 1])
         with col1:
             st.write(f"**{prod['nombre']}**")
         with col2:
@@ -667,6 +688,7 @@ if productos:
         with col5:
             if st.button("🗑️", key=f"del_{prod['producto_id']}"):
                 eliminar_producto(prod['producto_id'])
+                st.success("Producto eliminado")
                 st.rerun()
         st.divider()
     
@@ -679,7 +701,7 @@ if productos:
                     st.session_state.pagina_actual -= 1
                     st.rerun()
         with col2:
-            st.write(f"Página {st.session_state.pagina_actual} de {total_paginas}")
+            st.markdown(f"<center>Página {st.session_state.pagina_actual} de {total_paginas}</center>", unsafe_allow_html=True)
         with col3:
             if st.session_state.pagina_actual < total_paginas:
                 if st.button("Siguiente ➡️"):
