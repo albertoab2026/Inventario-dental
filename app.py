@@ -234,8 +234,7 @@ def obtener_productos():
     try:
         user_id = st.session_state.user_data['usuario_id']
         response = tabla_productos.query(
-            IndexName='usuario-index',
-            KeyConditionExpression=Key('id_del_dueno').eq(user_id)
+            KeyConditionExpression=Key('id_del_dueno').eq(user_id)  # ← CAMBIO AQUÍ
         )
         return response.get('Items', [])
     except Exception as e:
