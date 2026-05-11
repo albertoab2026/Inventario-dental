@@ -573,7 +573,7 @@ else:
     menu = st.selectbox("Menu", ["📦 Productos", "💰 Ventas", "📊 Dashboard", "⚙️ ADMIN"], label_visibility="collapsed")
     st.write("")
 
-elif menu == "📦 Productos":
+if menu == "📦 Productos":
     st.header("📦 Gestión de Productos")
     
     productos = obtener_productos()
