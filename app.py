@@ -231,30 +231,30 @@ def login(usuario_o_dni, password):
 
 # ====== 4. FUNCIONES DE PRODUCTOS ======
 def obtener_productos():
-    id_dueno = st.session_state.user_data['user_id']
-    response = tabla_productos.query(
-        KeyConditionExpression=Key('id_del_dueno').eq(id_dueno)  # ← USA QUERY, NO SCAN
-    )
-    return response['Items']
+    try:
+        id_dueno = st.session_state.user_data['user_id']
+        response = tabla_productos.query(...)
+        return response['Items']
     except Exception as e:
-        st.error(f"Error cargando productos: {e}")
+        st.error(f"Error: {e}")
         return []
         
 from decimal import Decimal        
 
 def agregar_producto(nombre, precio, stock, producto_id):
-    id_dueno = st.session_state.user_data['user_id']
-    tabla_productos.put_item(
-        Item={
-            'id_del_dueno': id_dueno,      # ← OBLIGATORIO
-            'producto_id': producto_id,    # ← OBLIGATORIO
-            'nombre': nombre,
-            'precio': Decimal(str(precio)),
-            'stock': int(stock)
-        }
-    )
+    try:
+        id_dueno = st.session_state.user_data['user_id']
+        tabla_productos.put_item(
+            Item={
+                'id_del_dueno': id_dueno,      # ← OBLIGATORIO
+                'producto_id': producto_id,    # ← OBLIGATORIO
+                'nombre': nombre,
+                'precio': Decimal(str(precio)),
+                'stock': int(stock)
+            }
+        )
         return True
-    except Exception as e:
+    except Exception as e:  ← ESTE AHORA SÍ TIENE SU try
         st.error(f"Error: {e}")
         return False
 
