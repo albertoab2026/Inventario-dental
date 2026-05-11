@@ -254,18 +254,18 @@ def agregar_producto(nombre, precio, stock, producto_id):
             }
         )
         return True
-    except Exception as e:  ← ESTE AHORA SÍ TIENE SU try
+    except Exception as e:
         st.error(f"Error: {e}")
         return False
 
 def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
     try:
-        id_dueno = st.session_state.user_data['user_id']  # ← O el campo que uses como id_del_dueno
+        id_dueno = st.session_state.user_data['user_id']  
         
         tabla_productos.update_item(
             Key={
-                'id_del_dueno': id_dueno,      # ← CLAVE PARTITION
-                'producto_id': producto_id     # ← CLAVE SORT
+                'id_del_dueno': id_dueno,    
+                'producto_id': producto_id   
             },
             UpdateExpression="SET precio = :p, stock = :s",
             ExpressionAttributeValues={
