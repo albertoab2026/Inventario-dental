@@ -573,155 +573,110 @@ else:
     menu = st.selectbox("Menu", ["📦 Productos", "💰 Ventas", "📊 Dashboard", "⚙️ ADMIN"], label_visibility="collapsed")
     st.write("")
 
-    if menu == "📦 Productos":
-        st.header("📦 Gestión de Productos")
-
-        # ====== CATEGORÍAS DINÁMICAS POR RUBRO - NUEVO ======
-        rubro_usuario = st.session_state.user_data.get('rubro', 'Otro')
-        categorias_base = CATEGORIAS_POR_RUBRO.get(rubro_usuario, [])
-        categorias_custom = st.session_state.user_data.get('categorias_custom', [])
-
-        opciones_cat = categorias_base + categorias_custom + ["➕ Crear nueva categoría"]
-
-        col1, col2, col3 = st.columns([3,1,1])
-        with col1:
-            categoria_seleccionada = st.selectbox("Categoría", opciones_cat, key="cat_select_prod")
-
-        with col2:
-            if categoria_seleccionada == "➕ Crear nueva categoría":
-                nueva_cat = st.text_input("Nueva", key="nueva_cat_prod", label_visibility="collapsed", placeholder="Nombre")
-                if st.button("Guardar") and nueva_cat:
-                    if nueva_cat not in opciones_cat:
-                        categorias_custom.append(nueva_cat)
-                        tabla_usuarios.update_item(
-                            Key={'usuario_id': st.session_state.user_data['usuario_id']},
-                            UpdateExpression='SET categorias_custom = :c',
-                            ExpressionAttributeValues={':c': categorias_custom}
-                        )
-                        st.session_state.user_data['categorias_custom'] = categorias_custom
-                        st.success(f"'{nueva_cat}' creada")
-                        st.rerun()
-                    else:
-                        st.error("Ya existe")
-                st.stop()
-                
-        with col3:  # ← VA AQUÍ, MISMA SANGRÍA QUE with col2:
-            if categoria_seleccionada in categorias_custom:
-                if st.button("🗑️ Borrar", key="del_cat"):
-                    categorias_custom.remove(categoria_seleccionada)
-                    tabla_usuarios.update_item(
-                        Key={'usuario_id': st.session_state.user_data['usuario_id']},
-                        UpdateExpression='SET categorias_custom = :c',
-                        ExpressionAttributeValues={':c': categorias_custom}
-                    )
-                    st.session_state.user_data['categorias_custom'] = categorias_custom
-                    st.success(f"Categoría '{categoria_seleccionada}' borrada")
-                    st.rerun()
-        
-        # ====== FORM DE PRODUCTO ======
-        with st.form("form_producto", clear_on_submit=True):
-            nombre = st.text_input("Nombre del producto", placeholder="Ej: Paracetamol 500mg")
-            precio = st.number_input("Precio", min_value=0.0, format="%.2f")
-            stock = st.number_input("Stock inicial", min_value=0)
-
-            if st.form_submit_button("Agregar Producto"):
-                if nombre and categoria_seleccionada!= "➕ Crear nueva categoría":
-                    if agregar_producto(nombre, precio, stock, categoria_seleccionada):
-                        st.success("Producto agregado")
-                        st.rerun()
-                else:
-                    st.error("Completa el nombre y elige categoría válida")
-
-        st.divider()
-
-# ---------- MIS PRODUCTOS ----------
-if menu == "📦 Productos":
-    st.subheader("📦 Mis Productos")
-
-    if 'editando' in st.session_state and st.session_state.editando:
-        prod_a_editar = next((p for p in obtener_productos() if p['producto_id'] == st.session_state.editando), None)
-        if prod_a_editar:
-            with st.form("form_editar", clear_on_submit=True):
-                st.write(f"**Editando: {prod_a_editar['nombre']}**")
-                nuevo_precio = st.number_input("Precio", value=float(prod_a_editar['precio']), min_value=0.0, format="%.2f")
-                nuevo_stock = st.number_input("Stock", value=int(prod_a_editar['stock']), min_value=0, step=1)
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.form_submit_button("💾 Guardar"):
-                        actualizar_producto(prod_a_editar['producto_id'], nuevo_precio, nuevo_stock)
-                        st.session_state.editando = None
-                        st.rerun()
-                with col2:
-                    if st.form_submit_button("❌ Cancelar"):
-                        st.session_state.editando = None
-                        st.rerun()
-            st.divider()
-
+elif menu == "📦 Productos":
+    st.header("📦 Gestión de Productos")
+    
     productos = obtener_productos()
-
-    if productos:
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            busqueda = st.text_input("🔍 Buscar producto", placeholder="Escribe el nombre...")
-        with col2:
-            categorias = ["Todas"] + sorted(list(set([p.get('categoria', 'Sin categoría') for p in productos])))
-            categoria_filtro = st.selectbox("Filtrar por categoría", categorias)
-        
-        productos_filtrados = productos
-        if busqueda:
-            productos_filtrados = [p for p in productos_filtrados if busqueda.lower() in p['nombre'].lower()]
-        if categoria_filtro != "Todas":
-            productos_filtrados = [p for p in productos_filtrados if p.get('categoria') == categoria_filtro]
-        
-        st.write(f"**Mostrando {len(productos_filtrados)} de {len(productos)} productos**")
-        
-        ITEMS_POR_PAGINA = 10
-        total_paginas = (len(productos_filtrados) - 1) // ITEMS_POR_PAGINA + 1 if productos_filtrados else 1
-        
-        if 'pagina_actual' not in st.session_state:
-            st.session_state.pagina_actual = 1
-        if st.session_state.pagina_actual > total_paginas:
-            st.session_state.pagina_actual = 1
-        
-        inicio = (st.session_state.pagina_actual - 1) * ITEMS_POR_PAGINA
-        fin = inicio + ITEMS_POR_PAGINA
-        productos_pagina = productos_filtrados[inicio:fin]
-        
-        for prod in productos_pagina:
-            col1, col2, col3, col4, col5 = st.columns([3, 2, 2, 1, 1])
-            with col1:
-                st.write(f"**{prod['nombre']}**")
-            with col2:
-                st.write(prod.get('categoria', 'Sin categoría'))
-            with col3:
-                st.write(f"S/ {prod['precio']} | Stock: {prod['stock']}")
-            with col4:
-                if st.button("✏️", key=f"edit_{prod['producto_id']}"):
-                    st.session_state.editando = prod['producto_id']
+    
+    # ===== BARRA DE HERRAMIENTAS =====
+    col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
+    with col1:
+        busqueda = st.text_input("🔍 Buscar producto", placeholder="Nombre o categoría...")
+    with col2:
+        categorias = ["Todas"] + list(set([p['categoria'] for p in productos]))
+        filtro_cat = st.selectbox("Categoría", categorias)
+    with col3:
+        filtro_stock = st.selectbox("Stock", ["Todos", "Stock bajo <5", "Sin stock"])
+    with col4:
+        if st.button("➕ Nuevo", use_container_width=True):
+            st.session_state.mostrar_form = True
+    
+    # ===== FILTRAR PRODUCTOS =====
+    productos_filtrados = productos
+    if busqueda:
+        productos_filtrados = [p for p in productos_filtrados if busqueda.lower() in p['nombre'].lower()]
+    if filtro_cat != "Todas":
+        productos_filtrados = [p for p in productos_filtrados if p['categoria'] == filtro_cat]
+    if filtro_stock == "Stock bajo <5":
+        productos_filtrados = [p for p in productos_filtrados if p['stock'] < 5 and p['stock'] > 0]
+    elif filtro_stock == "Sin stock":
+        productos_filtrados = [p for p in productos_filtrados if p['stock'] == 0]
+    
+    st.caption(f"Mostrando {len(productos_filtrados)} de {len(productos)} productos")
+    
+    # ===== FORMULARIO NUEVO PRODUCTO =====
+    if st.session_state.get('mostrar_form', False):
+        with st.form("nuevo_producto", clear_on_submit=True):
+            st.subheader("➕ Agregar Producto")
+            c1, c2 = st.columns(2)
+            with c1:
+                nombre = st.text_input("Nombre*")
+                precio = st.number_input("Precio S/*", min_value=0.01, value=1.0, step=0.5)
+            with c2:
+                stock = st.number_input("Stock inicial*", min_value=0, value=10)
+                categoria = st.text_input("Categoría*", placeholder="bebidas, snacks...")
+            
+            col_g, col_c = st.columns(2)
+            with col_g:
+                if st.form_submit_button("💾 Guardar", use_container_width=True):
+                    if nombre and categoria:
+                        if agregar_producto(nombre, precio, stock, categoria):
+                            st.success("Producto agregado")
+                            st.session_state.mostrar_form = False
+                            st.rerun()
+                    else:
+                        st.error("Completa nombre y categoría")
+            with col_c:
+                if st.form_submit_button("❌ Cancelar", use_container_width=True):
+                    st.session_state.mostrar_form = False
                     st.rerun()
-            with col5:
-                if st.button("🗑️", key=f"del_{prod['producto_id']}"):
-                    eliminar_producto(prod['producto_id'])
-                    st.success("Producto eliminado")
-                    st.rerun()
-            st.divider()
+    
+    # ===== TABLA PROFESIONAL =====
+    if productos_filtrados:
+        # Convertir a DataFrame para tabla
+        import pandas as pd
+        df = pd.DataFrame(productos_filtrados)
+        df['precio'] = df['precio'].apply(lambda x: f"S/ {float(x):.2f}")
+        df['stock_status'] = df['stock'].apply(lambda x: "🔴" if x == 0 else "🟡" if x < 5 else "🟢")
+        df_display = df[['nombre', 'categoria', 'precio', 'stock', 'stock_status']]
+        df_display.columns = ['Producto', 'Categoría', 'Precio', 'Stock', 'Estado']
         
-        if total_paginas > 1:
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col1:
-                if st.session_state.pagina_actual > 1:
-                    if st.button("⬅️ Anterior"):
-                        st.session_state.pagina_actual -= 1
+        # Tabla con selección
+        selected = st.dataframe(
+            df_display,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Estado": st.column_config.TextColumn(width="small"),
+                "Precio": st.column_config.TextColumn(width="small"),
+                "Stock": st.column_config.NumberColumn(width="small")
+            }
+        )
+        
+        # ===== ACCIONES RÁPIDAS =====
+        st.subheader("Acciones")
+        producto_nombres = [p['nombre'] for p in productos_filtrados]
+        prod_sel = st.selectbox("Selecciona producto para editar/eliminar", producto_nombres)
+        producto_obj = next((p for p in productos_filtrados if p['nombre'] == prod_sel), None)
+        
+        if producto_obj:
+            c1, c2, c3 = st.columns([2, 2, 1])
+            with c1:
+                nuevo_precio = st.number_input("Nuevo precio", value=float(producto_obj['precio']), key="edit_precio")
+            with c2:
+                nuevo_stock = st.number_input("Nuevo stock", value=int(producto_obj['stock']), key="edit_stock")
+            with c3:
+                st.write("") # espacio
+                if st.button("💾 Actualizar", use_container_width=True):
+                    if actualizar_producto(producto_obj['producto_id'], nuevo_precio, nuevo_stock):
+                        st.success("Actualizado")
                         st.rerun()
-            with col2:
-                st.markdown(f"<center>Página {st.session_state.pagina_actual} de {total_paginas}</center>", unsafe_allow_html=True)
-            with col3:
-                if st.session_state.pagina_actual < total_paginas:
-                    if st.button("Siguiente ➡️"):
-                        st.session_state.pagina_actual += 1
+                if st.button("🗑️ Eliminar", use_container_width=True, type="secondary"):
+                    if eliminar_producto(producto_obj['producto_id']):
+                        st.success("Eliminado")
                         st.rerun()
     else:
-        st.info("Aún no tienes productos. Agrega el primero arriba")
+        st.info("No hay productos. Agrega el primero con el botón ➕ Nuevo")        
 
 elif menu == "💰 Ventas":
     st.header("💰 Registrar Venta")
