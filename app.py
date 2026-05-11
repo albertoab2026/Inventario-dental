@@ -630,6 +630,18 @@ if menu == "📦 Productos":
         productos_filtrados = [p for p in productos_filtrados if p['stock'] == 0]
     
     st.caption(f"Mostrando {len(productos_filtrados)} de {len(productos)} productos")
+
+    # ===== AVISOS DE STOCK BAJO =====
+productos_criticos = [p for p in productos if int(p.get('stock', 0)) < 5 and int(p.get('stock', 0)) > 0]
+productos_agotados = [p for p in productos if int(p.get('stock', 0)) == 0]
+
+if productos_agotados:
+    for p in productos_agotados:
+        st.error(f"❌ AGOTADO: {p['nombre']} - Reponer urgente", icon="❌")
+
+if productos_criticos:
+    for p in productos_criticos:
+        st.warning(f"⚠️ STOCK BAJO: {p['nombre']} - Solo quedan {p['stock']} unidades", icon="⚠️")
     
     # ===== FORMULARIO NUEVO PRODUCTO =====
     if st.session_state.get('mostrar_form', False):
