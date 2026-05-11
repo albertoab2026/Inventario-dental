@@ -231,9 +231,12 @@ def login(usuario_o_dni, password):
 
 # ====== 4. FUNCIONES DE PRODUCTOS ======
 def obtener_productos():
+def obtener_productos():
     try:
         id_dueno = st.session_state.user_data['usuario_id']
-        response = tabla_productos.query(...)
+        response = tabla_productos.query(
+            KeyConditionExpression=Key('id_del_dueno').eq(str(id_dueno))
+        )
         return response['Items']
     except Exception as e:
         st.error(f"Error: {e}")
@@ -246,8 +249,8 @@ def agregar_producto(nombre, precio, stock, producto_id):
         id_dueno = st.session_state.user_data['usuario_id']
         tabla_productos.put_item(
             Item={
-                'id_del_dueno': id_dueno,      # ← OBLIGATORIO
-                'producto_id': producto_id,    # ← OBLIGATORIO
+               'id_del_dueno': str(id_dueno),   
+                'producto_id': str(producto_id),  
                 'nombre': nombre,
                 'precio': Decimal(str(precio)),
                 'stock': int(stock)
@@ -264,8 +267,8 @@ def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
         
         tabla_productos.update_item(
             Key={
-                'id_del_dueno': id_dueno,    
-                'producto_id': producto_id   
+                'id_del_dueno': str(id_dueno),   
+                'producto_id': str(producto_id), 
             },
             UpdateExpression="SET precio = :p, stock = :s",
             ExpressionAttributeValues={
@@ -280,12 +283,12 @@ def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
 
 def eliminar_producto(producto_id):
     try:
-        id_dueno = st.session_state.user_data['usuario_id']  # ← O el campo que uses como id_del_dueno
+        id_dueno = st.session_state.user_data['usuario_id'] 
         
         tabla_productos.delete_item(
             Key={
-                'id_del_dueno': id_dueno,      # ← CLAVE PARTITION
-                'producto_id': producto_id     # ← CLAVE SORT
+               'id_del_dueno': str(id_dueno),
+               'producto_id': str(producto_id)
             }
         )
         return True
@@ -297,30 +300,46 @@ def eliminar_producto(producto_id):
 # ====== 5. FUNCIONES DE VENTAS ======
 def registrar_venta(producto_id, cantidad, precio_unitario):
     try:
+        id_dueno = st.session_state.user_data['usuario_id'] 
         venta_id = str(uuid.uuid4())
         total = float(precio_unitario) * int(cantidad)
+        
         tabla_ventas.put_item(
             Item={
                 'venta_id': venta_id,
-                'producto_id': producto_id,
+                'usuario_id': str(id_dueno),      
+                'producto_id': str(producto_id),
                 'cantidad': int(cantidad),
-                'precio_unitario': float(precio_unitario),
-                'total': total,
+                'precio_unitario': Decimal(str(precio_unitario)),
+                'total': Decimal(str(total)),                      
                 'fecha': datetime.now().isoformat()
             }
         )
-        response = tabla_productos.get_item(Key={'producto_id': producto_id})
+        
+        # LEE EL STOCK - AQUÍ ESTABA TU ERROR
+        response = tabla_productos.get_item(
+            Key={
+                'id_del_dueno': str(id_dueno), 
+                'producto_id': str(producto_id)   
+            }
+        )
+        
         if 'Item' in response:
-            stock_actual = response['Item']['stock']
+            stock_actual = int(response['Item']['stock'])
+            
+            # ACTUALIZA STOCK - AQUÍ TAMBIÉN FALTABA
             tabla_productos.update_item(
-                Key={'producto_id': producto_id},
+                Key={
+                    'id_del_dueno': str(id_dueno),     
+                    'producto_id': str(producto_id)   
+                },
                 UpdateExpression='SET stock = :val',
                 ExpressionAttributeValues={':val': stock_actual - int(cantidad)}
             )
         return True
-    except:
+    except Exception as e:
+        st.error(f"Error en venta: {e}")
         return False
-
 def obtener_ventas():
     try:
         user_id = st.session_state.user_data['usuario_id']
