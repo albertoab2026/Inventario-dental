@@ -248,11 +248,12 @@ def agregar_producto(nombre, precio, stock, producto_id):
         id_dueno = st.session_state.user_data['usuario_id']
         tabla_productos.put_item(
             Item={
-               'id_del_dueno': str(id_dueno),   
-                'producto_id': str(producto_id),  
+                'id_del_dueno': str(id_dueno),
+                'producto_id': str(producto_id),
                 'nombre': nombre,
                 'precio': Decimal(str(precio)),
-                'stock': int(stock)
+                'stock': int(stock),
+                'categoria': categoria
             }
         )
         return True
@@ -609,7 +610,7 @@ if menu == "📦 Productos":
     with col1:
         busqueda = st.text_input("🔍 Buscar producto", placeholder="Nombre o categoría...")
     with col2:
-        categorias = ["Todas"] + list(set([p['categoria'] for p in productos]))
+        categorias = ["Todas"] + sorted(list(set([p.get('categoria', 'Sin categoría') for p in productos if p.get('categoria')])))
         filtro_cat = st.selectbox("Categoría", categorias)
     with col3:
         filtro_stock = st.selectbox("Stock", ["Todos", "Stock bajo <5", "Sin stock"])
