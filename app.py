@@ -231,7 +231,6 @@ def login(usuario_o_dni, password):
 
 # ====== 4. FUNCIONES DE PRODUCTOS ======
 def obtener_productos():
-def obtener_productos():
     try:
         id_dueno = st.session_state.user_data['usuario_id']
         response = tabla_productos.query(
