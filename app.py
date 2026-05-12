@@ -776,7 +776,7 @@ elif menu == "Ventas":  # ← SIN EMOJI
     else:
         st.warning("Primero agrega productos")
 
-elif menu == "📊 Dashboard":
+elif menu == "Dashboard": 
     st.header("📊 Dashboard")
     ventas = obtener_ventas()
     productos = obtener_productos()
@@ -789,7 +789,7 @@ elif menu == "📊 Dashboard":
     with col3:
         st.metric("Transacciones", len(ventas))
 
-elif menu == "⚙️ ADMIN":
+elif menu == "ADMIN": 
     st.header("⚙️ Panel Admin")
     rol_usuario = st.session_state.user_data.get('rol', 'cliente')
 
