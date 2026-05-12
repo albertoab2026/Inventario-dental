@@ -596,15 +596,22 @@ else:
     st.markdown(f"**🏪 Local:** {nombre_negocio}")
     st.divider()
     
-    # === DESPLIEGABLE AFUERA - SOLO DEBE HABER 1 VEZ EN TODO EL CODIGO ===
-    menu = st.selectbox("Menu", ["📦 Productos", "💰 Ventas", "📊 Dashboard", "⚙️ ADMIN"], label_visibility="collapsed")
-    st.write("")
+# === DESPLEGABLE AFUERA - SOLO DEBE HABER 1 VEZ EN TODO EL CODIGO ===
+opciones_menu = {
+    "📊 Dashboard": "Dashboard",
+    "📦 Productos": "Productos", 
+    "💰 Ventas": "Ventas",
+    "⚙️ ADMIN": "ADMIN"
+}
 
-if menu == "📦 Productos":
+menu_visible = st.selectbox("Menú", list(opciones_menu.keys()), label_visibility="collapsed")
+menu = opciones_menu[menu_visible]
+
+if menu == "Productos":  # ← SIN EMOJI
     st.header("📦 Gestión de Productos")
-    
+
     productos = obtener_productos()
-    
+
     # ===== BARRA DE HERRAMIENTAS =====
     col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
     with col1:
@@ -621,62 +628,61 @@ if menu == "📦 Productos":
     # ===== FILTRAR PRODUCTOS =====
     productos_filtrados = productos
     if busqueda:
-        productos_filtrados = [p for p in productos_filtrados if busqueda.lower() in p['nombre'].lower()]
+        productos_filtrados = [p for p in productos_filtrados if busqueda.lower() in p.get('nombre', '').lower()]
     if filtro_cat != "Todas":
-        productos_filtrados = [p for p in productos_filtrados if p['categoria'] == filtro_cat]
+        productos_filtrados = [p for p in productos_filtrados if p.get('categoria') == filtro_cat]
     if filtro_stock == "Stock bajo <5":
         productos_filtrados = [p for p in productos_filtrados if float(p.get('stock', 0)) < 5 and float(p.get('stock', 0)) > 0]
     elif filtro_stock == "Sin stock":
         productos_filtrados = [p for p in productos_filtrados if float(p.get('stock', 0)) == 0]        
 
-# ===== PAGINACIÓN - SOLO 10 POR PÁGINA =====
-items_por_pagina = 10
-total_paginas = max(1, (len(productos_filtrados) + items_por_pagina - 1) // items_por_pagina)
+    # ===== PAGINACIÓN - SOLO 10 POR PÁGINA =====
+    items_por_pagina = 10
+    total_paginas = max(1, (len(productos_filtrados) + items_por_pagina - 1) // items_por_pagina)
 
-if 'pagina_actual' not in st.session_state:
-    st.session_state.pagina_actual = 1
+    if 'pagina_actual' not in st.session_state:
+        st.session_state.pagina_actual = 1
 
-# Resetear página si cambia el filtro
-if st.session_state.get('ultimo_total') != len(productos_filtrados):
-    st.session_state.pagina_actual = 1
-    st.session_state.ultimo_total = len(productos_filtrados)
+    # Resetear página si cambia el filtro
+    if st.session_state.get('ultimo_total') != len(productos_filtrados):
+        st.session_state.pagina_actual = 1
+        st.session_state.ultimo_total = len(productos_filtrados)
 
-col_pag1, col_pag2, col_pag3 = st.columns([1,2,1])
+    col_pag1, col_pag2, col_pag3 = st.columns([1,2,1])
 
-with col_pag1:
-    if st.button("◀ Anterior", disabled=st.session_state.pagina_actual == 1):
-        st.session_state.pagina_actual -= 1
-        st.rerun()
+    with col_pag1:
+        if st.button("◀ Anterior", disabled=st.session_state.pagina_actual == 1):
+            st.session_state.pagina_actual -= 1
+            st.rerun()
 
-with col_pag2:
-    st.write(f"Página {st.session_state.pagina_actual} de {total_paginas}")
+    with col_pag2:
+        st.write(f"Página {st.session_state.pagina_actual} de {total_paginas}")
 
-with col_pag3:
-    if st.button("Siguiente ▶", disabled=st.session_state.pagina_actual == total_paginas):
-        st.session_state.pagina_actual += 1
-        st.rerun()
+    with col_pag3:
+        if st.button("Siguiente ▶", disabled=st.session_state.pagina_actual == total_paginas):
+            st.session_state.pagina_actual += 1
+            st.rerun()
 
-# CORTAR LA LISTA - SOLO 10 ITEMS
-inicio = (st.session_state.pagina_actual - 1) * items_por_pagina
-fin = inicio + items_por_pagina
-productos_pagina = productos_filtrados[inicio:fin]
+    # CORTAR LA LISTA - SOLO 10 ITEMS
+    inicio = (st.session_state.pagina_actual - 1) * items_por_pagina
+    fin = inicio + items_por_pagina
+    productos_pagina = productos_filtrados[inicio:fin]
 
-st.caption(f"Mostrando {len(productos_filtrados)} de {len(productos)} productos")
+    st.caption(f"Mostrando {len(productos_pagina)} de {len(productos_filtrados)} productos")
 
-# AQUÍ USAS productos_pagina EN VEZ DE productos_filtrados PARA MOSTRAR LA TABLA
-# ===== AVISOS DE STOCK BAJO =====
-try:
-    productos_criticos = [p for p in productos_filtrados if float(p.get('stock', 0)) < 5 and float(p.get('stock', 0)) > 0]
-    productos_agotados = [p for p in productos_filtrados if float(p.get('stock', 0)) == 0]
-    if productos_agotados:
-        for p in productos_agotados:
-            st.error(f"❌ AGOTADO: {p.get('nombre', 'Sin nombre')} - Reponer urgente", icon="❌")
+    # ===== AVISOS DE STOCK BAJO =====
+    try:
+        productos_criticos = [p for p in productos_filtrados if float(p.get('stock', 0)) < 5 and float(p.get('stock', 0)) > 0]
+        productos_agotados = [p for p in productos_filtrados if float(p.get('stock', 0)) == 0]
+        if productos_agotados:
+            for p in productos_agotados:
+                st.error(f"❌ AGOTADO: {p.get('nombre', 'Sin nombre')} - Reponer urgente", icon="❌")
 
-    if productos_criticos:
-        for p in productos_criticos:
-            st.warning(f"⚠️ STOCK BAJO: {p.get('nombre', 'Sin nombre')} - Solo quedan {int(float(p['stock']))} unidades", icon="⚠️")
-except Exception as e:
-    st.error(f"Error calculando stock: {e}")
+        if productos_criticos:
+            for p in productos_criticos:
+                st.warning(f"⚠️ STOCK BAJO: {p.get('nombre', 'Sin nombre')} - Solo quedan {int(float(p['stock']))} unidades", icon="⚠️")
+    except Exception as e:
+        st.error(f"Error calculando stock: {e}")
     
     # ===== FORMULARIO NUEVO PRODUCTO =====
     if st.session_state.get('mostrar_form', False):
@@ -706,17 +712,17 @@ except Exception as e:
                     st.rerun()
     
     # ===== TABLA PROFESIONAL =====
-    if productos_filtrados:
+    if productos_pagina:  # ← CAMBIO: usa productos_pagina
         # Convertir a DataFrame para tabla
         import pandas as pd
-        df = pd.DataFrame(productos_filtrados)
+        df = pd.DataFrame(productos_pagina)  # ← CAMBIO: productos_pagina
         df['precio'] = df['precio'].apply(lambda x: f"S/ {float(x):.2f}")
-        df['stock_status'] = df['stock'].apply(lambda x: "🔴" if x == 0 else "🟡" if x < 5 else "🟢")
+        df['stock_status'] = df['stock'].apply(lambda x: "🔴" if float(x) == 0 else "🟡" if float(x) < 5 else "🟢")  # ← CAMBIO: float(x)
         df_display = df[['nombre', 'categoria', 'precio', 'stock', 'stock_status']]
         df_display.columns = ['Producto', 'Categoría', 'Precio', 'Stock', 'Estado']
         
         # Tabla con selección
-        selected = st.dataframe(
+        st.dataframe(
             df_display,
             use_container_width=True,
             hide_index=True,
@@ -729,7 +735,7 @@ except Exception as e:
         
         # ===== ACCIONES RÁPIDAS =====
         st.subheader("Acciones")
-        producto_nombres = [p['nombre'] for p in productos_filtrados]
+        producto_nombres = [p['nombre'] for p in productos_filtrados]  # Este sí usa filtrados para editar cualquiera
         prod_sel = st.selectbox("Selecciona producto para editar/eliminar", producto_nombres)
         producto_obj = next((p for p in productos_filtrados if p['nombre'] == prod_sel), None)
         
@@ -738,7 +744,7 @@ except Exception as e:
             with c1:
                 nuevo_precio = st.number_input("Nuevo precio", value=float(producto_obj['precio']), key="edit_precio")
             with c2:
-                nuevo_stock = st.number_input("Nuevo stock", value=int(producto_obj['stock']), key="edit_stock")
+                nuevo_stock = st.number_input("Nuevo stock", value=int(float(producto_obj['stock'])), key="edit_stock")  # ← CAMBIO: int(float())
             with c3:
                 st.write("") # espacio
                 if st.button("💾 Actualizar", use_container_width=True):
@@ -752,7 +758,7 @@ except Exception as e:
     else:
         st.info("No hay productos. Agrega el primero con el botón ➕ Nuevo")        
 
-elif menu == "💰 Ventas":
+elif menu == "Ventas":  # ← SIN EMOJI
     st.header("💰 Registrar Venta")
     productos = obtener_productos()
     if productos:
