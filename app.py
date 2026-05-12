@@ -625,23 +625,58 @@ if menu == "📦 Productos":
     if filtro_cat != "Todas":
         productos_filtrados = [p for p in productos_filtrados if p['categoria'] == filtro_cat]
     if filtro_stock == "Stock bajo <5":
-        productos_filtrados = [p for p in productos_filtrados if p['stock'] < 5 and p['stock'] > 0]
+        productos_filtrados = [p for p in productos_filtrados if float(p.get('stock', 0)) < 5 and float(p.get('stock', 0)) > 0]
     elif filtro_stock == "Sin stock":
-        productos_filtrados = [p for p in productos_filtrados if p['stock'] == 0]
-    
-    st.caption(f"Mostrando {len(productos_filtrados)} de {len(productos)} productos")
+        productos_filtrados = [p for p in productos_filtrados if float(p.get('stock', 0)) == 0]        
 
-    # ===== AVISOS DE STOCK BAJO =====
-productos_criticos = [p for p in productos if int(p.get('stock', 0)) < 5 and int(p.get('stock', 0)) > 0]
-productos_agotados = [p for p in productos if int(p.get('stock', 0)) == 0]
+# ===== PAGINACIÓN - SOLO 10 POR PÁGINA =====
+items_por_pagina = 10
+total_paginas = max(1, (len(productos_filtrados) + items_por_pagina - 1) // items_por_pagina)
 
-if productos_agotados:
-    for p in productos_agotados:
-        st.error(f"❌ AGOTADO: {p['nombre']} - Reponer urgente", icon="❌")
+if 'pagina_actual' not in st.session_state:
+    st.session_state.pagina_actual = 1
 
-if productos_criticos:
-    for p in productos_criticos:
-        st.warning(f"⚠️ STOCK BAJO: {p['nombre']} - Solo quedan {p['stock']} unidades", icon="⚠️")
+# Resetear página si cambia el filtro
+if st.session_state.get('ultimo_total') != len(productos_filtrados):
+    st.session_state.pagina_actual = 1
+    st.session_state.ultimo_total = len(productos_filtrados)
+
+col_pag1, col_pag2, col_pag3 = st.columns([1,2,1])
+
+with col_pag1:
+    if st.button("◀ Anterior", disabled=st.session_state.pagina_actual == 1):
+        st.session_state.pagina_actual -= 1
+        st.rerun()
+
+with col_pag2:
+    st.write(f"Página {st.session_state.pagina_actual} de {total_paginas}")
+
+with col_pag3:
+    if st.button("Siguiente ▶", disabled=st.session_state.pagina_actual == total_paginas):
+        st.session_state.pagina_actual += 1
+        st.rerun()
+
+# CORTAR LA LISTA - SOLO 10 ITEMS
+inicio = (st.session_state.pagina_actual - 1) * items_por_pagina
+fin = inicio + items_por_pagina
+productos_pagina = productos_filtrados[inicio:fin]
+
+st.caption(f"Mostrando {len(productos_filtrados)} de {len(productos)} productos")
+
+# AQUÍ USAS productos_pagina EN VEZ DE productos_filtrados PARA MOSTRAR LA TABLA
+# ===== AVISOS DE STOCK BAJO =====
+try:
+    productos_criticos = [p for p in productos_filtrados if float(p.get('stock', 0)) < 5 and float(p.get('stock', 0)) > 0]
+    productos_agotados = [p for p in productos_filtrados if float(p.get('stock', 0)) == 0]
+    if productos_agotados:
+        for p in productos_agotados:
+            st.error(f"❌ AGOTADO: {p.get('nombre', 'Sin nombre')} - Reponer urgente", icon="❌")
+
+    if productos_criticos:
+        for p in productos_criticos:
+            st.warning(f"⚠️ STOCK BAJO: {p.get('nombre', 'Sin nombre')} - Solo quedan {int(float(p['stock']))} unidades", icon="⚠️")
+except Exception as e:
+    st.error(f"Error calculando stock: {e}")
     
     # ===== FORMULARIO NUEVO PRODUCTO =====
     if st.session_state.get('mostrar_form', False):
