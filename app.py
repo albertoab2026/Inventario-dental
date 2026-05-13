@@ -299,41 +299,45 @@ def eliminar_producto(producto_id):
 
 # ====== 5. FUNCIONES DE VENTAS ======
 def registrar_venta(producto_id, cantidad, precio):
-    # Agarra el id_del_dueno del usuario logueado
-    id_dueno = st.session_state.user_data['usuario_id']
-    
-    tabla.put_item(
-        Item={
-            'id_del_dueno': id_dueno, 
-            'venta_id': str(uuid.uuid4()),
-            'producto_id': producto_id,
-            'cantidad': cantidad,
-            'precio': precio,
-            'fecha': str(datetime.now())
-        }
-    )
-        
-        # LEE EL STOCK - AQUÍ ESTABA TU ERROR
-        response = tabla_productos.get_item(
-            Key={
-                'id_del_dueno': str(id_dueno), 
-                'producto_id': str(producto_id)   
+    try:
+        # Agarra el id_del_dueno del usuario logueado
+        id_dueno = st.session_state.user_data['usuario_id']
+
+        tabla.put_item(
+            Item={
+                'id_del_dueno': id_dueno,
+                'venta_id': str(uuid.uuid4()),
+                'producto_id': producto_id,
+                'cantidad': cantidad,
+                'precio': precio,
+                'fecha': str(datetime.now())
             }
         )
-        
+
+        # LEE EL STOCK
+        response = tabla_productos.get_item(
+            Key={
+                'id_del_dueno': str(id_dueno),
+                'producto_id': str(producto_id)
+            }
+        )
+
         if 'Item' in response:
             stock_actual = int(response['Item']['stock'])
             
-            # ACTUALIZA STOCK - AQUÍ TAMBIÉN FALTABA
+            # ACTUALIZA STOCK
             tabla_productos.update_item(
                 Key={
-                    'id_del_dueno': str(id_dueno),     
-                    'producto_id': str(producto_id)   
+                    'id_del_dueno': str(id_dueno),
+                    'producto_id': str(producto_id)
                 },
                 UpdateExpression='SET stock = :val',
-                ExpressionAttributeValues={':val': stock_actual - int(cantidad)}
+                ExpressionAttributeValues={':val': stock_actual - cantidad}
             )
-        return True
+            return True
+        
+        return False
+        
     except Exception as e:
         st.error(f"Error en venta: {e}")
         return False
