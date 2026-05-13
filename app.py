@@ -346,13 +346,12 @@ def obtener_ventas():
         id_dueno = st.session_state.user_data['usuario_id']
         response = tabla_ventas.query(
             IndexName='usuario-index',
-            KeyConditionExpression=Key('id_del_dueno').eq(id_dueno)  # ← cambia usuario_id por id_del_dueno
+            KeyConditionExpression=Key('usuario_id').eq(id_dueno)
         )
         return response.get('Items', [])
     except Exception as e:
         st.error(f"Error cargando ventas: {e}")
         return []
-
 # ====== 6. UI LOGIN ======
 def mostrar_login():
     st.markdown("""
