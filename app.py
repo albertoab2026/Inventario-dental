@@ -298,23 +298,20 @@ def eliminar_producto(producto_id):
 
 
 # ====== 5. FUNCIONES DE VENTAS ======
-def registrar_venta(producto_id, cantidad, precio_unitario):
-    try:
-        id_dueno = st.session_state.user_data['usuario_id'] 
-        venta_id = str(uuid.uuid4())
-        total = float(precio_unitario) * int(cantidad)
-        
-        tabla_ventas.put_item(
-            Item={
-                'venta_id': venta_id,
-                'usuario_id': str(id_dueno),      
-                'producto_id': str(producto_id),
-                'cantidad': int(cantidad),
-                'precio_unitario': Decimal(str(precio_unitario)),
-                'total': Decimal(str(total)),                      
-                'fecha': datetime.now().isoformat()
-            }
-        )
+def registrar_venta(producto_id, cantidad, precio):
+    # Agarra el id_del_dueno del usuario logueado
+    id_dueno = st.session_state.user_data['usuario_id']
+    
+    tabla.put_item(
+        Item={
+            'id_del_dueno': id_dueno, 
+            'venta_id': str(uuid.uuid4()),
+            'producto_id': producto_id,
+            'cantidad': cantidad,
+            'precio': precio,
+            'fecha': str(datetime.now())
+        }
+    )
         
         # LEE EL STOCK - AQUÍ ESTABA TU ERROR
         response = tabla_productos.get_item(
