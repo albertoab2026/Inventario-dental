@@ -301,13 +301,16 @@ def registrar_venta(producto_id, cantidad, precio):
         id_dueno = st.session_state.user_data['usuario_id']
         fecha_utc = datetime.now(timezone.utc).isoformat()
         
+        total = float(precio) * int(cantidad)  # <-- agrega esto
+
         tabla_ventas.put_item(
             Item={
                 'usuario_id': id_dueno,
-                'Venta_id': str(uuid.uuid4()),
+                'venta_id': str(uuid.uuid4()),
                 'producto_id': producto_id,
                 'cantidad': int(cantidad),
                 'precio': Decimal(str(precio)),
+                'total': Decimal(str(total)),  # <-- y esto
                 'fecha': fecha_utc
             }
         )
