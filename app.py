@@ -343,13 +343,14 @@ def registrar_venta(producto_id, cantidad, precio):
         return False
 def obtener_ventas():
     try:
-        user_id = st.session_state.user_data['usuario_id']
+        id_dueno = st.session_state.user_data['usuario_id']
         response = tabla_ventas.query(
             IndexName='usuario-index',
-            KeyConditionExpression=Key('usuario_id').eq(user_id)
+            KeyConditionExpression=Key('id_del_dueno').eq(id_dueno)
         )
         return response.get('Items', [])
-    except:
+    except Exception as e:
+        st.error(f"Error cargando ventas: {e}")
         return []
 
 # ====== 6. UI LOGIN ======
