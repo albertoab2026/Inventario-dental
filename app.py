@@ -445,18 +445,19 @@ def mostrar_login():
 
     tab1, tab2 = st.tabs(["🔑 Iniciar Sesión", "🚀 Prueba 7 días GRATIS"])
 
-    with tab1:  # ← 4 ESPACIOS
+    with tab1:
         st.markdown("<h3 style='text-align: center;'>Iniciar Sesión</h3>", unsafe_allow_html=True)
-        dni = st.text_input("Usuario o DNI", placeholder="12345678")
-        password = st.text_input("Contraseña", type="password")
-        if st.button("Iniciar Sesión", use_container_width=True):
-            user = login(dni, password)
-            if user:
-                st.session_state.logged_in = True
-                st.session_state.user_data = user
-                st.rerun()
-            else:
-                st.error("❌ DNI o contraseña incorrectos")
+        with st.form("login_form"):
+            dni = st.text_input("Usuario o DNI", placeholder="12345678")
+            password = st.text_input("Contraseña", type="password")
+            if st.form_submit_button("Iniciar Sesión", use_container_width=True):
+                user = login(dni, password)
+                if user:
+                    st.session_state.logged_in = True
+                    st.session_state.user_data = user
+                    st.rerun()
+                else:
+                    st.error("❌ DNI o contraseña incorrectos")
     with tab2:  # ← 4 ESPACIOS
         st.markdown("<h3 style='text-align: center;'>Crea tu cuenta GRATIS</h3>", unsafe_allow_html=True)
         nombre = st.text_input("Nombre completo", placeholder="Juan Pérez", key="reg_nom")
