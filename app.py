@@ -303,7 +303,7 @@ def registrar_venta(producto_id, cantidad, precio):
         # Agarra el id_del_dueno del usuario logueado
         id_dueno = st.session_state.user_data['usuario_id']
 
-        tabla.put_item(
+        tabla_ventas.put_item(
             Item={
                 'id_del_dueno': id_dueno,
                 'venta_id': str(uuid.uuid4()),
