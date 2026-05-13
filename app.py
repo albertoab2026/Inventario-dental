@@ -241,13 +241,15 @@ def obtener_productos():
         st.error(f"Error cargando productos: {e}")
         return []
 
-def agregar_producto(nombre, precio, stock, producto_id, categoria):
+def agregar_producto(nombre, precio, stock, categoria):
     try:
         id_dueno = st.session_state.user_data['usuario_id']
+        producto_id = str(uuid.uuid4())  # genera el id aquí
+        
         tabla_productos.put_item(
             Item={
                 'id_del_dueno': str(id_dueno),
-                'producto_id': str(producto_id),
+                'producto_id': producto_id,
                 'nombre': nombre,
                 'precio': Decimal(str(precio)),
                 'stock': int(stock),
