@@ -235,21 +235,19 @@ def obtener_productos():
         id_dueno = st.session_state.user_data['usuario_id']
         response = tabla_productos.query(
             IndexName='usuario-index',
-            KeyConditionExpression=Key('usuario_id').eq(id_dueno)
+            KeyConditionExpression=Key('id_del_dueno').eq(id_dueno)  # <- cambiado
         )
         return response.get('Items', [])
     except Exception as e:
         st.error(f"Error cargando productos: {e}")
         return []
-        
-from decimal import Decimal        
 
 def agregar_producto(nombre, precio, stock, producto_id):
     try:
         id_dueno = st.session_state.user_data['usuario_id']
         tabla_productos.put_item(
             Item={
-                'usuario_id': str(id_dueno),  # <- cambia esto
+                'id_del_dueno': str(id_dueno),  # <- cambiado
                 'producto_id': str(producto_id),
                 'nombre': nombre,
                 'precio': Decimal(str(precio)),
@@ -265,10 +263,9 @@ def agregar_producto(nombre, precio, stock, producto_id):
 def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
     try:
         id_dueno = st.session_state.user_data['usuario_id']  
-        
         tabla_productos.update_item(
             Key={
-                'usuario_id': str(id_dueno),   # <- cambia aquí
+                'id_del_dueno': str(id_dueno),   # <- cambiado
                 'producto_id': str(producto_id), 
             },
             UpdateExpression="SET precio = :p, stock = :s",
@@ -285,10 +282,9 @@ def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
 def eliminar_producto(producto_id):
     try:
         id_dueno = st.session_state.user_data['usuario_id']
-
         tabla_productos.delete_item(
             Key={
-                'usuario_id': str(id_dueno),  # <- cambia esto
+                'id_del_dueno': str(id_dueno),  # <- cambiado
                 'producto_id': str(producto_id)
             }
         )
@@ -297,15 +293,12 @@ def eliminar_producto(producto_id):
         st.error(f"Error eliminando: {e}")
         return False
 
-
-# ====== 5. FUNCIONES DE VENTAS ======
 def registrar_venta(producto_id, cantidad, precio):
     try:
         id_dueno = st.session_state.user_data['usuario_id']
-
         tabla_ventas.put_item(
             Item={
-                'usuario_id': id_dueno,  # clave única ahora
+                'id_del_dueno': id_dueno,  # <- cambiado
                 'Venta_id': str(uuid.uuid4()),
                 'producto_id': producto_id,
                 'cantidad': cantidad,
@@ -313,20 +306,17 @@ def registrar_venta(producto_id, cantidad, precio):
                 'fecha': str(datetime.now())
             }
         )
-
-        # Actualizar stock
         response = tabla_productos.get_item(
             Key={
-                'usuario_id': str(id_dueno),  # cambia aquí también
+                'id_del_dueno': str(id_dueno),  # <- cambiado
                 'producto_id': str(producto_id)
             }
         )
-
         if 'Item' in response:
             stock_actual = int(response['Item']['stock'])
             tabla_productos.update_item(
                 Key={
-                    'usuario_id': str(id_dueno),
+                    'id_del_dueno': str(id_dueno),  # <- cambiado
                     'producto_id': str(producto_id)
                 },
                 UpdateExpression='SET stock = :val',
@@ -337,12 +327,13 @@ def registrar_venta(producto_id, cantidad, precio):
     except Exception as e:
         st.error(f"Error en venta: {e}")
         return False
+
 def obtener_ventas():
     try:
         id_dueno = st.session_state.user_data['usuario_id']
         response = tabla_ventas.query(
             IndexName='usuario-index',
-            KeyConditionExpression=Key('usuario_id').eq(id_dueno)
+            KeyConditionExpression=Key('id_del_dueno').eq(id_dueno)  # <- cambiado
         )
         return response.get('Items', [])
     except Exception as e:
