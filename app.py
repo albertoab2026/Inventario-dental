@@ -3,7 +3,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 import pandas as pd
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 
 # ====== RUBROS Y CATEGORÍAS BASE - NUEVO ======
@@ -234,20 +234,19 @@ def obtener_productos():
     try:
         id_dueno = st.session_state.user_data['usuario_id']
         response = tabla_productos.query(
-            IndexName='usuario-index',
-            KeyConditionExpression=Key('id_del_dueno').eq(id_dueno)  # <- cambiado
+            KeyConditionExpression=Key('id_del_dueno').eq(id_dueno)
         )
         return response.get('Items', [])
     except Exception as e:
         st.error(f"Error cargando productos: {e}")
         return []
 
-def agregar_producto(nombre, precio, stock, producto_id):
+def agregar_producto(nombre, precio, stock, producto_id, categoria):
     try:
         id_dueno = st.session_state.user_data['usuario_id']
         tabla_productos.put_item(
             Item={
-                'id_del_dueno': str(id_dueno),  # <- cambiado
+                'id_del_dueno': str(id_dueno),
                 'producto_id': str(producto_id),
                 'nombre': nombre,
                 'precio': Decimal(str(precio)),
@@ -265,7 +264,7 @@ def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
         id_dueno = st.session_state.user_data['usuario_id']  
         tabla_productos.update_item(
             Key={
-                'id_del_dueno': str(id_dueno),   # <- cambiado
+                'id_del_dueno': str(id_dueno),
                 'producto_id': str(producto_id), 
             },
             UpdateExpression="SET precio = :p, stock = :s",
@@ -284,7 +283,7 @@ def eliminar_producto(producto_id):
         id_dueno = st.session_state.user_data['usuario_id']
         tabla_productos.delete_item(
             Key={
-                'id_del_dueno': str(id_dueno),  # <- cambiado
+                'id_del_dueno': str(id_dueno),
                 'producto_id': str(producto_id)
             }
         )
@@ -293,26 +292,34 @@ def eliminar_producto(producto_id):
         st.error(f"Error eliminando: {e}")
         return False
 
+# ====== 5. FUNCIONES DE VENTAS ======
 def registrar_venta(producto_id, cantidad, precio):
     try:
         id_dueno = st.session_state.user_data['usuario_id']
+        fecha_utc = datetime.now(timezone.utc).isoformat()
+        
         tabla_ventas.put_item(
             Item={
-                'usuario_id': id_dueno,  # <- cambiado de id_del_dueno
+                'usuario_id': id_dueno,
                 'Venta_id': str(uuid.uuid4()),
                 'producto_id': producto_id,
-                'cantidad': cantidad,
-                'precio': precio,
-                'fecha': str(datetime.now())
+                'cantidad': int(cantidad),
+                'precio': Decimal(str(precio)),
+                'fecha': fecha_utc
             }
         )
-        # ... el resto igual
+        
+        # Actualizar stock del producto
         response = tabla_productos.get_item(
             Key={
-                'id_del_dueno': str(id_dueno),  # esto déjalo así, productos sí usa id_del_dueno
+                'id_del_dueno': str(id_dueno),
                 'producto_id': str(producto_id)
             }
         )
+        if 'Item' in response:
+            nuevo_stock = response['Item']['stock'] - int(cantidad)
+            actualizar_producto(producto_id, response['Item']['precio'], nuevo_stock)
+            
         return True
     except Exception as e:
         st.error(f"Error en venta: {e}")
@@ -322,8 +329,8 @@ def obtener_ventas():
     try:
         id_dueno = st.session_state.user_data['usuario_id']
         response = tabla_ventas.query(
-            IndexName='usuario-index',
-            KeyConditionExpression=Key('usuario_id').eq(id_dueno)  # <- cambiado
+            KeyConditionExpression=Key('usuario_id').eq(id_dueno),
+            ScanIndexForward=False  # para que salgan las más recientes primero
         )
         return response.get('Items', [])
     except Exception as e:
