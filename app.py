@@ -773,7 +773,7 @@ elif menu == "Dashboard":
     with col1:
         st.metric("Total Productos", len(productos))
     with col2:
-        total_ventas = sum([v['total'] for v in ventas])
+        total_ventas = sum(v.get('total', 0) for v in ventas)
         st.metric("Ventas Totales", f"S/{total_ventas:.2f}")
     with col3:
         st.metric("Transacciones", len(ventas))
