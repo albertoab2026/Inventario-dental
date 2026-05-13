@@ -7,16 +7,23 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 from decimal import Decimal
 
-# ====== RUBROS Y CATEGORÍAS BASE - NUEVO ======
+# ======= RUBROS Y CATEGORÍAS BASE - NUEVO =======
 CATEGORIAS_POR_RUBRO = {
-    "Bodega": ["Abarrotes", "Bebidas", "Limpieza", "Golosinas", "Lácteos", "Panadería"],
-    "Farmacia": ["Medicinas", "Vitaminas", "Cuidado Personal", "Bebés", "Primeros Auxilios", "Recetas"],
-    "Librería": ["Cuadernos", "Lapiceros", "Papelería", "Arte y Manualidades", "Libros", "Oficina"],
-    "Ferretería": ["Herramientas", "Pinturas", "Electricidad", "Gasfitería", "Construcción"],
-    "Minimarket": ["Abarrotes", "Bebidas", "Limpieza", "Lácteos", "Librería y Papelería"],
+    "Bodega": ["Abarrotes", "Bebidas", "Limpieza", "Golosinas", "Lácteos"],
+    "Farmacia": ["Medicinas", "Vitaminas", "Cuidado Personal", "Bebé"],
+    "Librería": ["Cuadernos", "Lapiceros", "Papelería", "Arte y Manualidades"],
+    "Ferretería": ["Herramientas", "Pinturas", "Electricidad", "Gasfitería"],
+    "Minimarket": ["Abarrotes", "Bebidas", "Limpieza", "Lácteos"],
     "Almacén": ["Mayorista", "Distribución", "Inventario General"],
     "Otro": [] # Arranca vacío, crea todo desde cero
 }
+
+# --- INICIALIZAR CARRITO ---
+if 'carrito' not in st.session_state:
+    st.session_state.carrito = []
+if 'procesando_venta' not in st.session_state:
+    st.session_state.procesando_venta = False
+# --- FIN CARRITO ---
 
 # ====== 1. CONFIGURACIÓN AWS ======
 st.set_page_config(page_title="NEXUS", page_icon="⚡", layout="wide")
@@ -750,18 +757,18 @@ if menu == "Productos":  # ← SIN EMOJI
     else:
         st.info("No hay productos. Agrega el primero con el botón ➕ Nuevo")        
 
-elif menu == "Ventas":  # ← SIN EMOJI
+elif menu == "Ventas":  # línea 760
     st.header("💰 Registrar Venta")
     productos = obtener_productos()
     if productos:
         nombres = [p['nombre'] for p in productos]
-        producto_sel = st.selectbox("Producto", nombres)
+        producto_sel = st.selectbox("Producto", nombres)  # línea 765
         cantidad = st.number_input("Cantidad", min_value=1, value=1)
         producto = next((p for p in productos if p['nombre'] == producto_sel), None)
         if producto:
             st.write(f"Precio unitario: S/{producto['precio']:.2f}")
             st.write(f"Total: S/{producto['precio'] * cantidad:.2f}")
-            if st.button("Registrar Venta"):
+            if st.button("Registrar Venta"):  # línea 771
                 if registrar_venta(producto['producto_id'], cantidad, producto['precio']):
                     st.success("Venta registrada")
                     st.rerun()
