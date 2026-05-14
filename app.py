@@ -858,7 +858,7 @@ if menu == "Productos":
         categorias = ["Todas"] + sorted(list(set([p.get('categoria', 'Sin categoría') for p in productos if p.get('categoria')])))
         filtro_cat = st.selectbox("Categoría", categorias, key="filtro_cat")
     with col3:
-        filtro_stock = st.selectbox("Stock", ["Todos", "Stock bajo <5", "Sin stock"])
+        filtro_stock = st.selectbox("Stock", ["Todos", "Stock bajo <5", "Sin stock"], key="filtro_stock")
     with col4:
         if st.button("➕ Nuevo", use_container_width=True):
             st.session_state.mostrar_form = True
