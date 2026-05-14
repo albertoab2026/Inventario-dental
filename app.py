@@ -841,29 +841,29 @@ elif menu == "Registrar Venta":
     }
     </style>
     """, unsafe_allow_html=True)
-        st.subheader("Acciones")
-        producto_nombres = [p['nombre'] for p in productos_filtrados]  # Este sí usa filtrados para editar cualquiera
-        prod_sel = st.selectbox("Selecciona producto para editar/eliminar", producto_nombres)
-        producto_obj = next((p for p in productos_filtrados if p['nombre'] == prod_sel), None)
-        
-        if producto_obj:
-            c1, c2, c3 = st.columns([2, 2, 1])
-            with c1:
-                nuevo_precio = st.number_input("Nuevo precio", value=float(producto_obj['precio']), key="edit_precio")
-            with c2:
-                nuevo_stock = st.number_input("Nuevo stock", value=int(float(producto_obj['stock'])), key="edit_stock")  # ← CAMBIO: int(float())
-            with c3:
-                st.write("") # espacio
-                if st.button("💾 Actualizar", use_container_width=True):
-                    if actualizar_producto(producto_obj['producto_id'], nuevo_precio, nuevo_stock):
-                        st.success("Actualizado")
-                        st.rerun()
-                if st.button("🗑️ Eliminar", use_container_width=True, type="secondary"):
-                    if eliminar_producto(producto_obj['producto_id']):
-                        st.success("Eliminado")
-                        st.rerun()
-    else:
-        st.info("No hay productos. Agrega el primero con el botón ➕ Nuevo")        
+st.subheader("Acciones")
+producto_nombres = [p['nombre'] for p in productos_filtrados]  # Este sí usa filtrados para editar cualquiera
+prod_sel = st.selectbox("Selecciona producto para editar/eliminar", producto_nombres)
+producto_obj = next((p for p in productos_filtrados if p['nombre'] == prod_sel), None)
+
+if producto_obj:
+    c1, c2, c3 = st.columns([2, 2, 1])
+    with c1:
+        nuevo_precio = st.number_input("Nuevo precio", value=float(producto_obj['precio']), key="edit_precio")
+    with c2:
+        nuevo_stock = st.number_input("Nuevo stock", value=int(float(producto_obj['stock'])), key="edit_stock")
+    with c3:
+        st.write("") # espacio
+        if st.button("💾 Actualizar", use_container_width=True):
+            if actualizar_producto(producto_obj['producto_id'], nuevo_precio, nuevo_stock):
+                st.success("Actualizado")
+                st.rerun()
+        if st.button("🗑️ Eliminar", use_container_width=True, type="secondary"):
+            if eliminar_producto(producto_obj['producto_id']):
+                st.success("Eliminado")
+                st.rerun()
+else:
+    st.info("No hay productos. Agrega el primero con el botón ➕ Nuevo")        
     
         
 
