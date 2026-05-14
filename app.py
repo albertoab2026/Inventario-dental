@@ -856,7 +856,7 @@ if menu == "Productos":
         busqueda = st.text_input("🔍 Buscar", placeholder="Nombre o categoría...")
     with col2:
         categorias = ["Todas"] + sorted(list(set([p.get('categoria', 'Sin categoría') for p in productos if p.get('categoria')])))
-        filtro_cat = st.selectbox("Categoría", categorias)
+        filtro_cat = st.selectbox("Categoría", categorias, key="filtro_cat")
     with col3:
         filtro_stock = st.selectbox("Stock", ["Todos", "Stock bajo <5", "Sin stock"])
     with col4:
