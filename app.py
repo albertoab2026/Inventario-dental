@@ -764,91 +764,108 @@ elif menu == "Ventas":  # línea 760
         if 'carrito' not in st.session_state:
             st.session_state.carrito = []
 
-        # Responsive: 2:1 en PC, 1:1 en móvil
-        col1, col2 = st.columns([2, 1], gap="large")
+        # Header con título e ícono de carrito
+    col_title, col_cart = st.columns([6, 1])
+    with col_title:
+        st.header("🛒 Registrar Venta")
+    with col_cart:
+        if st.button(f"🛒 {len(st.session_state.carrito)}", key="cart_icon", use_container_width=True):
+            st.session_state.show_cart = True
 
-        with col1:
-            st.subheader("Agregar Productos")
-            nombres = [p['nombre'] for p in productos]
-            producto_sel = st.selectbox("Producto", nombres, key="prod_sel")
-            cantidad = st.number_input("Cantidad", min_value=1, value=1, key="cant_sel")
-            producto = next((p for p in productos if p['nombre'] == producto_sel), None)
-            
-            if producto:
-                st.write(f"Precio: S/{producto['precio']:.2f} | Stock: {producto['stock']}")
-                if st.button("➕ Agregar al Carrito", use_container_width=True):
-                    if producto['stock'] >= cantidad:
-                        # Si ya existe el producto, suma cantidad
-                        for item in st.session_state.carrito:
-                            if item['producto_id'] == producto['producto_id']:
-                                item['cantidad'] += cantidad
-                                item['subtotal'] = item['cantidad'] * item['precio']
-                                break
-                        else:
-                            st.session_state.carrito.append({
-                                'producto_id': producto['producto_id'],
-                                'nombre': producto['nombre'],
-                                'precio': producto['precio'],
-                                'cantidad': cantidad,
-                                'subtotal': producto['precio'] * cantidad
-                            })
-                        st.success(f"Agregado: {cantidad}x {producto['nombre']}")
-                        st.rerun()
+    # Sección para agregar productos
+    productos = obtener_productos()
+    if productos:
+        nombres = [p['nombre'] for p in productos]
+        producto_sel = st.selectbox("Producto", nombres, key="prod_sel")
+        cantidad = st.number_input("Cantidad", min_value=1, value=1, step=1)
+        producto = next((p for p in productos if p['nombre'] == producto_sel), None)
+
+        if producto:
+            st.write(f"Precio: S/{producto['precio']:.2f} | Stock: {producto['stock']}")
+            if st.button("➕ Agregar al Carrito", use_container_width=True):
+                if producto['stock'] >= cantidad:
+                    for item in st.session_state.carrito:
+                        if item['producto_id'] == producto['producto_id']:
+                            item['cantidad'] += cantidad
+                            item['subtotal'] = item['cantidad'] * item['precio']
+                            break
                     else:
-                        st.error("Stock insuficiente")   
+                        st.session_state.carrito.append({
+                            'producto_id': producto['producto_id'],
+                            'nombre': producto['nombre'],
+                            'precio': producto['precio'],
+                            'cantidad': cantidad,
+                            'subtotal': producto['precio'] * cantidad
+                        })
+                    st.success(f"Agregado: {cantidad}x {producto['nombre']}")
+                    st.rerun()
+                else:
+                    st.error("Stock insuficiente")
+    else:
+        st.info("No hay productos. Agrega el primero con el botón + Nuevo Producto")
 
-        with col2:
-            st.subheader(f"🛒 Carrito ({len(st.session_state.carrito)})")
-            
+    # Carrito en expander - funciona igual en PC y móvil
+    if st.session_state.get('show_cart', False):
+        with st.expander(f"🛒 Carrito ({len(st.session_state.carrito)})", expanded=True):
             if st.session_state.carrito:
-                with st.container(height=350, border=True):
-                    total = 0
-                    for i, item in enumerate(st.session_state.carrito):
-                        col_a, col_b = st.columns([4, 1])
-                        with col_a:
-                            st.write(f"**{item['cantidad']}x {item['nombre']}**")
-                            st.caption(f"S/{item['precio']:.2f} c/u")
-                        with col_b:
-                            if st.button("🗑️", key=f"del_{i}", use_container_width=True):
-                                st.session_state.carrito.pop(i)
-                                st.rerun()
-                        total += item['subtotal']
-                        if i < len(st.session_state.carrito) - 1:
-                            st.divider()
-                
+                total = 0
+                for i, item in enumerate(st.session_state.carrito):
+                    col_a, col_b = st.columns([4, 1])
+                    with col_a:
+                        st.write(f"**{item['cantidad']}x {item['nombre']}**")
+                        st.caption(f"S/{item['precio']:.2f} c/u")
+                    with col_b:
+                        if st.button("🗑️", key=f"del_{i}", use_container_width=True):
+                            st.session_state.carrito.pop(i)
+                            st.rerun()
+                    total += item['subtotal']
+                    if i < len(st.session_state.carrito) - 1:
+                        st.divider()
+
                 st.write(f"### Total: S/{total:.2f}")
-                
+
                 col_c, col_d = st.columns(2)
                 with col_c:
-                    if st.button("🗑️ Vaciar", use_container_width=True):
+                    if st.button("🗑️ Vaciar", key="vaciar", use_container_width=True):
                         st.session_state.carrito = []
+                        st.session_state.show_cart = False
                         st.rerun()
                 with col_d:
-                    if st.button("✅ Finalizar", type="primary", use_container_width=True):
+                    if st.button("✅ Finalizar Venta", key="finalizar", type="primary", use_container_width=True):
                         ok = True
                         for item in st.session_state.carrito:
                             if not registrar_venta(item['producto_id'], item['cantidad'], item['precio']):
                                 ok = False
                                 break
                         if ok:
-                            st.success("Venta registrada")
+                            st.success("Venta registrada correctamente")
                             st.session_state.carrito = []
+                            st.session_state.show_cart = False
                             st.rerun()
                         else:
-                            st.error("Error al registrar")
+                            st.error("Error al registrar venta")
+
+                if st.button("❌ Cerrar", key="cerrar_cart", use_container_width=True):
+                    st.session_state.show_cart = False
+                    st.rerun()
             else:
                 st.info("Carrito vacío")
 
-# Botón flotante solo en móvil
-        st.markdown("""
-        <div class="floating-cart-btn">
-        </div>
-        """, unsafe_allow_html=True)
-
-        if st.button(f"🛒 Ver Carrito ({len(st.session_state.carrito)})", 
-                     key="open_cart", 
-                     use_container_width=True):
-            st.session_state.show_cart = True
+    # CSS para que el botón de carrito quede flotante en móvil
+    st.markdown("""
+    <style>
+    @media (max-width: 768px) {
+        div[data-testid="stButton"] button[kind="secondary"][key="cart_icon"] {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 999;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
         # Modal reemplazo con expander
         if st.session_state.get('show_cart', False):
