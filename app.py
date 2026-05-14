@@ -739,10 +739,10 @@ if menu == "Productos":  # ← SIN EMOJI
     if 'show_cart' not in st.session_state:
         st.session_state.show_cart = False
 
-    # Header con icono de carrito - SIN TITULO DUPLICADO
+    # Header con icono de carrito
     col_title, col_cart = st.columns([6, 1])
     with col_title:
-        st.write("")  # espacio para alinear
+        st.write("")
     with col_cart:
         if st.button(f"🛒 {len(st.session_state.carrito)}", key="cart_icon", use_container_width=True):
             st.session_state.show_cart = True
@@ -759,7 +759,6 @@ if menu == "Productos":  # ← SIN EMOJI
             st.write(f"Precio: S/{producto['precio']:.2f} | Stock: {producto['stock']}")
             if st.button("➕ Agregar al Carrito", use_container_width=True):
                 if producto['stock'] >= cantidad:
-                    # Si ya existe el producto, suma cantidad
                     for item in st.session_state.carrito:
                         if item['producto_id'] == producto['producto_id']:
                             item['cantidad'] += cantidad
@@ -780,7 +779,7 @@ if menu == "Productos":  # ← SIN EMOJI
     else:
         st.info("No hay productos. Agrega el primero con el botón + Nuevo Producto")
 
-    # --- Modal del carrito con expander ---
+    # --- Modal del carrito ---
     if st.session_state.get('show_cart', False):
         with st.expander(f"🛒 Carrito ({len(st.session_state.carrito)})", expanded=True):
             if st.session_state.carrito:
@@ -841,7 +840,7 @@ if menu == "Productos":  # ← SIN EMOJI
         }
     }
     </style>
-    """, unsafe_allow_html=True)# ===== ACCIONES RÁPIDAS =====
+    """, unsafe_allow_html=True)
         st.subheader("Acciones")
         producto_nombres = [p['nombre'] for p in productos_filtrados]  # Este sí usa filtrados para editar cualquiera
         prod_sel = st.selectbox("Selecciona producto para editar/eliminar", producto_nombres)
