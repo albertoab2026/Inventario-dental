@@ -756,23 +756,23 @@ if menu == "Productos":  # ← SIN EMOJI
                         st.rerun()
     else:
         st.info("No hay productos. Agrega el primero con el botón ➕ Nuevo")        
+    
+        elif menu == "Registrar Venta":
+    # Inicializar carrito si no existe
+    if 'carrito' not in st.session_state:
+        st.session_state.carrito = []
+    if 'show_cart' not in st.session_state:
+        st.session_state.show_cart = False
 
-elif menu == "Ventas":  # línea 760
-    st.header("💰 Registrar Venta")
-    productos = obtener_productos()
-    if productos:
-        if 'carrito' not in st.session_state:
-            st.session_state.carrito = []
-
-        # Header con título e ícono de carrito
+    # Header con icono de carrito - SIN TITULO
     col_title, col_cart = st.columns([6, 1])
     with col_title:
-        st.header("🛒 Registrar Venta")
+        st.write("")  # espacio vacio para alinear
     with col_cart:
         if st.button(f"🛒 {len(st.session_state.carrito)}", key="cart_icon", use_container_width=True):
             st.session_state.show_cart = True
 
-    # Sección para agregar productos
+    # Seccion para agregar productos
     productos = obtener_productos()
     if productos:
         nombres = [p['nombre'] for p in productos]
