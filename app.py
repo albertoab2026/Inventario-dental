@@ -911,10 +911,10 @@ else:
                 if st.button("❌ Cerrar", key="cerrar_exp", use_container_width=True):
                     st.session_state.show_cart = False
                     st.rerun()
-          else:
-                st.info("Carrito vacío")
-        
-elif menu == "Dashboard": 
+        else: # 8 espacios
+            st.info("Carrito vacío") # 12 espacios
+
+elif menu == "Dashboard": # 0 espacios, pegado al borde
     st.header("📊 Dashboard")
     ventas = obtener_ventas()
     productos = obtener_productos()
@@ -927,7 +927,7 @@ elif menu == "Dashboard":
     with col3:
         st.metric("Transacciones", len(ventas))
 
-elif menu == "ADMIN": 
+elif menu == "ADMIN": # 0 espacios también
     st.header("⚙️ Panel Admin")
     rol_usuario = st.session_state.user_data.get('rol', 'cliente')
 
