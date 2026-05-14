@@ -914,7 +914,7 @@ else:
         else:  # 8 espacios
         st.info("Carrito vacío")  # 12 espacios
 
-elif menu == "Dashboard":  # 0 espacios - sin nada adelante
+elif menu == "Dashboard": # 0 espacios - pegado al borde
     st.header("📊 Dashboard")
     ventas = obtener_ventas()
     productos = obtener_productos()
@@ -1015,5 +1015,4 @@ elif menu == "ADMIN": # 0 espacios también
                     )
                     st.success("✅ Tu clave fue cambiada")
                 except Exception as e:
-                    st.error(f"Error: {e}")
                     st.error(f"Error: {e}")
