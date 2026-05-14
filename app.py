@@ -841,35 +841,205 @@ elif menu == "Registrar Venta":
     }
     </style>
     """, unsafe_allow_html=True)
-st.subheader("Acciones")
-
-productos = obtener_productos()  # <- AGREGA ESTA LÍNEA
-
-productos_filtrados = [p for p in productos if p.get('stock', 0) > 0]
-producto_nombres = [p['nombre'] for p in productos_filtrados] 
-prod_sel = st.selectbox("Selecciona producto para editar/eliminar", producto_nombres)
-producto_obj = next((p for p in productos_filtrados if p['nombre'] == prod_sel), None)
-
-if producto_obj:
-    c1, c2, c3 = st.columns([2, 2, 1])
-    with c1:
-        nuevo_precio = st.number_input("Nuevo precio", value=float(producto_obj['precio']), key="edit_precio")
-    with c2:
-        nuevo_stock = st.number_input("Nuevo stock", value=int(float(producto_obj['stock'])), key="edit_stock")
-    with c3:
-        st.write("") # espacio
-        if st.button("💾 Actualizar", use_container_width=True):
-            if actualizar_producto(producto_obj['producto_id'], nuevo_precio, nuevo_stock):
-                st.success("Actualizado")
-                st.rerun()
-        if st.button("🗑️ Eliminar", use_container_width=True, type="secondary"):
-            if eliminar_producto(producto_obj['producto_id']):
-                st.success("Eliminado")
-                st.rerun()
-else:
-    st.info("No hay productos. Agrega el primero con el botón ➕ Nuevo")        
     
-        
+# ===== BLOQUE PRODUCTOS - GESTION COMPLETA =====
+# Última actualización: 2026-05-14
+# Incluye: tabla con botones, filtros, paginación, alertas, import CSV
+if menu == "Productos":
+    st.header("📦 Gestión de Productos")
+
+    productos = obtener_productos()
+
+    # ===== BARRA DE HERRAMIENTAS =====
+    col1, col2, col3, col4, col5 = st.columns([3, 2, 2, 1, 1])
+    with col1:
+        busqueda = st.text_input("🔍 Buscar", placeholder="Nombre o categoría...")
+    with col2:
+        categorias = ["Todas"] + sorted(list(set([p.get('categoria', 'Sin categoría') for p in productos if p.get('categoria')])))
+        filtro_cat = st.selectbox("Categoría", categorias)
+    with col3:
+        filtro_stock = st.selectbox("Stock", ["Todos", "Stock bajo <5", "Sin stock"])
+    with col4:
+        if st.button("➕ Nuevo", use_container_width=True):
+            st.session_state.mostrar_form = True
+            st.session_state.pop('edit_id', None)
+    with col5:
+        if st.button("📥 Importar", use_container_width=True):
+            st.session_state.mostrar_import = True
+
+    # ===== FILTRAR PRODUCTOS =====
+    productos_filtrados = productos
+    if busqueda:
+        productos_filtrados = [p for p in productos_filtrados if busqueda.lower() in p.get('nombre', '').lower()]
+    if filtro_cat!= "Todas":
+        productos_filtrados = [p for p in productos_filtrados if p.get('categoria') == filtro_cat]
+    if filtro_stock == "Stock bajo <5":
+        productos_filtrados = [p for p in productos_filtrados if float(p.get('stock', 0)) < 5 and float(p.get('stock', 0)) > 0]
+    elif filtro_stock == "Sin stock":
+        productos_filtrados = [p for p in productos_filtrados if float(p.get('stock', 0)) == 0]
+
+    # ===== PAGINACIÓN =====
+    items_por_pagina = 10
+    total_paginas = max(1, (len(productos_filtrados) + items_por_pagina - 1) // items_por_pagina)
+
+    if 'pagina_actual' not in st.session_state:
+        st.session_state.pagina_actual = 1
+    if st.session_state.get('ultimo_total')!= len(productos_filtrados):
+        st.session_state.pagina_actual = 1
+        st.session_state.ultimo_total = len(productos_filtrados)
+
+    col_pag1, col_pag2, col_pag3 = st.columns([1,2,1])
+    with col_pag1:
+        if st.button("◀ Anterior", disabled=st.session_state.pagina_actual == 1, use_container_width=True):
+            st.session_state.pagina_actual -= 1
+            st.rerun()
+    with col_pag2:
+        st.write(f"<div style='text-align:center'>Página {st.session_state.pagina_actual} de {total_paginas}</div>", unsafe_allow_html=True)
+    with col_pag3:
+        if st.button("Siguiente ▶", disabled=st.session_state.pagina_actual == total_paginas, use_container_width=True):
+            st.session_state.pagina_actual += 1
+            st.rerun()
+
+    inicio = (st.session_state.pagina_actual - 1) * items_por_pagina
+    fin = inicio + items_por_pagina
+    productos_pagina = productos_filtrados[inicio:fin]
+
+    st.caption(f"Mostrando {len(productos_pagina)} de {len(productos_filtrados)} productos")
+
+    # ===== ALERTAS STOCK =====
+    try:
+        productos_criticos = [p for p in productos_filtrados if float(p.get('stock', 0)) < 5 and float(p.get('stock', 0)) > 0]
+        productos_agotados = [p for p in productos_filtrados if float(p.get('stock', 0)) == 0]
+        if productos_agotados:
+            for p in productos_agotados:
+                st.error(f"❌ AGOTADO: {p.get('nombre', 'Sin nombre')} - Reponer urgente")
+        if productos_criticos:
+            for p in productos_criticos:
+                st.warning(f"⚠️ STOCK BAJO: {p.get('nombre', 'Sin nombre')} - Solo quedan {int(float(p['stock']))} unidades")
+    except Exception as e:
+        st.error(f"Error calculando stock: {e}")
+
+    # ===== TABLA CON BOTONES =====
+    if productos_pagina:
+        cols = st.columns([3, 2, 1.5, 1, 1, 1])
+        cols[0].markdown("**Producto**")
+        cols[1].markdown("**Categoría**")
+        cols[2].markdown("**Precio**")
+        cols[3].markdown("**Stock**")
+        cols[4].markdown("**Estado**")
+        cols[5].markdown("**Acciones**")
+
+        for p in productos_pagina:
+            cols = st.columns([3, 2, 1.5, 1, 1, 1])
+            cols[0].write(p['nombre'])
+            cols[1].write(p.get('categoria', '-'))
+            cols[2].write(f"S/ {float(p['precio']):.2f}")
+            cols[3].write(int(p['stock']))
+
+            stock = int(p['stock'])
+            if stock <= 0:
+                cols[4].markdown("🔴 AGOTADO")
+            elif stock < 5:
+                cols[4].markdown("🟡 BAJO")
+            else:
+                cols[4].markdown("🟢 OK")
+
+            if cols[5].button("✏️", key=f"edit_{p['producto_id']}", help="Editar"):
+                st.session_state['edit_id'] = p['producto_id']
+                st.session_state['mostrar_form'] = True
+                st.rerun()
+            if cols[5].button("🗑️", key=f"del_{p['producto_id']}", help="Eliminar"):
+                st.session_state['delete_id'] = p['producto_id']
+                st.rerun()
+    else:
+        st.info("No hay productos con esos filtros")
+
+    # ===== MODAL ELIMINAR =====
+    if 'delete_id' in st.session_state:
+        prod = next((p for p in productos if p['producto_id'] == st.session_state['delete_id']), None)
+        if prod:
+            st.warning(f"¿Eliminar **{prod['nombre']}**? Esta acción no se puede deshacer.")
+            c1, c2 = st.columns(2)
+            if c1.button("Sí, eliminar", type="primary", use_container_width=True):
+                eliminar_producto(prod['producto_id'])
+                st.session_state.pop('delete_id', None)
+                st.success("Producto eliminado")
+                st.rerun()
+            if c2.button("Cancelar", use_container_width=True):
+                st.session_state.pop('delete_id', None)
+                st.rerun()
+
+    # ===== FORM CREAR/EDITAR =====
+    if st.session_state.get('mostrar_form', False):
+        edit_id = st.session_state.get('edit_id', None)
+        producto_data = next((p for p in productos if p['producto_id'] == edit_id), None) if edit_id else None
+
+        with st.form("form_producto", clear_on_submit=True):
+            st.subheader("Editar Producto" if producto_data else "Agregar Producto")
+
+            nombre = st.text_input("Nombre*", value=producto_data['nombre'] if producto_data else "", disabled=bool(producto_data))
+            categoria = st.text_input("Categoría*", value=producto_data.get('categoria', '') if producto_data else "")
+            precio = st.number_input("Precio S/*", value=float(producto_data['precio']) if producto_data else 0.01, min_value=0.01, step=0.10)
+            stock = st.number_input("Stock*", value=int(producto_data['stock']) if producto_data else 10, min_value=0, step=1)
+
+            col_g, col_c = st.columns(2)
+            with col_g:
+                if st.form_submit_button("💾 Guardar", use_container_width=True, type="primary"):
+                    if producto_data:
+                        actualizar_producto(producto_data['producto_id'], precio, stock)
+                        st.success("✅ Producto actualizado")
+                    else:
+                        if nombre and categoria:
+                            agregar_producto(nombre, precio, stock, categoria)
+                            st.success("✅ Producto agregado")
+                        else:
+                            st.error("Completa nombre y categoría")
+
+                    st.session_state.pop('edit_id', None)
+                    st.session_state.pop('mostrar_form', None)
+                    st.rerun()
+            with col_c:
+                if st.button("❌ Cancelar", use_container_width=True):
+                    st.session_state.pop('edit_id', None)
+                    st.session_state.pop('mostrar_form', None)
+                    st.rerun()
+
+    # ===== IMPORTAR CSV =====
+    if st.session_state.get('mostrar_import', False):
+        with st.expander("Importar productos desde CSV", expanded=True):
+            st.write("Formato requerido: `nombre,precio,stock,categoria`")
+            archivo = st.file_uploader("Sube tu archivo CSV", type=['csv'])
+
+            if archivo is not None:
+                import pandas as pd
+                df = pd.read_csv(archivo)
+                st.write("Vista previa:")
+                st.dataframe(df.head())
+
+                if st.button("Confirmar importación", type="primary"):
+                    importados = 0
+                    errores = 0
+                    for _, row in df.iterrows():
+                        try:
+                            agregar_producto(
+                                str(row['nombre']),
+                                float(row['precio']),
+                                int(row['stock']),
+                                str(row['categoria'])
+                            )
+                            importados += 1
+                        except Exception as e:
+                            errores += 1
+
+                    st.success(f"✅ {importados} productos importados")
+                    if errores > 0:
+                        st.warning(f"⚠️ {errores} filas con error")
+                    st.session_state.pop('mostrar_import', None)
+                    st.rerun()
+
+            if st.button("Cerrar"):
+                st.session_state.pop('mostrar_import', None)
+                st.rerun()
 
 # --- SECCIÓN DEL CARRITO (Visualización) ---
 if st.session_state.get('show_cart', False):
