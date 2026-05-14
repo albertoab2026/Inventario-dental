@@ -842,6 +842,9 @@ elif menu == "Registrar Venta":
     </style>
     """, unsafe_allow_html=True)
 st.subheader("Acciones")
+
+productos = obtener_productos()  # <- AGREGA ESTA LÍNEA
+
 productos_filtrados = [p for p in productos if p.get('stock', 0) > 0]
 producto_nombres = [p['nombre'] for p in productos_filtrados] 
 prod_sel = st.selectbox("Selecciona producto para editar/eliminar", producto_nombres)
