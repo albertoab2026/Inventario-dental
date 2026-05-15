@@ -669,7 +669,7 @@ if menu == "Productos":
 
     st.caption(f"Mostrando {len(productos_pagina)} de {len(productos_filtrados)} productos")
 
-        # ===== TABLA =====
+    # ===== TABLA =====
     with st.container():
         if productos_pagina:
             st.dataframe(
@@ -679,8 +679,11 @@ if menu == "Productos":
                     "categoria": st.column_config.TextColumn("Categoría"),
                     "precio": st.column_config.NumberColumn("Precio", format="S/ %.2f"),
                     "stock": st.column_config.NumberColumn("Stock"),
-                    "estado": st.column_config.TextColumn("Estado")
+                    "estado": st.column_config.TextColumn("Estado"),
+                    "id_del_dueno": None,
+                    "producto_id": None,
                 },
+                column_order=["nombre", "categoria", "precio", "stock", "estado"],
                 use_container_width=True,
                 hide_index=True
             )
