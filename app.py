@@ -762,7 +762,7 @@ if menu == "Productos":
                     st.session_state.pop('mostrar_form', None)
                     st.rerun()
             with col_c:
-                if st.button("❌ Cancelar", use_container_width=True):
+                if st.form_submit_button("❌ Cancelar", use_container_width=True):
                     st.session_state.pop('edit_id', None)
                     st.session_state.pop('mostrar_form', None)
                     st.rerun()
