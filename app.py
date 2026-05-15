@@ -80,7 +80,16 @@ html, body, [class*="css"] {
 ::-webkit-scrollbar-thumb {
     background: #334155;
     border-radius: 3px;
+
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 0.5rem;
 }
+
+.stApp {
+    min-height: 100vh;
+}    
+
 </style>
 """, unsafe_allow_html=True)
 
