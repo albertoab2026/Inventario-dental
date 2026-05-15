@@ -914,57 +914,6 @@ elif menu == "Ventas":
     </style>
     """, unsafe_allow_html=True)
       
-# --- SECCIÓN DEL CARRITO (Visualización) ---
-if st.session_state.get('show_cart', False):
-    with st.expander(f"🛒 Carrito ({len(st.session_state.carrito)})", expanded=True):
-        if st.session_state.carrito:
-            total = 0
-            # Enumeramos para tener llaves únicas en los botones
-            for i, item in enumerate(st.session_state.carrito):
-                col_a, col_b = st.columns([4, 1])
-                with col_a:
-                    st.write(f"**{item['cantidad']}x {item['nombre']}**")
-                    st.caption(f"S/{item['precio']:.2f} c/u")
-                with col_b:
-                    if st.button("🗑️", key=f"del_exp_{i}", use_container_width=True):
-                        st.session_state.carrito.pop(i)
-                        st.rerun()
-                
-                total += item['subtotal']
-                
-                if i < len(st.session_state.carrito) - 1:
-                    st.divider()
-
-            st.write(f"### Total: S/{total:.2f}")
-
-            col_c, col_d = st.columns(2)
-            with col_c:
-                if st.button("🗑️ Vaciar", key="vaciar_exp", use_container_width=True):
-                    st.session_state.carrito = []
-                    st.session_state.show_cart = False
-                    st.rerun()
-            with col_d:
-                if st.button("✅ Finalizar", key="finalizar_exp", type="primary", use_container_width=True):
-                    ok = True
-                    for item in st.session_state.carrito:
-                        if not registrar_venta(item['producto_id'], item['cantidad'], item['precio']):
-                            ok = False
-                            break
-                    if ok:
-                        st.success("Venta registrada")
-                        st.session_state.carrito = []
-                        st.session_state.show_cart = False
-                        st.rerun()
-                    else:
-                        st.error("Error al registrar")
-        else:
-            st.info("El carrito está vacío")
-
-        # Botón para cerrar el expander manualmente
-        if st.button("❌ Cerrar", key="cerrar_exp", use_container_width=True):
-            st.session_state.show_cart = False
-            st.rerun()
-
 # --- SECCIÓN DE NAVEGACIÓN (Dashboard / Admin) ---
 if menu == "Dashboard":
     st.header("📊 Dashboard")
