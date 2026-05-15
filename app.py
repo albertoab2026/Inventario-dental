@@ -669,6 +669,24 @@ if menu == "Productos":
 
     st.caption(f"Mostrando {len(productos_pagina)} de {len(productos_filtrados)} productos")
 
+        # ===== TABLA =====
+    with st.container():
+        if productos_pagina:
+            st.dataframe(
+                productos_pagina,
+                column_config={
+                    "nombre": st.column_config.TextColumn("Producto"),
+                    "categoria": st.column_config.TextColumn("Categoría"),
+                    "precio": st.column_config.NumberColumn("Precio", format="S/ %.2f"),
+                    "stock": st.column_config.NumberColumn("Stock"),
+                    "estado": st.column_config.TextColumn("Estado")
+                },
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("No hay productos que coincidan con la búsqueda")
+    
     # ===== ALERTAS STOCK =====
     try:
         productos_criticos = [p for p in productos_filtrados if float(p.get('stock', 0)) < 5 and float(p.get('stock', 0)) > 0]
