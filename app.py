@@ -803,7 +803,8 @@ if menu == "Productos":
             if st.button("Cerrar"):
                 st.session_state.pop('mostrar_import', None)
                 st.rerun()
-
+                
+st.write(f"Menu actual: {menu}")
 elif menu == "Registrar Venta":
     # Inicializar carrito si no existe
     if 'carrito' not in st.session_state:
