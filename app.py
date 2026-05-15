@@ -606,133 +606,22 @@ opciones_menu = {
 menu_visible = st.selectbox("Menú", list(opciones_menu.keys()), label_visibility="collapsed")
 menu = opciones_menu[menu_visible]
 
-elif menu == "Registrar Venta":
-    # Inicializar carrito si no existe
-    if 'carrito' not in st.session_state:
-        st.session_state.carrito = []
-    if 'show_cart' not in st.session_state:
-        st.session_state.show_cart = False
-
-    # Header con icono de carrito
-    col_title, col_cart = st.columns([6, 1])
-    with col_title:
-        st.write("")
-    with col_cart:
-        if st.button(f"🛒 {len(st.session_state.carrito)}", key="cart_icon", use_container_width=True):
-            st.session_state.show_cart = True
-
-    # --- Sección para agregar productos ---
-    productos = obtener_productos()
-    if productos:
-        nombres = [p['nombre'] for p in productos]
-        producto_sel = st.selectbox("Producto", nombres, key="prod_sel")
-        cantidad = st.number_input("Cantidad", min_value=1, value=1, step=1)
-        producto = next((p for p in productos if p['nombre'] == producto_sel), None)
-
-        if producto:
-            st.write(f"Precio: S/{producto['precio']:.2f} | Stock: {producto['stock']}")
-            if st.button("➕ Agregar al Carrito", use_container_width=True):
-                if producto['stock'] >= cantidad:
-                    for item in st.session_state.carrito:
-                        if item['producto_id'] == producto['producto_id']:
-                            item['cantidad'] += cantidad
-                            item['subtotal'] = item['cantidad'] * item['precio']
-                            break
-                    else:
-                        st.session_state.carrito.append({
-                            'producto_id': producto['producto_id'],
-                            'nombre': producto['nombre'],
-                            'precio': producto['precio'],
-                            'cantidad': cantidad,
-                            'subtotal': producto['precio'] * cantidad
-                        })
-                    st.success(f"Agregado: {cantidad}x {producto['nombre']}")
-                    st.rerun()
-                else:
-                    st.error("Stock insuficiente")
-    else:
-        st.info("No hay productos. Agrega el primero con el botón + Nuevo Producto")
-
-    # --- Modal del carrito ---
-    if st.session_state.get('show_cart', False):
-        with st.expander(f"🛒 Carrito ({len(st.session_state.carrito)})", expanded=True):
-            if st.session_state.carrito:
-                total = 0
-                for i, item in enumerate(st.session_state.carrito):
-                    col_a, col_b = st.columns([4, 1])
-                    with col_a:
-                        st.write(f"**{item['cantidad']}x {item['nombre']}**")
-                        st.caption(f"S/{item['precio']:.2f} c/u")
-                    with col_b:
-                        if st.button("🗑️", key=f"del_exp_{i}", use_container_width=True):
-                            st.session_state.carrito.pop(i)
-                            st.rerun()
-                    total += item['subtotal']
-                    if i < len(st.session_state.carrito) - 1:
-                        st.divider()
-
-                st.write(f"### Total: S/{total:.2f}")
-
-                col_c, col_d = st.columns(2)
-                with col_c:
-                    if st.button("🗑️ Vaciar", key="vaciar_exp", use_container_width=True):
-                        st.session_state.carrito = []
-                        st.session_state.show_cart = False
-                        st.rerun()
-                with col_d:
-                    if st.button("✅ Finalizar Venta", key="finalizar_exp", type="primary", use_container_width=True):
-                        ok = True
-                        for item in st.session_state.carrito:
-                            if not registrar_venta(item['producto_id'], item['cantidad'], item['precio']):
-                                ok = False
-                                break
-                        if ok:
-                            st.success("Venta registrada correctamente")
-                            st.session_state.carrito = []
-                            st.session_state.show_cart = False
-                            st.rerun()
-                        else:
-                            st.error("Error al registrar venta")
-
-                if st.button("❌ Cerrar", key="cerrar_exp", use_container_width=True):
-                    st.session_state.show_cart = False
-                    st.rerun()
-            else:
-                st.info("Carrito vacío")
-
-    # --- CSS para botón flotante en móvil ---
-    st.markdown("""
-    <style>
-    @media (max-width: 768px) {
-        div[data-testid="stButton"] button[kind="secondary"] {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 999;
-            border-radius: 50px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
 # ===== BLOQUE PRODUCTOS - GESTION COMPLETA =====
 # Última actualización: 2026-05-14
 # Incluye: tabla con botones, filtros, paginación, alertas, import CSV
 if menu == "Productos":
     st.header("📦 Gestión de Productos")
-
     productos = obtener_productos()
-
+    
     # ===== BARRA DE HERRAMIENTAS =====
     col1, col2, col3, col4, col5 = st.columns([3, 2, 2, 1, 1])
     with col1:
         busqueda = st.text_input("🔍 Buscar", placeholder="Nombre o categoría...")
     with col2:
         categorias = ["Todas"] + sorted(list(set([p.get('categoria', 'Sin categoría') for p in productos if p.get('categoria')])))
-        filtro_cat = st.selectbox("Categoría", categorias, key="filtro_cat")
+        filtro_cat = st.selectbox("Categoría", categorias)
     with col3:
-        filtro_stock = st.selectbox("Stock", ["Todos", "Stock bajo <5", "Sin stock"], key="filtro_stock")
+        filtro_stock = st.selectbox("Stock", ["Todos", "Stock bajo <5", "Sin stock"])
     with col4:
         if st.button("➕ Nuevo", use_container_width=True):
             st.session_state.mostrar_form = True
@@ -915,6 +804,116 @@ if menu == "Productos":
                 st.session_state.pop('mostrar_import', None)
                 st.rerun()
 
+elif menu == "Registrar Venta":
+    # Inicializar carrito si no existe
+    if 'carrito' not in st.session_state:
+        st.session_state.carrito = []
+    if 'show_cart' not in st.session_state:
+        st.session_state.show_cart = False
+
+    # Header con icono de carrito
+    col_title, col_cart = st.columns([6, 1])
+    with col_title:
+        st.write("")
+    with col_cart:
+        if st.button(f"🛒 {len(st.session_state.carrito)}", key="cart_icon", use_container_width=True):
+            st.session_state.show_cart = True
+
+    # --- Sección para agregar productos ---
+    productos = obtener_productos()
+    if productos:
+        nombres = [p['nombre'] for p in productos]
+        producto_sel = st.selectbox("Producto", nombres, key="prod_sel")
+        cantidad = st.number_input("Cantidad", min_value=1, value=1, step=1)
+        producto = next((p for p in productos if p['nombre'] == producto_sel), None)
+
+        if producto:
+            st.write(f"Precio: S/{producto['precio']:.2f} | Stock: {producto['stock']}")
+            if st.button("➕ Agregar al Carrito", use_container_width=True):
+                if producto['stock'] >= cantidad:
+                    for item in st.session_state.carrito:
+                        if item['producto_id'] == producto['producto_id']:
+                            item['cantidad'] += cantidad
+                            item['subtotal'] = item['cantidad'] * item['precio']
+                            break
+                    else:
+                        st.session_state.carrito.append({
+                            'producto_id': producto['producto_id'],
+                            'nombre': producto['nombre'],
+                            'precio': producto['precio'],
+                            'cantidad': cantidad,
+                            'subtotal': producto['precio'] * cantidad
+                        })
+                    st.success(f"Agregado: {cantidad}x {producto['nombre']}")
+                    st.rerun()
+                else:
+                    st.error("Stock insuficiente")
+    else:
+        st.info("No hay productos. Agrega el primero con el botón + Nuevo Producto")
+
+    # --- Modal del carrito ---
+    if st.session_state.get('show_cart', False):
+        with st.expander(f"🛒 Carrito ({len(st.session_state.carrito)})", expanded=True):
+            if st.session_state.carrito:
+                total = 0
+                for i, item in enumerate(st.session_state.carrito):
+                    col_a, col_b = st.columns([4, 1])
+                    with col_a:
+                        st.write(f"**{item['cantidad']}x {item['nombre']}**")
+                        st.caption(f"S/{item['precio']:.2f} c/u")
+                    with col_b:
+                        if st.button("🗑️", key=f"del_exp_{i}", use_container_width=True):
+                            st.session_state.carrito.pop(i)
+                            st.rerun()
+                    total += item['subtotal']
+                    if i < len(st.session_state.carrito) - 1:
+                        st.divider()
+
+                st.write(f"### Total: S/{total:.2f}")
+
+                col_c, col_d = st.columns(2)
+                with col_c:
+                    if st.button("🗑️ Vaciar", key="vaciar_exp", use_container_width=True):
+                        st.session_state.carrito = []
+                        st.session_state.show_cart = False
+                        st.rerun()
+                with col_d:
+                    if st.button("✅ Finalizar Venta", key="finalizar_exp", type="primary", use_container_width=True):
+                        ok = True
+                        for item in st.session_state.carrito:
+                            if not registrar_venta(item['producto_id'], item['cantidad'], item['precio']):
+                                ok = False
+                                break
+                        if ok:
+                            st.success("Venta registrada correctamente")
+                            st.session_state.carrito = []
+                            st.session_state.show_cart = False
+                            st.rerun()
+                        else:
+                            st.error("Error al registrar venta")
+
+                if st.button("❌ Cerrar", key="cerrar_exp", use_container_width=True):
+                    st.session_state.show_cart = False
+                    st.rerun()
+            else:
+                st.info("Carrito vacío")
+
+    # --- CSS para botón flotante en móvil ---
+    st.markdown("""
+    <style>
+    @media (max-width: 768px) {
+        div[data-testid="stButton"] button[kind="secondary"] {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 999;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+      
 # --- SECCIÓN DEL CARRITO (Visualización) ---
 if st.session_state.get('show_cart', False):
     with st.expander(f"🛒 Carrito ({len(st.session_state.carrito)})", expanded=True):
