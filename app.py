@@ -234,7 +234,7 @@ else:
     menu = st.sidebar.selectbox("Menú", ["Productos", "Ventas", "Reportes"])
 
     # Página Productos
-    if menu == "Productos":
+    elif menu == "Productos":
         st.title("📦 Productos")
         productos = obtener_productos()
 
