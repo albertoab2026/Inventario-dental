@@ -267,11 +267,10 @@ def mostrar_login():
         box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
     }
     
-    .login-box {
-        background: rgba(255, 255, 255, 0.95) !important;
+    div.login-box {
+        background: #ffffff !important;
         padding: 2rem !important;
         border-radius: 15px !important;
-        max-width: 400px !important;
         margin: 2rem auto !important;
         height: auto !important;
         box-shadow: 0 8px 32px rgba(0,0,0,0.3) !important;
@@ -366,23 +365,26 @@ def mostrar_login():
     """, unsafe_allow_html=True)
 
     # LOGIN - CERRADO CORRECTAMENTE
-st.markdown("""
-<div class='login-box'>
-    <h2 class='login-title'>Iniciar Sesión</h2>
-""", unsafe_allow_html=True)
+col1, col2, col3 = st.columns([1, 2, 1])
 
-usuario = st.text_input("Usuario o DNI", placeholder="Ingresa tu usuario")
-password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
+with col2:
+    st.markdown("""
+    <div class='login-box'>
+        <h2 class='login-title'>Iniciar Sesión</h2>
+    """, unsafe_allow_html=True)
 
-if st.button("Iniciar Sesión", use_container_width=True):
-    if usuario and password:
-        st.session_state.logged_in = True
-        st.session_state.user_data = {"nombre_negocio": "Mi Negocio", "plan": "TRIAL"}
-        st.rerun()
-    else:
-        st.error("Completa todos los campos")
+    usuario = st.text_input("Usuario o DNI", placeholder="Ingresa tu usuario")
+    password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
 
-st.markdown("</div>", unsafe_allow_html=True)
+    if st.button("Iniciar Sesión", use_container_width=True):
+        if usuario and password:
+            st.session_state.logged_in = True
+            st.session_state.user_data = {"nombre_negocio": "Mi Negocio", "plan": "TRIAL"}
+            st.rerun()
+        else:
+            st.error("Completa todos los campos")
+
+    st.markdown("</div>", unsafe_allow_html=True)
     
 # ====== APP PRINCIPAL ======
 if 'logged_in' not in st.session_state:
