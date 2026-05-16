@@ -30,12 +30,33 @@ if 'carrito' not in st.session_state:
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+
 .stApp { background: #0F172A; color: #E2E8F0; }
-.stButton>button { background: #6366F1; border: none; color: white; border-radius: 8px; font-weight: 500; }
+
+.stButton>button { background: #6366F1; border: none; color: white; border-radius: 8px; }
 .stButton>button:hover { background: #4F46E5; }
-.stDataFrame, [data-testid="stContainer"] { background: #1E293B; border-radius: 8px; border: 1px solid #334155; }
-.stTextInput>div>div>input { background: #1E293B; border: 1px solid #334155; color: #E2E8F0; border-radius: 6px; }
+
+.stDataFrame, [data-testid="stContainer"] { background: #1E293B; border-radius: 12px; }
+.stTextInput>div>div>input { background: #1E293B; border: 1px solid #334155; color: white; }
+
+/* PEGA ESTO AQUÍ ABAJO */
+.login-box {
+    background: #ffffff !important;
+    padding: 2rem !important;
+    border-radius: 15px !important;
+    max-width: 400px !important;
+    margin: 2rem auto !important;
+    height: auto !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3) !important;
+}
+
+.login-title {
+    text-align: center;
+    color: #1E293B;
+    margin-bottom: 1.5rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -364,15 +385,15 @@ def mostrar_login():
     </div>
     """, unsafe_allow_html=True)
 
+    # ====== APP PRINCIPAL ======
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.user_data = {}
+
+if not st.session_state.logged_in:
     # LOGIN - CERRADO CORRECTAMENTE
-col1, col2, col3 = st.columns([1, 2, 1])
-
-with col2:
-    st.markdown("""
-    <div class='login-box'>
-        <h2 class='login-title'>Iniciar Sesión</h2>
-    """, unsafe_allow_html=True)
-
+    st.markdown("<div class='login-box'><h2 class='login-title'>Iniciar Sesión</h2>", unsafe_allow_html=True)
+    
     usuario = st.text_input("Usuario o DNI", placeholder="Ingresa tu usuario")
     password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
 
@@ -383,18 +404,12 @@ with col2:
             st.rerun()
         else:
             st.error("Completa todos los campos")
-
-    st.markdown("</div>", unsafe_allow_html=True)
     
-# ====== APP PRINCIPAL ======
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.user_data = {}
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.stop()  # importante para que no siga cargando el resto
 
-if not st.session_state.logged_in:
-    mostrar_login()
-    st.stop()
 else:
+    # aquí va el resto de tu app cuando ya inició sesión
     with st.sidebar:
         user = st.session_state.user_data
         st.markdown(f"### {user.get('nombre_negocio', 'NEXUS')}")
@@ -403,7 +418,7 @@ else:
             st.session_state.logged_in = False
             st.session_state.user_data = {}
             st.rerun()
-    
+
     st.write("Bienvenido a NEXUS")
     menu = st.sidebar.selectbox("Menú", ["Productos", "Ventas", "Reportes"])
 
