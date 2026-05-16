@@ -328,11 +328,11 @@ def mostrar_login():
     </div>
     """, unsafe_allow_html=True)
         # LOGIN
-    st.markdown("<h2 style='text-align:center; color:white; margin:25px 0 15px 0; font-size:28px;'>Iniciar Sesión</h2>", unsafe_allow_html=True)
-    
-    st.markdown("<div class='login-box'>", unsafe_allow_html=True)
-    usuario = st.text_input("Usuario o DNI", placeholder="Ingresa tu usuario")
-    password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
+st.markdown("<h2 style='text-align:center; color:white; margin:25px 0 15px 0; font-size:28px;'>Iniciar Sesión</h2>", unsafe_allow_html=True)
+
+st.markdown("<div class='login-box'>", unsafe_allow_html=True)
+usuario = st.text_input("Usuario o DNI", placeholder="Ingresa tu usuario")
+password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
     
     if st.button("Iniciar Sesión", use_container_width=True):
         if usuario and password:
