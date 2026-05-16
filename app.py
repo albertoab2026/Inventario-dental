@@ -234,7 +234,7 @@ else:
     menu = st.sidebar.selectbox("Menú", ["Productos", "Ventas", "Reportes"])
 
     # Página Productos
-    elif menu == "Productos":
+    if menu == "Productos":
         st.title("📦 Productos")
         productos = obtener_productos()
 
@@ -255,11 +255,11 @@ else:
 
         if productos:
             df = pd.DataFrame(productos)
-            st.dataframe(df[['nombre', 'precio', 'stock', 'categoria']], use_container_width=True)
+            st.dataframe(df[['nombre', 'precio_venta', 'stock', 'categoria']], use_container_width=True)
         else:
             st.info("No hay productos. Agrega el primero.")
 
-            # Página Ventas
+    # Página Ventas
     elif menu == "Ventas":
         st.title("🛒 Ventas")
         
@@ -283,7 +283,6 @@ else:
                         with col_c:
                             if st.button("Agregar", key=f"add_{prod['producto_id']}"):
                                 if qty > 0:
-                                    # Busca si ya está en el carrito
                                     encontrado = False
                                     for item in st.session_state.carrito:
                                         if item['producto_id'] == prod['producto_id']:
@@ -340,9 +339,10 @@ else:
                 else:
                     st.info("Carrito vacío")
 
-        # Página Reportes
+    # Página Reportes
     elif menu == "Reportes":
         st.title("📊 Reportes")
+        st.info("Aquí van tus reportes")
         
         ventas = obtener_ventas()
         productos = obtener_productos()
