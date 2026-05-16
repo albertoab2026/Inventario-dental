@@ -177,11 +177,40 @@ def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
 
 # ======= 4. PANTALLA LOGIN =======
 def mostrar_login():
-    # CSS para el diseño bonito
     st.markdown("""
     <style>
     .stApp {
-        background: #0e1117;
+        background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1e 100%);
+    }
+    .header-box {
+    background: #1e293b;
+    padding: 40px 20px;
+    border-radius: 20px;
+    text-align: center;
+    margin-bottom: 30px;
+    border: 1px solid #334155;
+}
+    .header-box h1 {
+        color: white;
+        font-size: 42px;
+        margin: 0;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+    }
+    .icon-bg {
+        background: #00d26a;
+        padding: 8px 12px;
+        border-radius: 12px;
+        display: inline-block;
+        font-size: 36px;
+    }
+    .header-box p {
+        color: rgba(255,255,255,0.9);
+        font-size: 16px;
+        margin: 10px 0 0 0;
     }
     .landing-card {
         background: #1e2329;
@@ -189,10 +218,12 @@ def mostrar_login():
         border-radius: 12px;
         text-align: center;
         border: 1px solid #2d333b;
+        height: 100%;
     }
     .landing-card h3 {
         margin: 10px 0 5px 0;
         color: white;
+        font-size: 16px;
     }
     .landing-card p {
         margin: 0;
@@ -200,107 +231,24 @@ def mostrar_login():
         color: #8b949e;
     }
     .btn-prueba {
-        background: #00d26a;
+        background: linear-gradient(135deg, #00d26a 0%, #00a855 100%);
         color: white;
         padding: 15px;
-        border-radius: 10px;
+        border-radius: 12px;
         text-align: center;
         font-weight: bold;
         font-size: 18px;
+        border: none;
     }
     .btn-prueba small {
         display: block;
         font-size: 12px;
         font-weight: normal;
         margin-top: 5px;
+        opacity: 0.9;
     }
     </style>
     """, unsafe_allow_html=True)
-
-    # Header
-    st.markdown("""
-    <div style='text-align: center; padding-top: 20px;'>
-        <h1 style='color: white; font-size: 40px; margin-bottom: 5px;'>
-            ⚡ NEXUS
-        </h1>
-        <p style='color: #8b949e; font-size: 16px;'>
-            Sistema de Gestión para Negocios
-        </p>
-        <h3 style='color: #58a6ff; margin-top: 30px;'>
-            ¿Cansado de perder plata en tu negocio?
-        </h3>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 4 tarjetas
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.markdown("""
-        <div class='landing-card'>
-            <div style='font-size: 35px;'>📦</div>
-            <h3>Control Total</h3>
-            <p>Sabes qué vendes y qué te falta. Adiós cuaderno.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class='landing-card'>
-            <div style='font-size: 35px;'>💰</div>
-            <h3>Más Ganancia</h3>
-            <p>Ve tus productos que más plata te dejan. Gana más.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <div class='landing-card'>
-            <div style='font-size: 35px;'>📱</div>
-            <h3>Desde tu Celular</h3>
-            <p>Sin computadora. Solo tu WhatsApp y listo.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown("""
-        <div class='landing-card'>
-            <div style='font-size: 35px;'>⚡</div>
-            <h3>Súper Barato</h3>
-            <p>S/30 al mes. Otros cobran S/250.</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Botón prueba gratis
-    st.markdown("""
-    <div class='btn-prueba'>
-        🎁 Prueba 7 DÍAS GRATIS
-        <small>Sin tarjeta. Sin compromiso. Cancela cuando quieras.</small>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
-
-    # Formulario de login
-    tab1, tab2 = st.tabs(["🔑 Iniciar Sesión", "🎁 Prueba 7 días GRATIS"])
-    
-    with tab1:
-        with st.form("login_form"):
-            usuario = st.text_input("Usuario o DNI", placeholder="12345678")
-            password = st.text_input("Contraseña", type="password")
-            submitted = st.form_submit_button("Iniciar Sesión", use_container_width=True, type="primary")
-            
-            if submitted:
-                if login_usuario(usuario, password):
-                    st.rerun()
-                else:
-                    st.error("Usuario o contraseña incorrectos")
-
-    with tab2:
-        st.info("Crea tu cuenta gratis aquí. Te pediremos solo DNI y email.")
-
 # ======= 5. APP PRINCIPAL =======
 if not st.session_state.logged_in:
     mostrar_login()
