@@ -183,13 +183,16 @@ def mostrar_login():
         background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1e 100%);
     }
     .header-box {
-    background: #1e293b;
-    padding: 40px 20px;
-    border-radius: 20px;
-    text-align: center;
-    margin-bottom: 30px;
-    border: 1px solid #334155;
-}
+        background: #1e293b;
+        padding: 40px 20px;
+        border-radius: 20px;
+        text-align: center;
+        margin-bottom: 30px;
+        border: 1px solid #334155;
+   }
+    </style>
+    , unsafe_allow_html=True)
+    
     .header-box h1 {
         color: white;
         font-size: 42px;
