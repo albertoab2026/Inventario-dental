@@ -643,27 +643,6 @@ if menu == "Productos":
 
     st.caption(f"Mostrando {len(productos_pagina)} de {len(productos_filtrados)} productos")
 
-    # ===== TABLA =====
-    with st.container():
-        if productos_pagina:
-            st.dataframe(
-                productos_pagina,
-                column_config={
-                    "nombre": st.column_config.TextColumn("Producto"),
-                    "categoria": st.column_config.TextColumn("Categoría"),
-                    "precio": st.column_config.NumberColumn("Precio", format="S/ %.2f"),
-                    "stock": st.column_config.NumberColumn("Stock"),
-                    "estado": st.column_config.TextColumn("Estado"),
-                    "id_del_dueno": None,
-                    "producto_id": None,
-                },
-                column_order=["nombre", "categoria", "precio", "stock", "estado"],
-                use_container_width=True,
-                hide_index=True
-            )
-        else:
-            st.info("No hay productos que coincidan con la búsqueda")
-    
     # ===== ALERTAS STOCK =====
     try:
         productos_criticos = [p for p in productos_filtrados if float(p.get('stock', 0)) < 5 and float(p.get('stock', 0)) > 0]
@@ -677,41 +656,37 @@ if menu == "Productos":
     except Exception as e:
         st.error(f"Error calculando stock: {e}")
 
-    # ===== TABLA CON BOTONES =====
-    if productos_pagina:
-        cols = st.columns([3, 2, 1.5, 1, 1, 1])
-        cols[0].markdown("**Producto**")
-        cols[1].markdown("**Categoría**")
-        cols[2].markdown("**Precio**")
-        cols[3].markdown("**Stock**")
-        cols[4].markdown("**Estado**")
-        cols[5].markdown("**Acciones**")
+# ==== TABLA EDITABLE ====
+if productos_pagina:
+    with st.container():
+        edited_df = st.data_editor(
+            df,
+            use_container_width=True,
+            hide_index=True,
+            num_rows="dynamic",
+            key="productos_editor",
+            column_config={
+                "usuario_id": st.column_config.Column("Usuario ID", disabled=True),
+                "Venta_id": st.column_config.Column("Venta ID", disabled=True),
+                "nombre": st.column_config.TextColumn("Producto", required=True),
+                "categoria": st.column_config.TextColumn("Categoría"),
+                "precio": st.column_config.NumberColumn("Precio", format="S/ %.2f", min_value=0),
+                "stock": st.column_config.NumberColumn("Stock", min_value=0, step=1),
+                "estado": st.column_config.SelectboxColumn("Estado", options=["OK", "Bajo", "Agotado"], required=True),
+            },
+            disabled=["usuario_id", "Venta_id"],
+            height=400
+        )
 
-        for p in productos_pagina:
-            cols = st.columns([3, 2, 1.5, 1, 1, 1])
-            cols[0].write(p['nombre'])
-            cols[1].write(p.get('categoria', '-'))
-            cols[2].write(f"S/ {float(p['precio']):.2f}")
-            cols[3].write(int(p['stock']))
-
-            stock = int(p['stock'])
-            if stock <= 0:
-                cols[4].markdown("🔴 AGOTADO")
-            elif stock < 5:
-                cols[4].markdown("🟡 BAJO")
-            else:
-                cols[4].markdown("🟢 OK")
-
-            if cols[5].button("✏️", key=f"edit_{p['producto_id']}", help="Editar"):
-                st.session_state['edit_id'] = p['producto_id']
-                st.session_state['mostrar_form'] = True
-                st.rerun()
-            if cols[5].button("🗑️", key=f"del_{p['producto_id']}", help="Eliminar"):
-                st.session_state['delete_id'] = p['producto_id']
-                st.rerun()
-    else:
-        st.info("No hay productos con esos filtros")
-
+        # Guarda cambios automáticamente cuando editas
+        if edited_df is not None:
+            for idx, row in edited_df.iterrows():
+                if row.to_dict()!= df.iloc[idx].to_dict():
+                    actualizar_producto(row.to_dict())
+                    st.rerun()
+else:
+    st.info("No hay productos con esos filtros")
+    
     # ===== MODAL ELIMINAR =====
     if 'delete_id' in st.session_state:
         prod = next((p for p in productos if p['producto_id'] == st.session_state['delete_id']), None)
