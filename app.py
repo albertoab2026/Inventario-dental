@@ -774,53 +774,90 @@ else:
                 st.session_state.pop('mostrar_import', None)
                 st.rerun()
                 
-elif menu == "Ventas":
-    # Inicializar carrito si no existe
-    if 'carrito' not in st.session_state:
-        st.session_state.carrito = []
-    if 'show_cart' not in st.session_state:
-        st.session_state.show_cart = False
+    elif menu == "Ventas":
+        # Inicializar carrito si no existe
+        if 'carrito' not in st.session_state:
+            st.session_state.carrito = []
+        if 'show_cart' not in st.session_state:
+            st.session_state.show_cart = False
 
-    # Header con icono de carrito
-    col_title, col_cart = st.columns([6, 1])
-    with col_title:
-        st.write("")
-    with col_cart:
-        if st.button(f"🛒 {len(st.session_state.carrito)}", key="cart_icon", use_container_width=True):
-            st.session_state.show_cart = True
+        # Header con icono de carrito
+        col_title, col_cart = st.columns([6, 1])
+        with col_title:
+            st.title("🛒 Ventas")
+        with col_cart:
+            if st.button(f"🛒 {len(st.session_state.carrito)}", key="cart_icon", use_container_width=True):
+                st.session_state.show_cart = not st.session_state.show_cart
+                st.rerun()
 
-    # --- Sección para agregar productos ---
-    productos = obtener_productos()
-    if productos:
-        nombres = [p['nombre'] for p in productos]
-        producto_sel = st.selectbox("Producto", nombres, key="prod_sel")
-        cantidad = st.number_input("Cantidad", min_value=1, value=1, step=1)
-        producto = next((p for p in productos if p['nombre'] == producto_sel), None)
+        # --- Sección para agregar productos ---
+        productos = obtener_productos()
+        if productos:
+            nombres = [p['nombre'] for p in productos]
+            producto_sel = st.selectbox("Producto", nombres, key="prod_sel")
+            cantidad = st.number_input("Cantidad", min_value=1, value=1, step=1)
+            producto = next((p for p in productos if p['nombre'] == producto_sel), None)
 
-        if producto:
-            st.write(f"Precio: S/{producto['precio']:.2f} | Stock: {producto['stock']}")
-            if st.button("➕ Agregar al Carrito", use_container_width=True):
-                if producto['stock'] >= cantidad:
-                    for item in st.session_state.carrito:
-                        if item['producto_id'] == producto['producto_id']:
-                            item['cantidad'] += cantidad
-                            item['subtotal'] = item['cantidad'] * item['precio']
-                            break
+            if producto:
+                st.write(f"Precio: S/{producto['precio']:.2f} | Stock: {producto['stock']}")
+                if st.button("➕ Agregar al Carrito", use_container_width=True):
+                    if producto['stock'] >= cantidad:
+                        # Buscamos si ya está en el carrito
+                        encontrado = False
+                        for item in st.session_state.carrito:
+                            if item['producto_id'] == producto['producto_id']:
+                                item['cantidad'] += cantidad
+                                item['subtotal'] = item['cantidad'] * item['precio']
+                                encontrado = True
+                                break
+                        
+                        # Si no se encontró, se agrega como nuevo
+                        if not encontrado:
+                            st.session_state.carrito.append({
+                                'producto_id': producto['producto_id'],
+                                'nombre': producto['nombre'],
+                                'precio': producto['precio'],
+                                'cantidad': cantidad,
+                                'subtotal': producto['precio'] * cantidad
+                            })
+                        
+                        st.success(f"Agregado: {cantidad}x {producto['nombre']}")
+                        st.session_state.show_cart = True
+                        st.rerun()
                     else:
-                        st.session_state.carrito.append({
-                            'producto_id': producto['producto_id'],
-                            'nombre': producto['nombre'],
-                            'precio': producto['precio'],
-                            'cantidad': cantidad,
-                            'subtotal': producto['precio'] * cantidad
-                        })
-                    st.success(f"Agregado: {cantidad}x {producto['nombre']}")
-                    st.session_state.show_cart = True
-                    st.rerun()
+                        st.error("Stock insuficiente")
+        else:
+            st.info("No hay productos disponibles.")
+
+        # --- Modal del carrito (Indentado al nivel del menú) ---
+        if st.session_state.get('show_cart', False):
+            with st.expander(f"🛒 Detalle del Carrito ({len(st.session_state.carrito)})", expanded=True):
+                if not st.session_state.carrito:
+                    st.write("Tu carrito está vacío.")
                 else:
-                    st.error("Stock insuficiente")
-    else:
-        st.info("No hay productos. Agrega el primero con el botón + Nuevo Producto")
+                    total_venta = 0
+                    for i, item in enumerate(st.session_state.carrito):
+                        c1, c2, c3 = st.columns([3, 1, 1])
+                        with c1:
+                            st.write(f"**{item['nombre']}**")
+                        with c2:
+                            st.write(f"{item['cantidad']} x S/{item['precio']:.2f}")
+                        with c3:
+                            if st.button("🗑️", key=f"btn_del_{i}"):
+                                st.session_state.carrito.pop(i)
+                                st.rerun()
+                        total_venta += item['subtotal']
+                    
+                    st.divider()
+                    st.subheader(f"Total: S/{total_venta:.2f}")
+                    
+                    if st.button("Confirmar Venta", type="primary", use_container_width=True):
+                        # Aquí puedes llamar a tu función de guardar en DB
+                        st.balloons()
+                        st.success("¡Venta realizada!")
+                        st.session_state.carrito = []
+                        st.session_state.show_cart = False
+                        st.rerun()
 
     # --- Modal del carrito ---
     if st.session_state.get('show_cart', False):
