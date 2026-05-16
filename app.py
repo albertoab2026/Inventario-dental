@@ -176,7 +176,7 @@ def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
         return False
 
 # ======= 4. PANTALLA LOGIN =======
-def mostrar_login():
+ddef mostrar_login():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -186,26 +186,29 @@ def mostrar_login():
         font-family: 'Inter', sans-serif;
     }
     
+    /* Ocultar el header feo de streamlit */
+    header, .stDeployButton {display: none;}
+    
     .header-box {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: rgba(255,255,255,0.08);
+        backdrop-filter: blur(12px);
         padding: 25px;
         border-radius: 15px;
         text-align: center;
         margin-bottom: 25px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        border: 1px solid rgba(255,255,255,0.15);
     }
     
     .header-box h1 {
         color: white;
-        font-size: 42px;
+        font-size: 38px;
         font-weight: 700;
         margin: 0;
-        text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
     }
     
     .header-box p {
-        color: rgba(255,255,255,0.9);
-        font-size: 16px;
+        color: rgba(255,255,255,0.85);
+        font-size: 15px;
         margin: 8px 0 0 0;
     }
     
@@ -221,21 +224,18 @@ def mostrar_login():
         border-radius: 12px;
         text-align: center;
         color: white;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        background: rgba(255,255,255,0.08);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.1);
     }
     
-    .card-1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    .card-2 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-    .card-3 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-    .card-4 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-    
     .feature-card .icon {
-        font-size: 32px;
+        font-size: 28px;
         margin-bottom: 8px;
     }
     
     .feature-card h3 {
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 600;
         margin: 0 0 5px 0;
     }
@@ -243,7 +243,7 @@ def mostrar_login():
     .feature-card p {
         font-size: 12px;
         margin: 0;
-        opacity: 0.9;
+        opacity: 0.85;
     }
     
     .btn-free {
@@ -253,38 +253,46 @@ def mostrar_login():
         text-align: center;
         color: white;
         font-weight: 700;
-        font-size: 18px;
+        font-size: 17px;
         margin: 20px 0;
-        box-shadow: 0 6px 20px rgba(79,172,254,0.4);
     }
     
     .login-box {
-        background: rgba(0,0,0,0.3);
+        background: rgba(255,255,255,0.08);
         padding: 25px;
         border-radius: 15px;
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.15);
     }
     
     .stTextInput input {
-        background: rgba(255,255,255,0.1);
-        border: 1px solid rgba(255,255,255,0.3);
+        background: rgba(0,0,0,0.2);
+        border: 1px solid rgba(255,255,255,0.2);
         color: white;
         border-radius: 8px;
     }
     
+    .stTextInput input::placeholder {
+        color: rgba(255,255,255,0.6);
+    }
+    
     .stButton button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: white;
+        color: #667eea;
         border: none;
         border-radius: 8px;
         padding: 12px;
         font-weight: 600;
         width: 100%;
     }
+    
+    .stButton button:hover {
+        background: #f5f5f5;
+    }
     </style>
     """, unsafe_allow_html=True)
     
-    # HEADER ARRIBA
+    # HEADER
     st.markdown("""
     <div class='header-box'>
         <h1>⚡ NEXUS</h1>
@@ -293,26 +301,27 @@ def mostrar_login():
     """, unsafe_allow_html=True)
     
     # PREGUNTA
-    st.markdown("<h3 style='text-align:center; color:white; font-size:22px; margin:20px 0;'>¿Cansado de perder plata en tu negocio?</h3>", unsafe_allow_html=True)
-        # TARJETAS
+    st.markdown("<h3 style='text-align:center; color:white; font-size:20px; margin:20px 0;'>¿Cansado de perder plata en tu negocio?</h3>", unsafe_allow_html=True)
+    
+    # TARJETAS
     st.markdown("""
     <div class='feature-grid'>
-        <div class='feature-card card-1'>
+        <div class='feature-card'>
             <div class='icon'>📦</div>
             <h3>Control Total</h3>
             <p>Sabes qué vendes y qué te falta. Adiós cuaderno.</p>
         </div>
-        <div class='feature-card card-2'>
+        <div class='feature-card'>
             <div class='icon'>💰</div>
             <h3>Más Ganancia</h3>
-            <p>Ve tus productos que más plata te dejan. Gana más.</p>
+            <p>Ve tus productos que más plata te dejan.</p>
         </div>
-        <div class='feature-card card-3'>
+        <div class='feature-card'>
             <div class='icon'>📱</div>
             <h3>Desde tu Celular</h3>
             <p>Sin computadoras. Solo tu WhatsApp y listo.</p>
         </div>
-        <div class='feature-card card-4'>
+        <div class='feature-card'>
             <div class='icon'>⚡</div>
             <h3>Súper Barato</h3>
             <p>S/30 al mes. Otros cobran S/250.</p>
@@ -324,28 +333,49 @@ def mostrar_login():
     st.markdown("""
     <div class='btn-free'>
         🎁 Prueba 7 DÍAS GRATIS<br>
-        <span style='font-size:14px; font-weight:400;'>Sin tarjeta. Sin compromiso. Cancela cuando quieras.</span>
+        <span style='font-size:13px; font-weight:400;'>Sin tarjeta. Sin compromiso.</span>
     </div>
     """, unsafe_allow_html=True)
 
-
-# LOGIN
-st.markdown("<h2 style='text-align:center; color:white; margin:25px 0 15px 0; font-size:28px;'>Iniciar Sesión</h2>", unsafe_allow_html=True)
-
-st.markdown("<div class='login-box'>", unsafe_allow_html=True)
-usuario = st.text_input("Usuario o DNI", placeholder="Ingresa tu usuario")  # 4 espacios
-password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")  # 4 espacios
-
-if st.button("Iniciar Sesión", use_container_width=True):  # 4 espacios, igual que las 2 líneas de arriba
-    if usuario and password:  # 8 espacios
-        st.session_state.logged_in = True  # 12 espacios
-        st.session_state.user_data = {"nombre_negocio": "Mi Negocio", "plan": "TRIAL"}  # 12 espacios
-        st.rerun()  # 12 espacios
-    else:  # 8 espacios
-        st.error("Completa todos los campos")  # 12 espacios
+    # LOGIN - AQUÍ ESTABA EL ERROR
+    st.markdown("<h2 style='text-align:center; color:white; margin:25px 0 15px 0; font-size:26px;'>Iniciar Sesión</h2>", unsafe_allow_html=True)
     
-    st.markdown("</div>", unsafe_allow_html=True)
-# <- AQUÍ TERMINA def mostrar_login()
+    st.markdown("<div class='login-box'>", unsafe_allow_html=True)
+    usuario = st.text_input("Usuario o DNI", placeholder="Ingresa tu usuario")
+    password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
+    
+    if st.button("Iniciar Sesión", use_container_width=True):
+        if usuario and password:
+            st.session_state.logged_in = True
+            st.session_state.user_data = {"nombre_negocio": "Mi Negocio", "plan": "TRIAL"}
+            st.rerun()
+        else:
+            st.error("Completa todos los campos")
+    
+    st.markdown("</div>", unsafe_allow_html=True)  # ESTA LÍNEA VA AQUÍ AFUERA
+
+# ====== APP PRINCIPAL ======
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.user_data = {}
+
+if not st.session_state.logged_in:
+    mostrar_login()
+    st.stop()
+else:
+    # Sidebar
+    with st.sidebar:
+        user = st.session_state.user_data
+        st.markdown(f"### {user.get('nombre_negocio', 'NEXUS')}")
+        st.markdown(f"**Plan:** {user.get('plan', 'TRIAL').upper()}")
+        if st.button("🚪 Cerrar Sesión", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.user_data = {}
+            st.rerun()
+    
+    st.write("Bienvenido a NEXUS")
+    
+    menu = st.sidebar.selectbox("Menú", ["Productos", "Ventas", "Reportes"])
 
 # ====== APP PRINCIPAL ======
 if not st.session_state.logged_in:
