@@ -364,24 +364,23 @@ def mostrar_login():
     """, unsafe_allow_html=True)
 
     # LOGIN - CERRADO CORRECTAMENTE
-with st.container():
-    st.markdown("""
-    <div class='login-box'>
-        <h2 class='login-title'>Iniciar Sesión</h2>
-    """, unsafe_allow_html=True)
-    
-    usuario = st.text_input("Usuario o DNI", placeholder="Ingresa tu usuario")
-    password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
-    
-    if st.button("Iniciar Sesión", use_container_width=True):
-        if usuario and password:
-            st.session_state.logged_in = True
-            st.session_state.user_data = {"nombre_negocio": "Mi Negocio", "plan": "TRIAL"}
-            st.rerun()
-        else:
-            st.error("Completa todos los campos")
-    
-    st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("""
+<div class='login-box'>
+    <h2 class='login-title'>Iniciar Sesión</h2>
+""", unsafe_allow_html=True)
+
+usuario = st.text_input("Usuario o DNI", placeholder="Ingresa tu usuario")
+password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
+
+if st.button("Iniciar Sesión", use_container_width=True):
+    if usuario and password:
+        st.session_state.logged_in = True
+        st.session_state.user_data = {"nombre_negocio": "Mi Negocio", "plan": "TRIAL"}
+        st.rerun()
+    else:
+        st.error("Completa todos los campos")
+
+st.markdown("</div>", unsafe_allow_html=True)
     
 # ====== APP PRINCIPAL ======
 if 'logged_in' not in st.session_state:
