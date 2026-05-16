@@ -323,8 +323,6 @@ st.markdown("<h2 style='text-align:center; color:white; margin:25px 0 15px 0; fo
 st.markdown("<div class='login-box'>", unsafe_allow_html=True)
 # <- Aquí termina def mostrar_login()
 
-# Tu app principal va aquí abajo
-st.write("Bienvenido a NEXUS")
 # ======= 5. APP PRINCIPAL =======
 if not st.session_state.logged_in:
     mostrar_login()
@@ -340,6 +338,8 @@ else:
             st.session_state.logged_in = False
             st.session_state.user_data = {}
             st.rerun()
+            
+    st.write("Bienvenido a NEXUS")          
 
     # Router
     menu = st.sidebar.selectbox("Menú", ["Productos", "Ventas", "Reportes"])
