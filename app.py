@@ -239,17 +239,25 @@ def mostrar_login():
 }
 
 .btn-prueba {
-    background: linear-gradient(135deg, #00d26a 0%, #00a855 100%);
-    color: white;
-    padding: 15px;
-    border-radius: 12px;
-    text-align: center;
-    font-weight: bold;
-    font-size: 18px;
-    border: none;
-}
-</style>
-""", unsafe_allow_html=True)
+        background: linear-gradient(135deg, #00d26a 0%, #00a855 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+        font-weight: bold;
+        font-size: 18px;
+        border: none;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class='header-box'>
+        <h1><span class='icon-bg'>⚡</span> NEXUS</h1>
+        <p>Sistema de Gestión para Negocios</p>
+    </div>
+    """, unsafe_allow_html=True)
+
 # ======= 5. APP PRINCIPAL =======
 if not st.session_state.logged_in:
     mostrar_login()
