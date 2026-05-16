@@ -374,66 +374,152 @@ elif menu == "Ventas":
             else:
                 st.info("Carrito vacío")
 
-# --- PÁGINA REPORTES ---
+# --- PÁGINA REPORTES (Versión Premium con Flechas, Porcentajes y Métodos de Pago) ---
 elif menu == "Reportes":
-    st.title("📊 Reportes")
+    st.title("📊 Centro de Analítica - NEXUS")
     
-    ventas = obtener_ventas()
+    ventas = obtener_ventas()  # QUERY eficiente por usuario_id
     productos = obtener_productos()
     productos_dict = {p['producto_id']: p['nombre'] for p in productos}
     
     if not ventas:
-        st.info("Aún no tienes ventas registradas.")
+        st.info("🏪 Aún no tienes ventas registradas en el sistema.")
     else:
-        hoy = datetime.now(timezone.utc).date()
-        ventas_hoy = []
+        # Fechas clave en formato ISO (YYYY-MM-DD)
+        hoy_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        hace_una_semana_str = (datetime.now(timezone.utc) - timedelta(days=7)).strftime('%Y-%m-%d')
         
+        ventas_hoy = []
+        ventas_hace_una_semana = []
+        
+        # Procesamos en memoria local para no gastar en AWS
         for v in ventas:
             v['nombre_producto'] = productos_dict.get(v['producto_id'], 'Producto eliminado')
-            fecha_venta = datetime.fromisoformat(v['fecha']).date()
-            if fecha_venta == hoy:
+            fecha_solo_v = v['fecha'].split('T')[0] if 'T' in v['fecha'] else v['fecha'][:10]
+            
+            if fecha_solo_v == hoy_str:
                 ventas_hoy.append(v)
+            elif fecha_solo_v == hace_una_semana_str:
+                ventas_hace_una_semana.append(v)
         
+        # --- 1. CÁLCULOS DE HOY ---
+        total_ingresos_hoy = sum(float(v['total_venta']) for v in ventas_hoy)
+        total_costo_compra_hoy = sum(float(v['total_costo']) for v in ventas_hoy)
+        ganancia_real_hoy = total_ingresos_hoy - total_costo_compra_hoy
+        
+        # Separación por métodos de pago (Efectivo, Yape, Plin)
+        efectivo_hoy = sum(float(v['total_venta']) for v in ventas_hoy if v.get('metodo_pago', '').lower() == 'efectivo')
+        yape_hoy = sum(float(v['total_venta']) for v in ventas_hoy if v.get('metodo_pago', '').lower() == 'yape')
+        plin_hoy = sum(float(v['total_venta']) for v in ventas_hoy if v.get('metodo_pago', '').lower() == 'plin')
+        
+        # --- 2. CÁLCULOS DE HACE UNA SEMANA (MISMO DÍA) ---
+        total_ingresos_pasado = sum(float(v['total_venta']) for v in ventas_hace_una_semana)
+        
+        # --- 3. PORCENTAJE Y FLECHAS COMPARATIVAS ---
+        porcentaje_cambio = 0.0
+        delta_texto = "Primer día de registro"
+        
+        if total_ingresos_pasado > 0:
+            porcentaje_cambio = ((total_ingresos_hoy - total_ingresos_pasado) / total_ingresos_pasado) * 100
+            delta_texto = f"{porcentaje_cambio:+.1f}% vs mismo día semana pasada"
+        
+        # --- INTERFAZ VISUAL PREMIUM ---
+        
+        # Fila 1: Métricas Principales (Con Flechas de Rendimiento)
+        st.subheader("📈 Rendimiento del Día")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # st.metric pone la flecha verde (si es positivo) o roja (si es negativo) automáticamente en el delta
+            if total_ingresos_pasado > 0:
+                st.metric(
+                    label="Ingreso Total (Ventas)", 
+                    value=f"S/{total_ingresos_hoy:.2f}", 
+                    delta=delta_texto
+                )
+            else:
+                st.metric(label="Ingreso Total (Ventas)", value=f"S/{total_ingresos_hoy:.2f}", delta="Sin datos previos")
+                
+        with col2:
+            st.metric(label="Inversión (Costo de Compra)", value=f"S/{total_costo_compra_hoy:.2f}")
+            
+        with col3:
+            # Resaltamos la ganancia real neta
+            st.metric(
+                label="💰 GANANCIA REAL NETO", 
+                value=f"S/{ganancia_real_hoy:.2f}",
+                help="Dinero neto libre. Es el ingreso total restándole lo que te costó comprar la mercadería."
+            )
+            
+        st.markdown("---")
+        
+        # Fila 2: Separación de Cajas (Efectivo vs Digital)
+        st.subheader("💵 Distribución de Caja (¿Cómo te pagaron?)")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown(f"""
+            <div style="background-color: #1E293B; padding: 15px; border-radius: 10px; border-left: 5px solid #10B981; text-align: center;">
+                <p style="margin:0; color:#94A3B8; font-size:14px;">💵 Efectivo en Caja</p>
+                <h3 style="margin:5px 0 0 0; color:#F8FAFC; font-size:24px;">S/{efectivo_hoy:.2f}</h3>
+            </div>
+            """, unsafe_allow_html=True)
+        with c2:
+            st.markdown(f"""
+            <div style="background-color: #1E293B; padding: 15px; border-radius: 10px; border-left: 5px solid #06B6D4; text-align: center;">
+                <p style="margin:0; color:#94A3B8; font-size:14px;">📲 Total Yape</p>
+                <h3 style="margin:5px 0 0 0; color:#F8FAFC; font-size:24px;">S/{yape_hoy:.2f}</h3>
+            </div>
+            """, unsafe_allow_html=True)
+        with c3:
+            st.markdown(f"""
+            <div style="background-color: #1E293B; padding: 15px; border-radius: 10px; border-left: 5px solid #6366F1; text-align: center;">
+                <p style="margin:0; color:#94A3B8; font-size:14px;">🟣 Total Plin</p>
+                <h3 style="margin:5px 0 0 0; color:#F8FAFC; font-size:24px;">S/{plin_hoy:.2f}</h3>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("---")
+        
+        # Fila 3: Tabla Detallada de hoy
+        st.subheader("📋 Detalle de lo Vendido Hoy")
         if ventas_hoy:
-            total_venta_hoy = sum(float(v['total_venta']) for v in ventas_hoy)
-            total_costo_hoy = sum(float(v['total_costo']) for v in ventas_hoy)
-            ganancia_hoy = total_venta_hoy - total_costo_hoy
-            
-            col1, col2, col3, col4 = st.columns(4)
-            with col1: st.metric("Ventas Hoy", len(ventas_hoy))
-            with col2: st.metric("Ingresos", f"S/{total_venta_hoy:.2f}")
-            with col3: st.metric("Costo", f"S/{total_costo_hoy:.2f}")
-            with col4: st.metric("Ganancia Real", f"S/{ganancia_hoy:.2f}")
-            
-            st.markdown("---")
-            st.subheader("Ventas de Hoy")
             df_hoy = pd.DataFrame(ventas_hoy)
-            df_hoy['fecha'] = pd.to_datetime(df_hoy['fecha']).dt.strftime('%H:%M:%S')
+            df_hoy['hora'] = pd.to_datetime(df_hoy['fecha']).dt.strftime('%H:%M:%S')
+            
+            # Si el campo método_pago no existe en registros antiguos, lo llena con 'No especificado'
+            if 'metodo_pago' not in df_hoy.columns:
+                df_hoy['metodo_pago'] = 'Efectivo'
+                
             st.dataframe(
-                df_hoy[['fecha', 'nombre_producto', 'cantidad', 'total_venta', 'ganancia']], 
+                df_hoy[['hora', 'nombre_producto', 'cantidad', 'metodo_pago', 'total_venta', 'ganancia']], 
                 use_container_width=True,
                 column_config={
-                    "fecha": "Hora", "nombre_producto": "Producto", "cantidad": "Cant",
+                    "hora": "Hora", "nombre_producto": "Producto", "cantidad": "Cant",
+                    "metodo_pago": "Pago",
                     "total_venta": st.column_config.NumberColumn("Total Venta", format="S/%.2f"),
                     "ganancia": st.column_config.NumberColumn("Ganancia", format="S/%.2f")
                 }
             )
         else:
-            st.info("No hay ventas hoy aún.")
-            st.metric("Ganancia Real Hoy", "S/0.00")
-        
-        with st.expander("Ver historial completo"):
+            st.info("Aún no se han registrado ventas el día de hoy.")
+            
+        # Historial Colapsable Completo
+        with st.expander("🗄️ Ver historial completo de auditoría"):
             df_all = pd.DataFrame(ventas)
             df_all['nombre_producto'] = df_all['producto_id'].map(productos_dict).fillna('Producto eliminado')
-            df_all['fecha'] = pd.to_datetime(df_all['fecha']).dt.strftime('%d/%m %H:%M')
+            df_all['fecha_formato'] = pd.to_datetime(df_all['fecha']).dt.strftime('%d/%m %H:%M')
+            if 'metodo_pago' not in df_all.columns:
+                df_all['metodo_pago'] = 'Efectivo'
             st.dataframe(
-                df_all[['fecha', 'nombre_producto', 'cantidad', 'total_venta', 'total_costo', 'ganancia']], 
+                df_all[['fecha_formato', 'nombre_producto', 'cantidad', 'metodo_pago', 'total_venta', 'total_costo', 'ganancia']], 
                 use_container_width=True,
                 column_config={
-                    "fecha": "Fecha/Hora", "nombre_producto": "Producto", "cantidad": "Cant",
+                    "fecha_formato": "Fecha/Hora", "nombre_producto": "Producto", "cantidad": "Cant",
+                    "metodo_pago": "Método",
                     "total_venta": st.column_config.NumberColumn("Venta S/", format="S/%.2f"),
                     "total_costo": st.column_config.NumberColumn("Costo S/", format="S/%.2f"),
                     "ganancia": st.column_config.NumberColumn("Ganancia S/", format="S/%.2f")
                 }
-                    )
+            )
+
     
