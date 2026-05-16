@@ -285,46 +285,42 @@ def mostrar_login():
     """, unsafe_allow_html=True)
     
     st.markdown("<h3 style='text-align:center; color:white; font-size:22px; margin:20px 0;'>¿Cansado de perder plata en tu negocio?</h3>", unsafe_allow_html=True)
-        st.markdown("""
-    <div class='feature-grid'>
-        <div class='feature-card card-1'>
-            <div class='icon'>📦</div>
-            <h3>Control Total</h3>
-            <p>Sabes qué vendes y qué te falta. Adiós cuaderno.</p>
-        </div>
-        <div class='feature-card card-2'>
-            <div class='icon'>💰</div>
-            <h3>Más Ganancia</h3>
-            <p>Ve tus productos que más plata te dejan. Gana más.</p>
-        </div>
-        <div class='feature-card card-3'>
-            <div class='icon'>📱</div>
-            <h3>Desde tu Celular</h3>
-            <p>Sin computadoras. Solo tu WhatsApp y listo.</p>
-        </div>
-        <div class='feature-card card-4'>
-            <div class='icon'>⚡</div>
-            <h3>Súper Barato</h3>
-            <p>S/30 al mes. Otros cobran S/250.</p>
-        </div>
+
+st.markdown("""
+<div class='feature-grid'>
+    <div class='feature-card card-1'>
+        <div class='icon'>📦</div>
+        <h3>Control Total</h3>
+        <p>Sabes qué vendes y qué te falta. Adiós cuaderno.</p>
     </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class='btn-free'>
-        🎁 Prueba 7 DÍAS GRATIS<br>
-        <span style='font-size:14px; font-weight:400;'>Sin tarjeta. Sin compromiso. Cancela cuando quieras.</span>
+    <div class='feature-card card-2'>
+        <div class='icon'>💰</div>
+        <h3>Más Ganancia</h3>
+        <p>Ve tus productos que más plata te dejan. Gana más.</p>
     </div>
-    """, unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align:center; color:white; margin:25px 0 15px 0; font-size:28px;'>Iniciar Sesión</h2>", unsafe_allow_html=True)
-    
-    st.markdown("<div class='login-box'>", unsafe_allow_html=True)
-    st.text_input("Usuario o DNI", placeholder="12345678")
-    st.text_input("Contraseña", type="password")
-    if st.button("Iniciar Sesión"):
-        st.session_state.logged_in = True
-        st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+    <div class='feature-card card-3'>
+        <div class='icon'>📱</div>
+        <h3>Desde tu Celular</h3>
+        <p>Sin computadoras. Solo tu WhatsApp y listo.</p>
+    </div>
+    <div class='feature-card card-4'>
+        <div class='icon'>⚡</div>
+        <h3>Súper Barato</h3>
+        <p>S/30 al mes. Otros cobran S/250.</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class='btn-free'>
+    🎁 Prueba 7 DÍAS GRATIS<br>
+    <span style='font-size:14px; font-weight:400;'>Sin tarjeta. Sin compromiso. Cancela cuando quieras.</span>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("<h2 style='text-align:center; color:white; margin:25px 0 15px 0; font-size:28px;'>Iniciar Sesión</h2>", unsafe_allow_html=True)
+
+st.markdown("<div class='login-box'>", unsafe_allow_html=True)
 # <- Aquí termina def mostrar_login()
 
 # Tu app principal va aquí abajo
