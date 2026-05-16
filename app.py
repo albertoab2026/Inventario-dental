@@ -177,42 +177,129 @@ def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
 
 # ======= 4. PANTALLA LOGIN =======
 def mostrar_login():
-    st.markdown("<h1 style='text-align:center;'>⚡ NEXUS</h1>", unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align:center;'>¿Cansado de perder plata en tu negocio?</h2>", unsafe_allow_html=True)
+    # CSS para el diseño bonito
+    st.markdown("""
+    <style>
+    .stApp {
+        background: #0e1117;
+    }
+    .landing-card {
+        background: #1e2329;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        border: 1px solid #2d333b;
+    }
+    .landing-card h3 {
+        margin: 10px 0 5px 0;
+        color: white;
+    }
+    .landing-card p {
+        margin: 0;
+        font-size: 13px;
+        color: #8b949e;
+    }
+    .btn-prueba {
+        background: #00d26a;
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: bold;
+        font-size: 18px;
+    }
+    .btn-prueba small {
+        display: block;
+        font-size: 12px;
+        font-weight: normal;
+        margin-top: 5px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
+    # Header
+    st.markdown("""
+    <div style='text-align: center; padding-top: 20px;'>
+        <h1 style='color: white; font-size: 40px; margin-bottom: 5px;'>
+            ⚡ NEXUS
+        </h1>
+        <p style='color: #8b949e; font-size: 16px;'>
+            Sistema de Gestión para Negocios
+        </p>
+        <h3 style='color: #58a6ff; margin-top: 30px;'>
+            ¿Cansado de perder plata en tu negocio?
+        </h3>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 4 tarjetas
     col1, col2, col3, col4 = st.columns(4)
-    with col1: st.markdown("<div style='text-align:center;'>📦<h3>Control Total</h3></div>", unsafe_allow_html=True)
-    with col2: st.markdown("<div style='text-align:center;'>💰<h3>Más Ganancia</h3></div>", unsafe_allow_html=True)
-    with col3: st.markdown("<div style='text-align:center;'>📱<h3>Desde tu Celular</h3></div>", unsafe_allow_html=True)
-    with col4: st.markdown("<div style='text-align:center;'>⚡<h3>S/30 al mes</h3></div>", unsafe_allow_html=True)
+    
+    with col1:
+        st.markdown("""
+        <div class='landing-card'>
+            <div style='font-size: 35px;'>📦</div>
+            <h3>Control Total</h3>
+            <p>Sabes qué vendes y qué te falta. Adiós cuaderno.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class='landing-card'>
+            <div style='font-size: 35px;'>💰</div>
+            <h3>Más Ganancia</h3>
+            <p>Ve tus productos que más plata te dejan. Gana más.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+        <div class='landing-card'>
+            <div style='font-size: 35px;'>📱</div>
+            <h3>Desde tu Celular</h3>
+            <p>Sin computadora. Solo tu WhatsApp y listo.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown("""
+        <div class='landing-card'>
+            <div style='font-size: 35px;'>⚡</div>
+            <h3>Súper Barato</h3>
+            <p>S/30 al mes. Otros cobran S/250.</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs(["🔑 Iniciar Sesión", "🚀 Prueba 7 días GRATIS"])
+    st.markdown("<br>", unsafe_allow_html=True)
 
+    # Botón prueba gratis
+    st.markdown("""
+    <div class='btn-prueba'>
+        🎁 Prueba 7 DÍAS GRATIS
+        <small>Sin tarjeta. Sin compromiso. Cancela cuando quieras.</small>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br><br>", unsafe_allow_html=True)
+
+    # Formulario de login
+    tab1, tab2 = st.tabs(["🔑 Iniciar Sesión", "🎁 Prueba 7 días GRATIS"])
+    
     with tab1:
         with st.form("login_form"):
-            dni = st.text_input("Usuario o DNI")
+            usuario = st.text_input("Usuario o DNI", placeholder="12345678")
             password = st.text_input("Contraseña", type="password")
-            if st.form_submit_button("Iniciar Sesión", use_container_width=True):
-                user = login(dni, password)
-                if user:
-                    st.session_state.logged_in = True
-                    st.session_state.user_data = user
+            submitted = st.form_submit_button("Iniciar Sesión", use_container_width=True, type="primary")
+            
+            if submitted:
+                if login_usuario(usuario, password):
                     st.rerun()
                 else:
-                    st.error("❌ DNI o contraseña incorrectos")
+                    st.error("Usuario o contraseña incorrectos")
 
     with tab2:
-        nombre = st.text_input("Nombre completo", key="reg_nom")
-        nombre_negocio = st.text_input("Nombre de tu Local", key="reg_negocio")
-        dni = st.text_input("DNI", key="reg_dni")
-        email = st.text_input("Email", key="reg_email")
-        password = st.text_input("Contraseña", type="password", key="reg_pass")
-        rubro = st.selectbox("¿Qué tipo de negocio tienes?", list(CATEGORIAS_POR_RUBRO.keys()), key="reg_rubro")
-        if st.button("ACTIVAR 7 DÍAS GRATIS", use_container_width=True):
-            if all([nombre, nombre_negocio, dni, email, password, rubro]):
-                if registrar_dueno(dni, nombre, nombre_negocio, email, password, rubro):
-                    st.success("✅ Cuenta creada. 7 días gratis activados")
-                    st.balloons()
+        st.info("Crea tu cuenta gratis aquí. Te pediremos solo DNI y email.")
 
 # ======= 5. APP PRINCIPAL =======
 if not st.session_state.logged_in:
