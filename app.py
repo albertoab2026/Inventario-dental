@@ -185,7 +185,7 @@ def mostrar_login():
     
     .header-box {
         background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
-        padding: 40px 20px;
+        padding: 50px 20px;
         border-radius: 20px;
         text-align: center;
         margin-bottom: 30px;
@@ -194,19 +194,20 @@ def mostrar_login():
     
     .header-box h1 {
         color: white;
-        font-size: 42px;
+        font-size: 52px;
         margin: 0;
         font-weight: 800;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 12px;
+        gap: 15px;
     }
     
     .header-box p {
         color: rgba(255,255,255,0.9);
-        font-size: 16px;
-        margin: 10px 0 0 0;
+        font-size: 19px;
+        margin: 12px 0 0 0;
+        font-weight: 500;
     }
     
     .feature-grid {
@@ -227,23 +228,9 @@ def mostrar_login():
     .card-3 { background: #064e3b; }
     .card-4 { background: #7c2d12; }
     
-    .feature-card .icon {
-        font-size: 32px;
-        margin-bottom: 10px;
-    }
-    
-    .feature-card h3 {
-        color: white;
-        margin: 5px 0;
-        font-size: 16px;
-        font-weight: 600;
-    }
-    
-    .feature-card p {
-        color: #cbd5e1;
-        font-size: 12px;
-        margin: 0;
-    }
+    .feature-card .icon { font-size: 32px; margin-bottom: 10px; }
+    .feature-card h3 { color: white; margin: 5px 0; font-size: 16px; font-weight: 600; }
+    .feature-card p { color: #cbd5e1; font-size: 12px; margin: 0; }
     
     .btn-free {
         background: linear-gradient(135deg, #10b981 0%, #059669 100%);
@@ -261,19 +248,18 @@ def mostrar_login():
         background: rgba(30, 35, 41, 0.8);
         border: 1px solid #2d333b;
         border-radius: 15px;
-        padding: 25px;
-        margin-top: 20px;
+        padding: 20px 25px 25px 25px;
+        margin-top: 0px;
     }
     
-    .login-box label {
-        color: #cbd5e1 !important;
-    }
+    .login-box label { color: #cbd5e1 !important; margin-bottom: 5px !important; }
     
     .stTextInput input {
         background: #0f172a !important;
         border: 1px solid #334155 !important;
         color: white !important;
         border-radius: 10px !important;
+        padding: 12px !important;
     }
     
     div[data-testid="stButton"] button {
@@ -284,11 +270,13 @@ def mostrar_login():
         padding: 12px;
         font-weight: 600;
         width: 100%;
+        margin-top: 10px;
     }
+    
+    .login-box > div:first-child { margin-top: 0 !important; padding-top: 0 !important; }
     </style>
     """, unsafe_allow_html=True)
     
-    # Header morado
     st.markdown("""
     <div class='header-box'>
         <h1>⚡ NEXUS</h1>
@@ -296,11 +284,8 @@ def mostrar_login():
     </div>
     """, unsafe_allow_html=True)
     
-    # Texto
-    st.markdown("<h3 style='text-align:center; color:white;'>¿Cansado de perder plata en tu negocio?</h3>", unsafe_allow_html=True)
-    
-    # 4 tarjetas
-    st.markdown("""
+    st.markdown("<h3 style='text-align:center; color:white; font-size:22px; margin:20px 0;'>¿Cansado de perder plata en tu negocio?</h3>", unsafe_allow_html=True)
+        st.markdown("""
     <div class='feature-grid'>
         <div class='feature-card card-1'>
             <div class='icon'>📦</div>
@@ -325,16 +310,13 @@ def mostrar_login():
     </div>
     """, unsafe_allow_html=True)
     
-    # Botón verde
     st.markdown("""
     <div class='btn-free'>
         🎁 Prueba 7 DÍAS GRATIS<br>
         <span style='font-size:14px; font-weight:400;'>Sin tarjeta. Sin compromiso. Cancela cuando quieras.</span>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Login
-    st.markdown("<h2 style='text-align:center; color:white; margin-top:30px;'>Iniciar Sesión</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align:center; color:white; margin:25px 0 15px 0; font-size:28px;'>Iniciar Sesión</h2>", unsafe_allow_html=True)
     
     st.markdown("<div class='login-box'>", unsafe_allow_html=True)
     st.text_input("Usuario o DNI", placeholder="12345678")
@@ -343,7 +325,10 @@ def mostrar_login():
         st.session_state.logged_in = True
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+# <- Aquí termina def mostrar_login()
 
+# Tu app principal va aquí abajo
+st.write("Bienvenido a NEXUS")
 # ======= 5. APP PRINCIPAL =======
 if not st.session_state.logged_in:
     mostrar_login()
