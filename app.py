@@ -178,80 +178,78 @@ def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
 # ======= 4. PANTALLA LOGIN =======
 def mostrar_login():
     st.markdown("""
-    <style>
-    .stApp {
-        background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1e 100%);
-    }
-    .header-box {
-        background: #1e293b;
-        padding: 40px 20px;
-        border-radius: 20px;
-        text-align: center;
-        margin-bottom: 30px;
-        border: 1px solid #334155;
-   }
-    </style>
-    , unsafe_allow_html=True)
-    
-    .header-box h1 {
-        color: white;
-        font-size: 42px;
-        margin: 0;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-    }
-    .icon-bg {
-        background: #00d26a;
-        padding: 8px 12px;
-        border-radius: 12px;
-        display: inline-block;
-        font-size: 36px;
-    }
-    .header-box p {
-        color: rgba(255,255,255,0.9);
-        font-size: 16px;
-        margin: 10px 0 0 0;
-    }
-    .landing-card {
-        background: #1e2329;
-        padding: 20px;
-        border-radius: 12px;
-        text-align: center;
-        border: 1px solid #2d333b;
-        height: 100%;
-    }
-    .landing-card h3 {
-        margin: 10px 0 5px 0;
-        color: white;
-        font-size: 16px;
-    }
-    .landing-card p {
-        margin: 0;
-        font-size: 13px;
-        color: #8b949e;
-    }
-    .btn-prueba {
-        background: linear-gradient(135deg, #00d26a 0%, #00a855 100%);
-        color: white;
-        padding: 15px;
-        border-radius: 12px;
-        text-align: center;
-        font-weight: bold;
-        font-size: 18px;
-        border: none;
-    }
-    .btn-prueba small {
-        display: block;
-        font-size: 12px;
-        font-weight: normal;
-        margin-top: 5px;
-        opacity: 0.9;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+<style>
+.stApp {
+    background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1e 100%);
+}
+
+.header-box {
+    background: #1e293b;
+    padding: 40px 20px;
+    border-radius: 20px;
+    text-align: center;
+    margin-bottom: 30px;
+    border: 1px solid #334155;
+}
+
+.header-box h1 {
+    color: white;
+    font-size: 42px;
+    margin: 0;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.header-box p {
+    color: rgba(255,255,255,0.9);
+    font-size: 16px;
+    margin: 10px 0 0 0;
+}
+
+.icon-bg {
+    background: #00d26a;
+    padding: 8px 12px;
+    border-radius: 12px;
+    display: inline-block;
+    font-size: 36px;
+}
+
+.landing-card {
+    background: #1e2329;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid #2d333b;
+    height: 100%;
+}
+
+.landing-card h3 {
+    margin: 10px 0 5px 0;
+    color: white;
+    font-size: 16px;
+}
+
+.landing-card p {
+    margin: 0;
+    font-size: 13px;
+    color: #8b949e;
+}
+
+.btn-prueba {
+    background: linear-gradient(135deg, #00d26a 0%, #00a855 100%);
+    color: white;
+    padding: 15px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 18px;
+    border: none;
+}
+</style>
+""", unsafe_allow_html=True)
 # ======= 5. APP PRINCIPAL =======
 if not st.session_state.logged_in:
     mostrar_login()
