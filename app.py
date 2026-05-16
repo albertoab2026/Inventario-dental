@@ -176,7 +176,7 @@ def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
         return False
 
 # ======= 4. PANTALLA LOGIN =======
-ddef mostrar_login():
+def mostrar_login():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
