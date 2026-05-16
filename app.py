@@ -363,11 +363,11 @@ def mostrar_login():
     </div>
     """, unsafe_allow_html=True)
 
-    with st.container():
+    # LOGIN - CERRADO CORRECTAMENTE
+with st.container():
     st.markdown("""
     <div class='login-box'>
         <h2 class='login-title'>Iniciar Sesión</h2>
-    
     """, unsafe_allow_html=True)
     
     usuario = st.text_input("Usuario o DNI", placeholder="Ingresa tu usuario")
@@ -381,8 +381,7 @@ def mostrar_login():
         else:
             st.error("Completa todos los campos")
     
-    st.markdown("</div>", unsafe_allow_html=True) del if
-
+    st.markdown("</div>", unsafe_allow_html=True)
 # ====== APP PRINCIPAL ======
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
