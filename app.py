@@ -382,7 +382,7 @@ if st.button("Iniciar Sesión", use_container_width=True):
     else:
         st.error("Completa todos los campos")
 
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)  # <-- este va AQUÍ, al final
     
 # ====== APP PRINCIPAL ======
 if 'logged_in' not in st.session_state:
