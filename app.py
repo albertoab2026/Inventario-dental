@@ -374,25 +374,42 @@ elif menu == "Ventas":
             else:
                 st.info("Carrito vacío")
 
-# --- PÁGINA REPORTES (Versión Premium con Flechas, Porcentajes y Métodos de Pago) ---
+# --- PÁGINA REPORTES (Versión Comercial Blindada de Costo Cero) ---
 elif menu == "Reportes":
     st.title("📊 Centro de Analítica - NEXUS")
     
-    ventas = obtener_ventas()  # QUERY eficiente por usuario_id
+    ventas_raw = obtener_ventas()  # QUERY eficiente a DynamoDB
     productos = obtener_productos()
     productos_dict = {p['producto_id']: p['nombre'] for p in productos}
     
-    if not ventas:
+    if not ventas_raw:
         st.info("🏪 Aún no tienes ventas registradas en el sistema.")
     else:
-        # Fechas clave en formato ISO (YYYY-MM-DD)
+        # 1. BLINDAJE ABSOLUTO: Limpiamos y normalizamos cada registro antes de procesar
+        ventas = []
+        for v in ventas_raw:
+            v_limpia = {
+                'fecha': v.get('fecha', datetime.now(timezone.utc).isoformat()),
+                'producto_id': v.get('producto_id', 'Desconocido'),
+                'cantidad': int(v.get('cantidad', 0)),
+                'total_venta': float(v.get('total_venta', 0.0)),
+                'total_costo': float(v.get('total_costo', 0.0)),
+                'ganancia': float(v.get('ganancia', 0.0)),
+                'metodo_pago': str(v.get('metodo_pago', 'Efectivo')).strip().capitalize()
+            }
+            # Si el registro viejo no tenía ganancia calculada, la calculamos aquí en vivo
+            if v_limpia['ganancia'] == 0.0 and v_limpia['total_venta'] > 0:
+                v_limpia['ganancia'] = v_limpia['total_venta'] - v_limpia['total_costo']
+                
+            ventas.append(v_limpia)
+
+        # Fechas clave para la comparación (Lunes con Lunes, etc.)
         hoy_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         hace_una_semana_str = (datetime.now(timezone.utc) - timedelta(days=7)).strftime('%Y-%m-%d')
         
         ventas_hoy = []
         ventas_hace_una_semana = []
         
-        # Procesamos en memoria local para no gastar en AWS
         for v in ventas:
             v['nombre_producto'] = productos_dict.get(v['producto_id'], 'Producto eliminado')
             fecha_solo_v = v['fecha'].split('T')[0] if 'T' in v['fecha'] else v['fecha'][:10]
@@ -402,41 +419,32 @@ elif menu == "Reportes":
             elif fecha_solo_v == hace_una_semana_str:
                 ventas_hace_una_semana.append(v)
         
-        # --- 1. CÁLCULOS DE HOY ---
-        total_ingresos_hoy = sum(float(v['total_venta']) for v in ventas_hoy)
-        total_costo_compra_hoy = sum(float(v['total_costo']) for v in ventas_hoy)
+        # --- CÁLCULOS DE HOY ---
+        total_ingresos_hoy = sum(v['total_venta'] for v in ventas_hoy)
+        total_costo_compra_hoy = sum(v['total_costo'] for v in ventas_hoy)
         ganancia_real_hoy = total_ingresos_hoy - total_costo_compra_hoy
         
-        # Separación por métodos de pago (Efectivo, Yape, Plin)
-        efectivo_hoy = sum(float(v['total_venta']) for v in ventas_hoy if v.get('metodo_pago', '').lower() == 'efectivo')
-        yape_hoy = sum(float(v['total_venta']) for v in ventas_hoy if v.get('metodo_pago', '').lower() == 'yape')
-        plin_hoy = sum(float(v['total_venta']) for v in ventas_hoy if v.get('metodo_pago', '').lower() == 'plin')
+        # Cajas separadas según el método de pago
+        efectivo_hoy = sum(v['total_venta'] for v in ventas_hoy if v['metodo_pago'] == 'Efectivo')
+        yape_hoy = sum(v['total_venta'] for v in ventas_hoy if v['metodo_pago'] == 'Yape')
+        plin_hoy = sum(v['total_venta'] for v in ventas_hoy if v['metodo_pago'] == 'Plin')
         
-        # --- 2. CÁLCULOS DE HACE UNA SEMANA (MISMO DÍA) ---
-        total_ingresos_pasado = sum(float(v['total_venta']) for v in ventas_hace_una_semana)
+        # --- CÁLCULOS DE COMPARACIÓN ---
+        total_ingresos_pasado = sum(v['total_venta'] for v in ventas_hace_una_semana)
         
-        # --- 3. PORCENTAJE Y FLECHAS COMPARATIVAS ---
         porcentaje_cambio = 0.0
         delta_texto = "Primer día de registro"
-        
         if total_ingresos_pasado > 0:
             porcentaje_cambio = ((total_ingresos_hoy - total_ingresos_pasado) / total_ingresos_pasado) * 100
-            delta_texto = f"{porcentaje_cambio:+.1f}% vs mismo día semana pasada"
+            delta_texto = f"{porcentaje_cambio:+.1f}% vs misma fecha semana pasada"
         
         # --- INTERFAZ VISUAL PREMIUM ---
-        
-        # Fila 1: Métricas Principales (Con Flechas de Rendimiento)
         st.subheader("📈 Rendimiento del Día")
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            # st.metric pone la flecha verde (si es positivo) o roja (si es negativo) automáticamente en el delta
             if total_ingresos_pasado > 0:
-                st.metric(
-                    label="Ingreso Total (Ventas)", 
-                    value=f"S/{total_ingresos_hoy:.2f}", 
-                    delta=delta_texto
-                )
+                st.metric(label="Ingreso Total (Ventas)", value=f"S/{total_ingresos_hoy:.2f}", delta=delta_texto)
             else:
                 st.metric(label="Ingreso Total (Ventas)", value=f"S/{total_ingresos_hoy:.2f}", delta="Sin datos previos")
                 
@@ -444,58 +452,28 @@ elif menu == "Reportes":
             st.metric(label="Inversión (Costo de Compra)", value=f"S/{total_costo_compra_hoy:.2f}")
             
         with col3:
-            # Resaltamos la ganancia real neta
-            st.metric(
-                label="💰 GANANCIA REAL NETO", 
-                value=f"S/{ganancia_real_hoy:.2f}",
-                help="Dinero neto libre. Es el ingreso total restándole lo que te costó comprar la mercadería."
-            )
+            st.metric(label="💰 GANANCIA REAL NETO", value=f"S/{ganancia_real_hoy:.2f}", help="Ingreso total de hoy menos el costo de compra.")
             
         st.markdown("---")
-        
-        # Fila 2: Separación de Cajas (Efectivo vs Digital)
-        st.subheader("💵 Distribución de Caja (¿Cómo te pagaron?)")
+        st.subheader("💵 Distribución de Caja")
         c1, c2, c3 = st.columns(3)
         with c1:
-            st.markdown(f"""
-            <div style="background-color: #1E293B; padding: 15px; border-radius: 10px; border-left: 5px solid #10B981; text-align: center;">
-                <p style="margin:0; color:#94A3B8; font-size:14px;">💵 Efectivo en Caja</p>
-                <h3 style="margin:5px 0 0 0; color:#F8FAFC; font-size:24px;">S/{efectivo_hoy:.2f}</h3>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div style="background-color: #1E293B; padding: 15px; border-radius: 10px; border-left: 5px solid #10B981; text-align: center;"><p style="margin:0; color:#94A3B8; font-size:14px;">💵 Efectivo en Caja</p><h3 style="margin:5px 0 0 0; color:#F8FAFC; font-size:24px;">S/{efectivo_hoy:.2f}</h3></div>', unsafe_allow_html=True)
         with c2:
-            st.markdown(f"""
-            <div style="background-color: #1E293B; padding: 15px; border-radius: 10px; border-left: 5px solid #06B6D4; text-align: center;">
-                <p style="margin:0; color:#94A3B8; font-size:14px;">📲 Total Yape</p>
-                <h3 style="margin:5px 0 0 0; color:#F8FAFC; font-size:24px;">S/{yape_hoy:.2f}</h3>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div style="background-color: #1E293B; padding: 15px; border-radius: 10px; border-left: 5px solid #06B6D4; text-align: center;"><p style="margin:0; color:#94A3B8; font-size:14px;">📲 Total Yape</p><h3 style="margin:5px 0 0 0; color:#F8FAFC; font-size:24px;">S/{yape_hoy:.2f}</h3></div>', unsafe_allow_html=True)
         with c3:
-            st.markdown(f"""
-            <div style="background-color: #1E293B; padding: 15px; border-radius: 10px; border-left: 5px solid #6366F1; text-align: center;">
-                <p style="margin:0; color:#94A3B8; font-size:14px;">🟣 Total Plin</p>
-                <h3 style="margin:5px 0 0 0; color:#F8FAFC; font-size:24px;">S/{plin_hoy:.2f}</h3>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div style="background-color: #1E293B; padding: 15px; border-radius: 10px; border-left: 5px solid #6366F1; text-align: center;"><p style="margin:0; color:#94A3B8; font-size:14px;">🟣 Total Plin</p><h3 style="margin:5px 0 0 0; color:#F8FAFC; font-size:24px;">S/{plin_hoy:.2f}</h3></div>', unsafe_allow_html=True)
 
         st.markdown("---")
-        
-        # Fila 3: Tabla Detallada de hoy
         st.subheader("📋 Detalle de lo Vendido Hoy")
         if ventas_hoy:
             df_hoy = pd.DataFrame(ventas_hoy)
             df_hoy['hora'] = pd.to_datetime(df_hoy['fecha']).dt.strftime('%H:%M:%S')
-            
-            # Si el campo método_pago no existe en registros antiguos, lo llena con 'No especificado'
-            if 'metodo_pago' not in df_hoy.columns:
-                df_hoy['metodo_pago'] = 'Efectivo'
-                
             st.dataframe(
                 df_hoy[['hora', 'nombre_producto', 'cantidad', 'metodo_pago', 'total_venta', 'ganancia']], 
                 use_container_width=True,
                 column_config={
-                    "hora": "Hora", "nombre_producto": "Producto", "cantidad": "Cant",
-                    "metodo_pago": "Pago",
+                    "hora": "Hora", "nombre_producto": "Producto", "cantidad": "Cant", "metodo_pago": "Pago",
                     "total_venta": st.column_config.NumberColumn("Total Venta", format="S/%.2f"),
                     "ganancia": st.column_config.NumberColumn("Ganancia", format="S/%.2f")
                 }
@@ -503,28 +481,17 @@ elif menu == "Reportes":
         else:
             st.info("Aún no se han registrado ventas el día de hoy.")
             
-        # Historial Colapsable Completo (Corregido y Protegido)
         with st.expander("🗄️ Ver historial completo de auditoría"):
-            if ventas: # Solo muestra la tabla si hay datos históricos
-                df_all = pd.DataFrame(ventas)
-                df_all['nombre_producto'] = df_all['producto_id'].map(productos_dict).fillna('Producto eliminado')
-                df_all['fecha_formato'] = pd.to_datetime(df_all['fecha']).dt.strftime('%d/%m %H:%M')
-                
-                if 'metodo_pago' not in df_all.columns:
-                    df_all['metodo_pago'] = 'Efectivo'
-                
-                st.dataframe(
-                    df_all[['fecha_formato', 'nombre_producto', 'cantidad', 'metodo_pago', 'total_venta', 'total_costo', 'ganancia']], 
-                    use_container_width=True,
-                    column_config={
-                        "fecha_formato": "Fecha/Hora",  # <-- CORREGIDO: Ahora coincide exactamente con el nombre de arriba
-                        "nombre_producto": "Producto", 
-                        "cantidad": "Cant",
-                        "metodo_pago": "Método",
-                        "total_venta": st.column_config.NumberColumn("Venta S/", format="S/%.2f"),
-                        "total_costo": st.column_config.NumberColumn("Costo S/", format="S/%.2f"),
-                        "ganancia": st.column_config.NumberColumn("Ganancia S/", format="S/%.2f")
-                    }
-                )
-            else:
-                st.info("No hay historial de auditoría disponible.")
+            df_all = pd.DataFrame(ventas)
+            df_all['fecha_formato'] = pd.to_datetime(df_all['fecha']).dt.strftime('%d/%m %H:%M')
+            st.dataframe(
+                df_all[['fecha_formato', 'nombre_producto', 'cantidad', 'metodo_pago', 'total_venta', 'total_costo', 'ganancia']], 
+                use_container_width=True,
+                column_config={
+                    "fecha_formato": "Fecha/Hora", "nombre_producto": "Producto", "cantidad": "Cant", "metodo_pago": "Método",
+                    "total_venta": st.column_config.NumberColumn("Venta S/", format="S/%.2f"),
+                    "total_costo": st.column_config.NumberColumn("Costo S/", format="S/%.2f"),
+                    "ganancia": st.column_config.NumberColumn("Ganancia S/", format="S/%.2f")
+                }
+            )
+
