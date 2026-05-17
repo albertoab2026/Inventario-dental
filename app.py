@@ -298,11 +298,34 @@ if menu == "Productos":
                 st.success("¡Producto guardado!")
                 st.rerun()
 
-    if productos:
-        df = pd.DataFrame(productos)
-        st.dataframe(df[['nombre', 'precio_venta', 'stock', 'categoria']], use_container_width=True)
-    else:
-        st.info("No hay productos. Agrega el primero.")
+if productos:
+    # --- BLOQUE BLINDADO DE PRODUCTOS ---
+    productos_limpios = []
+    for p in productos:
+        p_limpio = {
+            'producto_id': p.get('producto_id', 'S/I'),
+            'nombre': p.get('nombre', 'Producto sin nombre'),
+            'precio_compra': float(p.get('precio_compra', 0.0)),
+            'precio_venta': float(p.get('precio_venta', 0.0)),
+            'stock': int(p.get('stock', 0)),
+            'categoria': p.get('categoria', 'General')
+        }
+        productos_limpios.append(p_limpio)
+    
+    df_prod = pd.DataFrame(productos_limpios)
+    st.dataframe(
+        df_prod[['nombre', 'precio_venta', 'stock', 'categoria']], 
+        use_container_width=True,
+        column_config={
+            "nombre": "Producto",
+            "precio_venta": st.column_config.NumberColumn("Precio Venta", format="S/%.2f"),
+            "stock": "Stock disponible",
+            "categoria": "Categoría"
+        }
+    )
+else:
+    st.info("No hay productos. Agrega el primero.")
+
 
 # --- PÁGINA VENTAS ---
 elif menu == "Ventas":
