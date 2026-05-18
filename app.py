@@ -399,7 +399,9 @@ elif menu == "Ventas":
                             col_a, col_b, col_c = st.columns([2.5, 1.2, 1.3])
                             with col_a:
                                 if p_stock_disponible <= 0:
-                                    st.write(f"**{p_nombre}**\nS/{p_precio_venta:.2f} | 🟡 Carrito Lleno")
+                                    st.write(f"**{p_nombre}**\nS/{p_precio_venta:.2f} | 🟡 Agotado en Carrito")
+                                elif p_stock_real <= 0:
+                                    st.write(f"**{p_nombre}**\nS/{p_precio_venta:.2f} | 🔴 Sin Stock")
                                 else:
                                     st.write(f"**{p_nombre}**\nS/{p_precio_venta:.2f} | 🟢 Stock: {p_stock_disponible}")
                             with col_b:
