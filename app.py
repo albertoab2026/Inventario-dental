@@ -367,11 +367,12 @@ elif menu == "Ventas":
     if not productos:
         st.warning("No tienes productos. Agrega productos primero en la pestaña Productos.")
     else:
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            st.subheader("Seleccionar Productos")
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                st.subheader("Seleccionar Productos")
                 # 🔍 BUSCADOR INTERACTIVO EN VENTAS
                 busqueda_v = st.text_input("🔍 Digite nombre del producto:", key="buscar_ventas")
+
                 
                 # Filtramos la lista de productos según lo que digite el vendedor
                 productos_filtrados_v = [
@@ -382,39 +383,37 @@ elif menu == "Ventas":
                 # El bucle ahora recorre únicamente los productos filtrados
                 for prod in productos_filtrados_v:
 
-                # --- BLINDAJE EN VIVO PARA EVITAR KEYERROR ---
-                p_stock = int(prod.get('stock', 0))
-                p_nombre = prod.get('nombre', 'Producto sin nombre')
-                p_precio_venta = float(prod.get('precio_venta', 0.0))
-                p_precio_compra = float(prod.get('precio_compra', 0.0))
-                p_id = prod.get('producto_id', 'S/I')
+                    # --- BLINDAJE EN VIVO PARA EVITAR KEYERROR ---
+                    p_stock = int(prod.get('stock', 0))
+                    p_nombre = prod.get('nombre', 'Producto sin nombre')
+                    p_precio_venta = float(prod.get('precio_venta', 0.0))
+                    p_precio_compra = float(prod.get('precio_compra', 0.0))
+                    p_id = prod.get('producto_id', 'S/I')
 
-                if p_stock > 0:
-                    col_a, col_b, col_c = st.columns([3, 1, 1])
-                    with col_a:
-                        st.write(f"**{p_nombre}** - Venta: S/{p_precio_venta:.2f}")
-                    with col_b:
-                        qty = st.number_input("Cant", min_value=0, max_value=p_stock, step=1, key=f"qty_{p_id}")
-                    with col_c:
-                        if st.button("Agregar", key=f"add_{p_id}"):
-                            if qty > 0:
-                                encontrado = False
-                                for item in st.session_state.carrito:
-                                    if item['producto_id'] == p_id:
-                                        item['cantidad'] += qty
-                                        encontrado = True
-                                        break
-                                if not encontrado:
-                                    st.session_state.carrito.append({
-                                        'producto_id': p_id,
-                                        'nombre': p_nombre,
-                                        'precio_venta': p_precio_venta,
-                                        'precio_compra': p_precio_compra,
-                                        'cantidad': qty
-                                    })
-                                st.rerun()
-
-
+                    if p_stock > 0:
+                        col_a, col_b, col_c = st.columns([3, 1, 1])
+                        with col_a:
+                            st.write(f"**{p_nombre}** - Venta: S/{p_precio_venta:.2f}")
+                        with col_b:
+                            qty = st.number_input("Cant", min_value=0, max_value=p_stock, key=f"qty_{p_id}")
+                        with col_c:
+                            if st.button("Agregar", key=f"add_{p_id}"):
+                                if qty > 0:
+                                    encontrado = False
+                                    for item in st.session_state.carrito:
+                                        if item['producto_id'] == p_id:
+                                            item['cantidad'] += qty
+                                            encontrado = True
+                                            break
+                                    if not encontrado:
+                                        st.session_state.carrito.append({
+                                            'producto_id': p_id,
+                                            'nombre': p_nombre,
+                                            'precio_venta': p_precio_venta,
+                                            'precio_compra': p_precio_compra,
+                                            'cantidad': qty
+                                        })
+                                    st.rerun()
 
         with col2:
             st.subheader("Carrito")
