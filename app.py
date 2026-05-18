@@ -415,55 +415,55 @@ elif menu == "Ventas":
                                         })
                                     st.rerun()
 
-        with col2:
-            st.subheader("Carrito")
-            if st.session_state.carrito:
-                total_venta = 0
-                total_costo = 0
-                for item in st.session_state.carrito:
-                    subtotal_venta = float(item['precio_venta']) * int(item['cantidad'])
-                    subtotal_costo = float(item['precio_compra']) * int(item['cantidad'])
-                    total_venta += subtotal_venta
-                    total_costo += subtotal_costo
-                    st.write(f"{item['cantidad']}x {item['nombre']} = S/{subtotal_venta:.2f}")
-                
-                st.markdown(f"### Total Venta: S/{total_venta:.2f}")
-                st.markdown(f"### Ganancia: S/{total_venta - total_costo:.2f}")
-                
-        # Método para que elijan cómo te pagaron antes de cerrar la venta
-        metodo_pago = st.radio("Forma de Pago:", ["Efectivo", "Yape", "Plin"], horizontal=True)
+            with col2:
+                st.subheader("Carrito")
+                if st.session_state.carrito:
+                    total_venta = 0
+                    total_costo = 0
+                    for item in st.session_state.carrito:
+                        subtotal_venta = float(item['precio_venta']) * int(item['cantidad'])
+                        subtotal_costo = float(item['precio_compra']) * int(item['cantidad'])
+                        total_venta += subtotal_venta
+                        total_costo += subtotal_costo
+                        st.write(f"({item['cantidad']})x {item['nombre']} = S/{subtotal_venta:.2f}")
 
-        if st.button("Finalizar Venta", type="primary", use_container_width=True):
-            ok = True
-            for item in st.session_state.carrito:
-                # 1. Calculamos los montos y los redondeamos a 2 decimales
-                total_v = round(float(item['precio_venta']) * int(item['cantidad']), 2)
-                total_c = round(float(item['precio_compra']) * int(item['cantidad']), 2)
-                ganancia_v = round(total_v - total_c, 2)
-                
-                # 2. Mandamos a registrar usando la función con todos sus datos comerciales
-                if not registrar_venta(
-                    producto_id=item['producto_id'], 
-                    cantidad=int(item['cantidad']), 
-                    total_venta=total_v, 
-                    total_costo=total_c, 
-                    ganancia=ganancia_v, 
-                    metodo_pago=metodo_pago
-                ):
-                    ok = False
-                    break
-            
-            if ok:
-                st.session_state.carrito = []
-                st.success("✅ Venta registrada con éxito")
-                st.balloons()
-                st.rerun()
-                
-                if st.button("Vaciar Carrito", use_container_width=True):
-                    st.session_state.carrito = []
-                    st.rerun()
-            else:
-                st.info("Carrito vacío")
+                    st.markdown(f"### Total Venta: S/{total_venta:.2f}")
+                    st.markdown(f"### Ganancia: S/{(total_venta - total_costo):.2f}")
+
+                    # Método para que elijan cómo te pagaron antes de cerrar la venta
+                    metodo_pago = st.radio("Forma de Pago:", ["Efectivo", "Yape", "Plin"], horizontal=True)
+
+                    if st.button("Finalizar Venta", type="primary", use_container_width=True):
+                        ok = True
+                        for item in st.session_state.carrito:
+                            # 1. Calculamos los montos y los redondeamos a 2 decimales
+                            total_v = round(float(item['precio_venta']) * int(item['cantidad']), 2)
+                            total_c = round(float(item['precio_compra']) * int(item['cantidad']), 2)
+                            ganancia_v = round(total_v - total_c, 2)
+
+                            # 2. Mandamos a registrar usando la función con todos sus datos comerciales
+                            if not registrar_venta(
+                                producto_id=item['producto_id'],
+                                cantidad=int(item['cantidad']),
+                                total_venta=total_v,
+                                total_costo=total_c,
+                                ganancia=ganancia_v,
+                                metodo_pago=metodo_pago
+                            ):
+                                ok = False
+                                break
+
+                        if ok:
+                            st.session_state.carrito = []
+                            st.success("✅ Venta registrada con éxito")
+                            st.balloons()
+                            st.rerun()
+
+                    if st.button("Vaciar Carrito", use_container_width=True):
+                        st.session_state.carrito = []
+                        st.rerun()
+                else:
+                    st.info("Carrito vacío")
 
 # --- PÁGINA REPORTES (Versión Comercial Blindada de Costo Cero) ---
 elif menu == "Reportes":
