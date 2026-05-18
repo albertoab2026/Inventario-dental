@@ -367,12 +367,11 @@ elif menu == "Ventas":
     if not productos:
         st.warning("No tienes productos. Agrega productos primero en la pestaña Productos.")
     else:
-        col1, col2 = st.columns([1.8, 1.2]) # Calibramos mejor el ancho en pantallas intermedias
+        col1, col2 = st.columns([1.8, 1.2])
         with col1:
             st.subheader("Seleccionar Productos")
             busqueda_v = st.text_input("🔍 Buscar producto por nombre:", key="buscar_ventas", placeholder="Escriba aquí para filtrar...")
 
-            # 🎯 REGLA SHOPIFY: Si el buscador está vacío, no saturamos la pantalla
             if busqueda_v.strip() == "":
                 st.info("💡 Digite el nombre del producto arriba para empezar a vender.")
             else:
@@ -416,32 +415,33 @@ elif menu == "Ventas":
                                             })
                                         st.rerun()
 
-    with col2:
+        with col2:
             st.subheader("Carrito")
             if st.session_state.carrito:
                 total_venta_bruto = 0
                 total_costo = 0
                 
-                for index, item in enumerate(st.session_state.carrito):
-                    subtotal_venta = float(item['precio_venta']) * int(item['cantidad'])
-                    subtotal_costo = float(item['precio_compra']) * int(item['cantidad'])
-                    total_venta_bruto += subtotal_venta
-                    total_costo += subtotal_costo
-                    
-                    c_prod, c_del = st.columns([4, 1])
-                    with c_prod:
-                        st.write(f"**({item['cantidad']})** {item['nombre']}\nS/{subtotal_venta:.2f}")
-                    with c_del:
-                        if st.button("🗑️", key=f"del_cart_{item['producto_id']}_{index}", type="secondary"):
-                            st.session_state.carrito.pop(index)
-                            st.rerun()
+                # 📦 CONTENEDOR CON SCROLL INTERNO FIJO: Ideal para listas escolares o pedidos gigantes
+                with st.container(height=300):
+                    for index, item in enumerate(st.session_state.carrito):
+                        subtotal_venta = float(item['precio_venta']) * int(item['cantidad'])
+                        subtotal_costo = float(item['precio_compra']) * int(item['cantidad'])
+                        total_venta_bruto += subtotal_venta
+                        total_costo += subtotal_costo
+                        
+                        c_prod, c_del = st.columns([3.8, 1.2])
+                        with c_prod:
+                            st.write(f"**({item['cantidad']})** {item['nombre']}\nS/{subtotal_venta:.2f}")
+                        with c_del:
+                            if st.button("🗑️", key=f"del_cart_{item['producto_id']}_{index}", type="secondary"):
+                                st.session_state.carrito.pop(index)
+                                st.rerun()
 
+                # Todo este bloque financiero se queda estático abajo, sin moverse
                 st.markdown("---")
                 
-                # 💸 CAMBIO CLAVE: Caja para aplicar el descuento voluntario en Soles
                 descuento = st.number_input("🎁 Aplicar Descuento (S/):", min_value=0.0, max_value=total_venta_bruto, value=0.0, step=0.10, key="descuento_venta")
                 
-                # Recalculamos totales restando el descuento
                 total_venta_neto = round(total_venta_bruto - descuento, 2)
                 ganancia_neta = round(total_venta_neto - total_costo, 2)
 
@@ -450,19 +450,25 @@ elif menu == "Ventas":
                     st.caption(f"*(Precio original: S/{total_venta_bruto:.2f} | Ahorro: S/{descuento:.2f})*")
                 st.markdown(f"### Ganancia: S/{ganancia_neta:.2f}")
 
-                metodo_pago = st.radio("Forma de Pago:", ["Efectivo", "Yape", "Plin"], horizontal=True)
+                # 🎨 MÉTODOS DE PAGO: Con círculos de color corporativo (Yape Morado / Plin Celeste)
+                metodo_pago = st.radio(
+                    "Forma de Pago:", 
+                    ["💵 Efectivo", "🟣 Yape", "🔵 Plin"], 
+                    horizontal=True
+                )
 
                 if st.button("Finalizar Venta", type="primary", use_container_width=True):
                     ok = True
-                    # Calculamos el factor de descuento proporcional por si hay múltiples productos en la venta
                     factor_descuento = (total_venta_neto / total_venta_bruto) if total_venta_bruto > 0 else 1.0
 
                     for item in st.session_state.carrito:
                         sub_v_bruto = float(item['precio_venta']) * int(item['cantidad'])
-                        # Distribuimos el descuento equitativamente entre los ítems para no romper las métricas de ganancia
                         total_v_item = round(sub_v_bruto * factor_descuento, 2)
                         total_c_item = round(float(item['precio_compra']) * int(item['cantidad']), 2)
                         ganancia_v_item = round(total_v_item - total_c_item, 2)
+
+                        # Limpiamos el círculo de color antes de guardar en DynamoDB
+                        metodo_limpio = metodo_pago.split()[-1]
 
                         if not registrar_venta(
                             producto_id=item['producto_id'],
@@ -470,7 +476,7 @@ elif menu == "Ventas":
                             total_venta=total_v_item,
                             total_costo=total_c_item,
                             ganancia=ganancia_v_item,
-                            metodo_pago=metodo_pago
+                            metodo_pago=metodo_limpio
                         ):
                             ok = False
                             break
