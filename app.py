@@ -456,7 +456,7 @@ elif menu == "Ventas":
 
                 st.markdown("---")
                 descuento = st.number_input("🎁 Aplicar Descuento (S/):", min_value=0.0, value=0.0, step=0.50, key="desc_global")
-                total_venta_neto = round(total_venta_bruto - descuento, 2)
+                total_venta_neto = round(total_venta_bruto - discount if 'discount' in locals() else total_venta_bruto - descuento, 2)
                 ganancia_neto = round(total_venta_neto - total_costo, 2)
 
                 st.markdown(f"### Total Venta: S/{total_venta_neto:.2f}")
@@ -465,26 +465,38 @@ elif menu == "Ventas":
 
                 if st.button("Finalizar Venta", type="primary", use_container_width=True):
                     ok = True
+                    
+                    # 🎯 CAPTURAMOS EL USUARIO CORRECTO PARA TU CLAVE DE PARTICIÓN
+                    # Si st.session_state tiene 'tenant_id' o 'username', lo usamos; de lo contrario por defecto LAB_BALLARTA
+                    u_id = st.session_state.get("tenant_id", st.session_state.get("username", "LAB_BALLARTA"))
+                    
                     for item in st.session_state.carrito:
                         total_v = round(float(item['precio_venta']) * int(item['cantidad']), 2)
                         total_c = round(float(item['precio_compra']) * int(item['cantidad']), 2)
                         ganancia_v = round(total_v - total_c, 2)
 
-                        # 🚀 LLAMADA CORREGIDA SIN LLAVES RARAS NI CORCHETES MAL PUESTOS
-                        if not registrar_venta(
-                            producto_id=item['producto_id'],
-                            cantidad=int(item['cantidad']),
-                            total_venta=total_v,
-                            total_costo=total_c,
-                            ganancia=ganancia_v,
-                            metodo_pago=metodo_pago
-                        ):
+                        # Ejecución directa y limpia usando 'usuario_id' como exige DynamoDB
+                        try:
+                            res = registrar_venta(
+                                usuario_id=u_id,
+                                producto_id=item['producto_id'],
+                                cantidad=int(item['cantidad']),
+                                total_venta=total_v,
+                                total_costo=total_c,
+                                ganancia=ganancia_v,
+                                metodo_pago=metodo_pago
+                            )
+                            if not res:
+                                ok = False
+                                break
+                        except Exception as e:
+                            st.error(f"Error al registrar item: {e}")
                             ok = False
                             break
 
                     if ok:
                         st.session_state.carrito = []
-                        st.success("✅ Venta registrada con éxito")
+                        st.success("✅ Venta registrada con éxito en DynamoDB")
                         st.balloons()
                         st.rerun()
 
