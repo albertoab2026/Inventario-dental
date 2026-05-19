@@ -677,7 +677,6 @@ elif menu == "Reportes":
     ventas_raw = obtener_ventas()
     productos_raw = obtener_productos()
     
-    # Mapa de productos
     mapa_productos = {p['producto_id']: p['nombre'] for p in productos_raw if 'producto_id' in p} if productos_raw else {}
     
     if not ventas_raw:
@@ -706,7 +705,7 @@ elif menu == "Reportes":
         if df_filtrado.empty:
             st.warning(f"No hay ventas para el día {fecha_busqueda_str}.")
         else:
-            # 3. Desglose de ítems con manejo de errores
+            # 3. Desglose de ítems
             filas = []
             for _, fila in df_filtrado.iterrows():
                 items = fila.get('items', [])
@@ -716,7 +715,7 @@ elif menu == "Reportes":
                     precio = float(item.get('precio_venta', 0))
                     
                     filas.append({
-                        'fecha_sort': fila['fecha_peru'], # Se crea aquí
+                        'fecha_sort': fila['fecha_peru'], # Aseguramos que esta columna exista
                         'Hora': fila['Hora'],
                         'Producto': mapa_productos.get(item.get('producto_id'), 'Desconocido'),
                         'Cantidad': cant,
@@ -726,12 +725,13 @@ elif menu == "Reportes":
             df_final = pd.DataFrame(filas)
             
             # 4. Ordenar y mostrar
+            # Al crear 'fecha_sort' en el bucle anterior, este comando no fallará
             df_final = df_final.sort_values(by='fecha_sort', ascending=False)
             
             # Mostrar métricas
             st.metric("Ingreso Total del día", f"S/{df_final['Total Venta'].sum():.2f}")
             
-            # Tabla con altura limitada (max_height) para que no sea infinita
+            # Tabla con altura limitada (height=400) para que no sea infinita
             st.dataframe(
                 df_final.drop(columns=['fecha_sort']), 
                 use_container_width=True, 
