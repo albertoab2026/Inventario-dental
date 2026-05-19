@@ -387,13 +387,12 @@ elif menu == "Ventas":
                     if busqueda_v.lower() in prod.get('nombre', '').lower()
                 ]
 
-if not productos_mostrar:
+    if not productos_mostrar:
                 st.error("❌ No se encontraron productos con ese nombre.")
             else:
                 st.markdown("---")
                 
                 # 🏢 CONTENEDOR CON SCROLL FIJO ESTILO SAAS COMERCIAL
-                # Mantiene la interfaz limpia en PC y Celular sin estirar la pantalla
                 with st.container(height=500, border=False):
                     for prod in productos_mostrar:
                         p_id = prod.get('producto_id', 'S/I')
@@ -406,7 +405,7 @@ if not productos_mostrar:
                         p_stock_real = int(prod.get('stock', 0))
                         p_stock_disponible = p_stock_real - cantidad_en_carrito
                         
-                        # 🎨 TARJETA VISUAL DE CADA PRODUCTO
+                        # 🎨 TARJETA VISUAL DE CADA PRODUCTO (Nota los 4 espacios extra a la derecha)
                         with st.container(border=True):
                             c_info, c_cant, c_btn = st.columns([2.2, 1.1, 1.2])
                             
