@@ -762,22 +762,30 @@ elif menu == "Reportes":
                 df_filtrado = pd.DataFrame(filas_desglosadas)
 
                 # =====================================================================
-                # 💰 NORMALIZACIÓN DEL MÉTODO DE PAGO Y ATRIBUTOS (Tu lógica intacta)
+                # 💰 NORMALIZACIÓN Y BLINDAJE DE ATRIBUTOS (Solución Definitiva)
                 # =====================================================================
+                # 1. Identificamos de forma flexible la columna de método de pago
                 col_pago = next((c for c in df_filtrado.columns if 'pago' in c.lower() or 'metodo' in c.lower()), 'pago')
-                
+        
                 if col_pago in df_filtrado.columns:
                     df_filtrado['pago_limpio'] = df_filtrado[col_pago].astype(str).str.lower().str.strip()
                 else:
-                    df_filtrado['pago_limpio'] = 'efectivo'
                     df_filtrado[col_pago] = 'Efectivo'
-
+                    df_filtrado['pago_limpio'] = 'efectivo'
+        
+                # 2. Identificamos de forma flexible la columna de producto
                 col_prod = next((c for c in df_filtrado.columns if 'prod' in c.lower() or 'nombre' in c.lower()), 'producto_id')
-
-                df_filtrado['total_venta'] = pd.to_numeric(df_filtrado.get('total_venta', 0), errors='coerce').fillna(0)
-                df_filtrado['total_costo'] = pd.to_numeric(df_filtrado.get('total_costo', 0), errors='coerce').fillna(0)
-                df_filtrado['ganancia'] = pd.to_numeric(df_filtrado.get('ganancia', 0), errors='coerce').fillna(0)
-
+        
+                # 3. Forzamos que las columnas numéricas existan para evitar el AttributeError
+                for col in ['total_venta', 'total_costo', 'ganancia']:
+                    if col not in df_filtrado.columns:
+                        df_filtrado[col] = 0.0
+        
+                # 4. Las convertimos a numéricas de forma totalmente segura sin usar .get()
+                df_filtrado['total_venta'] = pd.to_numeric(df_filtrado['total_venta'], errors='coerce').fillna(0.0)
+                df_filtrado['total_costo'] = pd.to_numeric(df_filtrado['total_costo'], errors='coerce').fillna(0.0)
+                df_filtrado['ganancia'] = pd.to_numeric(df_filtrado['ganancia'], errors='coerce').fillna(0.0)
+                # =====================================================================
                 # 🧮 CÁLCULO ESTRICTO POR CAJA INDIVIDUAL (Tus 3 tarjetas originales)
                 efectivo_total = df_filtrado[df_filtrado['pago_limpio'].str.contains('efectivo|efec', na=False)]['total_venta'].sum()
                 yape_total = df_filtrado[df_filtrado['pago_limpio'].str.contains('yape', na=False)]['total_venta'].sum()
