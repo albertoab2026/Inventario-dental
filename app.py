@@ -131,14 +131,16 @@ def agregar_producto(nombre, precio_venta, precio_compra, stock, categoria):
     except Exception as e:
         st.error(f"Error: {e}")
         return False
-def registrar_venta(producto_id, cantidad, precio_venta, precio_compra):
+        
+# Cambia la definición de la función así:
+def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago):
     try:
         id_dueno = st.session_state.user_data['usuario_id']
         fecha_utc = datetime.now(timezone.utc).isoformat()
         total_venta = float(precio_venta) * int(cantidad)
         total_costo = float(precio_compra) * int(cantidad)
         ganancia = total_venta - total_costo
-
+        
         tabla_ventas.put_item(Item={
             'usuario_id': id_dueno,
             'Venta_id': str(uuid.uuid4()),
@@ -149,7 +151,8 @@ def registrar_venta(producto_id, cantidad, precio_venta, precio_compra):
             'total_venta': Decimal(str(total_venta)),
             'total_costo': Decimal(str(total_costo)),
             'ganancia': Decimal(str(ganancia)),
-            'fecha': fecha_utc
+            'fecha': fecha_utc,
+            'pago': pago  # <--- AGREGA ESTA LÍNEA AQUÍ
         })
         
         response = tabla_productos.get_item(Key={'id_del_dueno': str(id_dueno), 'producto_id': str(producto_id)})
@@ -493,14 +496,17 @@ elif menu == "Ventas":
                     ok = True
                     items_guardar = [item.copy() for item in st.session_state.carrito]
                     
-                    for item in st.session_state.carrito:
-                        try:
-                            res = registrar_venta(
-                                producto_id=item['producto_id'],
-                                cantidad=int(item['cantidad']),
-                                precio_venta=float(item['precio_venta']),
-                                precio_compra=float(item['precio_compra'])
-                            )
+                # Dentro del bloque for item in st.session_state.carrito:
+                for item in st.session_state.carrito:
+                    try:
+                        res = registrar_venta(
+                            producto_id=item['producto_id'],
+                            cantidad=int(item['cantidad']),
+                            precio_venta=float(item['precio_venta']),
+                            precio_compra=float(item['precio_compra']),
+                            pago=metodo_pago  # <--- AGREGA ESTO AQUÍ
+                        )
+                        # ... resto del código
                             if res is False:
                                 ok = False
                                 break
