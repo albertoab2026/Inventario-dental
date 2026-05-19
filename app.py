@@ -702,7 +702,7 @@ elif menu == "Reportes":
         if df_filtrado.empty:
             st.warning(f"No hay ventas para el día {fecha_busqueda_str}.")
         else:
-            # 3. Desglose seguro
+            # 3. Desglose usando nombre de columna sin espacios (total_venta_num)
             filas = []
             for _, fila in df_filtrado.iterrows():
                 items = fila.get('items', [])
@@ -716,22 +716,24 @@ elif menu == "Reportes":
                         'Hora': fila['Hora'],
                         'Producto': mapa_productos.get(item.get('producto_id'), 'Desconocido'),
                         'Cantidad': cant,
-                        'Total Venta': cant * precio
+                        'total_venta_num': cant * precio # Nombre seguro
                     })
             
             df_final = pd.DataFrame(filas)
             
-            # 4. Asegurar existencia de la columna antes de ordenar
+            # 4. Ordenar de forma segura
             if 'fecha_sort' in df_final.columns:
                 df_final = df_final.sort_values(by='fecha_sort', ascending=False)
             
-            # 5. Mostrar
-            st.metric("Ingreso Total del día", f"S/{df_final['Total Venta'].sum():.2f}")
+            # 5. Mostrar usando el nombre seguro
+            total_del_dia = df_final['total_venta_num'].sum()
+            st.metric("Ingreso Total del día", f"S/{total_del_dia:.2f}")
             
-            # Eliminamos fecha_sort solo al final, antes de mostrar la tabla
-            cols_a_mostrar = [c for c in df_final.columns if c != 'fecha_sort']
+            # Renombramos solo para la visualización final
+            vista_tabla = df_final.rename(columns={'total_venta_num': 'Total Venta'}).drop(columns=['fecha_sort'])
+            
             st.dataframe(
-                df_final[cols_a_mostrar], 
+                vista_tabla, 
                 use_container_width=True, 
                 height=400
             )
