@@ -677,81 +677,63 @@ elif menu == "Reportes":
     ventas_raw = obtener_ventas()
     productos_raw = obtener_productos()
     
+    # Mapa de productos
     mapa_productos = {p['producto_id']: p['nombre'] for p in productos_raw if 'producto_id' in p} if productos_raw else {}
     
     if not ventas_raw:
-        st.info("💡 Aún no se han registrado ventas en este comercio.")
+        st.info("💡 Aún no hay ventas registradas.")
     else:
         import pandas as pd
         import datetime
         
-        # 1. Carga y Normalización Horaria
-        df_base = pd.DataFrame(ventas_raw)
-        df_base['fecha_dt'] = pd.to_datetime(df_base['fecha'], errors='coerce')
-        # Restamos 5 horas para Perú (GMT-5)
-        df_base['fecha_peru'] = df_base['fecha_dt'].apply(lambda x: x - datetime.timedelta(hours=5) if pd.notnull(x) else x)
+        df = pd.DataFrame(ventas_raw)
         
-        df_base['Hora'] = df_base['fecha_peru'].dt.strftime('%H:%M:%S').fillna("00:00:00")
-        df_base['Fecha_Corta'] = df_base['fecha_peru'].dt.strftime('%Y-%m-%d').fillna("⚠️ Sin Fecha")
+        # 1. Normalización de fecha (convertimos a hora local Perú)
+        df['fecha_dt'] = pd.to_datetime(df['fecha'], errors='coerce')
+        # Restamos 5 horas para ajustar UTC a Perú
+        df['fecha_peru'] = df['fecha_dt'].apply(lambda x: x - datetime.timedelta(hours=5) if pd.notnull(x) else x)
+        
+        df['Hora'] = df['fecha_peru'].dt.strftime('%H:%M:%S')
+        df['Fecha_Corta'] = df['fecha_peru'].dt.strftime('%Y-%m-%d')
 
         # 2. Selector de fecha
-        st.markdown("### 🔍 Buscar Reporte Diario")
-        hoy_peru = (datetime.datetime.now() - datetime.timedelta(hours=5)).date()
-        fecha_busqueda = st.date_input("Selecciona el día que deseas auditar:", hoy_peru)
+        fecha_busqueda = st.date_input("Selecciona el día a auditar:", datetime.datetime.now().date())
         fecha_busqueda_str = fecha_busqueda.strftime('%Y-%m-%d')
-            
-        df_fecha_filtrado = df_base[df_base['Fecha_Corta'] == fecha_busqueda_str].copy()
-
-        if df_fecha_filtrado.empty:
-            st.warning(f"⚠️ No hay ventas registradas para el {fecha_busqueda_str}.")
+        
+        # Filtrar
+        df_filtrado = df[df['Fecha_Corta'] == fecha_busqueda_str].copy()
+        
+        if df_filtrado.empty:
+            st.warning(f"No hay ventas para el día {fecha_busqueda_str}.")
         else:
-            # 3. Desglose de Items
-            filas_desglosadas = []
-            for _, fila in df_fecha_filtrado.iterrows():
+            # 3. Desglose de ítems con manejo de errores
+            filas = []
+            for _, fila in df_filtrado.iterrows():
                 items = fila.get('items', [])
                 if not isinstance(items, list): items = []
                 for item in items:
                     cant = float(item.get('cantidad', 0))
-                    p_v = float(item.get('precio_venta', 0))
-                    p_c = float(item.get('precio_compra', 0))
+                    precio = float(item.get('precio_venta', 0))
                     
-                    filas_desglosadas.append({
-                        'Fecha_Orden': fila['fecha_peru'],
+                    filas.append({
+                        'fecha_sort': fila['fecha_peru'], # Se crea aquí
                         'Hora': fila['Hora'],
                         'Producto': mapa_productos.get(item.get('producto_id'), 'Desconocido'),
-                        'Cantidad': int(cant),
-                        'Pago': fila.get('pago', 'Efectivo'),
-                        'Total Venta': cant * p_v,
-                        'Ganancia': (cant * p_v) - (cant * p_c)
+                        'Cantidad': cant,
+                        'Total Venta': cant * precio
                     })
             
-            df_final = pd.DataFrame(filas_desglosadas)
-            # ORDENAR: Lo más reciente primero
-            df_final = df_final.sort_values(by='Fecha_Orden', ascending=False)
+            df_final = pd.DataFrame(filas)
             
-            # 4. Cálculos Financieros
-            ingreso_total = df_final['Total Venta'].sum()
-            ganancia_neta = df_final['Ganancia'].sum()
+            # 4. Ordenar y mostrar
+            df_final = df_final.sort_values(by='fecha_sort', ascending=False)
             
-            st.markdown("### 📈 Rendimiento Financiero")
-            m1, m2, m3 = st.columns(3)
-            m1.metric("Ingreso Total", f"S/{ingreso_total:.2f}")
-            m2.metric("Inversión", f"S/{(ingreso_total - ganancia_neta):.2f}")
-            m3.metric("GANANCIA REAL NETO 💰", f"S/{ganancia_neta:.2f}")
-
-            # 5. Distribución de Caja
-            df_final['Pago_Limpio'] = df_final['Pago'].astype(str).str.lower()
-            efectivo = df_final[df_final['Pago_Limpio'].str.contains('efec', na=False)]['Total Venta'].sum()
-            yape = df_final[df_final['Pago_Limpio'].str.contains('yape', na=False)]['Total Venta'].sum()
-            plin = df_final[df_final['Pago_Limpio'].str.contains('plin', na=False)]['Total Venta'].sum()
-
-            st.markdown("### 💵 Distribución de Caja")
-            c1, c2, c3 = st.columns(3)
-            c1.info(f"💵 Efectivo: S/{efectivo:.2f}")
-            c2.success(f"📱 Yape: S/{yape:.2f}")
-            c3.error(f"🔮 Plin: S/{plin:.2f}")
-
-            # 6. Tabla Visual
-            st.markdown("### 📋 Detalle de lo Vendido")
-            st.dataframe(df_final.drop(columns=['Fecha_Orden', 'Pago_Limpio']), 
-                         use_container_width=True, max_height=400)
+            # Mostrar métricas
+            st.metric("Ingreso Total del día", f"S/{df_final['Total Venta'].sum():.2f}")
+            
+            # Tabla con altura limitada (max_height) para que no sea infinita
+            st.dataframe(
+                df_final.drop(columns=['fecha_sort']), 
+                use_container_width=True, 
+                height=400
+            )
