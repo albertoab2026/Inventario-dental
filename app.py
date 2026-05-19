@@ -387,7 +387,7 @@ elif menu == "Ventas":
                     if busqueda_v.lower() in prod.get('nombre', '').lower()
                 ]
 
-    if not productos_mostrar:
+            if not productos_mostrar:
                 st.error("❌ No se encontraron productos con ese nombre.")
             else:
                 st.markdown("---")
@@ -405,7 +405,7 @@ elif menu == "Ventas":
                         p_stock_real = int(prod.get('stock', 0))
                         p_stock_disponible = p_stock_real - cantidad_en_carrito
                         
-                        # 🎨 TARJETA VISUAL DE CADA PRODUCTO (Nota los 4 espacios extra a la derecha)
+                        # 🎨 TARJETA VISUAL DE CADA PRODUCTO
                         with st.container(border=True):
                             c_info, c_cant, c_btn = st.columns([2.2, 1.1, 1.2])
                             
