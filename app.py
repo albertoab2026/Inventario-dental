@@ -450,22 +450,32 @@ elif menu == "Ventas":
             
             if st.session_state.carrito:
                 total_venta_bruto = 0
-                for item in st.session_state.carrito:
-                    total_venta_bruto += float(item['precio_venta']) * int(item['cantidad'])
                 
-                # ... (resto de tu lógica de visualización del carrito)
+                # Mostrar items en el carrito con botón de eliminar
+                for index, item in enumerate(st.session_state.carrito):
+                    subtotal = float(item['precio_venta']) * int(item['cantidad'])
+                    total_venta_bruto += subtotal
+                    
+                    c1, c2 = st.columns([4, 1])
+                    with c1:
+                        st.markdown(f"**{item['nombre']}** - {item['cantidad']} x S/{item['precio_venta']:.2f}")
+                    with c2:
+                        if st.button("🗑️", key=f"del_{index}"):
+                            st.session_state.carrito.pop(index)
+                            st.rerun()
+
+                st.markdown("---")
+                descuento = st.number_input("🎁 Descuento (S/):", min_value=0.0, value=0.0)
+                total_venta_neto = round(total_venta_bruto - descuento, 2)
+                st.markdown(f"### Total a pagar: S/{total_venta_neto:.2f}")
                 
                 metodo_pago = st.radio("Forma de Pago:", ["💵 Efectivo", "📱 Yape", "💳 Plin"], horizontal=True)
-                
-                # Campos de cliente
                 w_cliente_nombre = st.text_input("Nombre Cliente:", key="w_cli_nom")
                 w_cliente_celular = st.text_input("Celular:", key="w_cli_cel")
 
                 if st.button("⚡ Finalizar y Registrar Venta", type="primary", use_container_width=True):
                     ok = True
-                    items_guardar = [item.copy() for item in st.session_state.carrito]
-                    
-                    for item in items_guardar:
+                    for item in st.session_state.carrito:
                         try:
                             res = registrar_venta(
                                 producto_id=item['producto_id'],
@@ -474,21 +484,17 @@ elif menu == "Ventas":
                                 precio_compra=float(item['precio_compra']),
                                 pago=metodo_pago
                             )
-                            if res is False:
-                                ok = False
-                                break
+                            if res is False: ok = False
                         except Exception as e:
-                            st.error(f"Error: {e}")
-                            ok = False
-                            break
-
+                            st.error(f"Error: {e}"); ok = False
+                    
                     if ok:
                         st.session_state.carrito = []
                         st.success("🎉 Venta procesada con éxito.")
                         st.balloons()
                         st.rerun()
             else:
-                st.info("🛒 El carrito está vacío. Añade productos.")
+                st.info("🛒 El carrito está vacío. ¡Añade productos del catálogo!")
         # =====================================================================
         # 🏢 SECCIÓN: COMPROBANTE DIGITAL AUTO-GENERADO CON DESCUENTO REFLEJADO
         # =====================================================================
