@@ -370,7 +370,6 @@ elif menu == "Ventas":
         col1, col2 = st.columns([1.8, 1.2])
         with col1:
             st.subheader("Seleccionar Productos")
-            
             busqueda_v = st.text_input("🔍 Buscar producto por nombre:", key="buscar_ventas", placeholder="Escriba aquí para filtrar...")
 
             if busqueda_v.strip() == "":
@@ -398,18 +397,14 @@ elif menu == "Ventas":
                             col_a, col_b, col_c = st.columns([2.5, 1.2, 1.3])
                             with col_a:
                                 if p_stock_disponible <= 0:
-                                    st.write(f"**{p_nombre}**\nS/{p_precio_venta:.2f} | 🟡 Agotado en Carrito")
-                                elif p_stock_real <= 0:
-                                    st.write(f"**{p_nombre}**\nS/{p_precio_venta:.2f} | 🔴 Sin Stock")
+                                    st.write(f"**{p_nombre}**\nS/{p_precio_venta:.2f} | 🟡 Agotado")
                                 else:
                                     st.write(f"**{p_nombre}**\nS/{p_precio_venta:.2f} | 🟢 Stock: {p_stock_disponible}")
                             with col_b:
-                                # Usamos una clave limpia única por producto para que no se duplique en pantalla
                                 qty = st.number_input("Cant", min_value=0, max_value=max(0, p_stock_disponible), key=f"input_qty_{p_id}", label_visibility="collapsed")
                             with col_c:
                                 boton_bloqueado = p_stock_disponible <= 0
                                 
-                                # 🧠 LÓGICA SEGURA: Añade al carrito y limpia el buscador al mismo tiempo
                                 def procesar_compra(id_prod, nombre_prod, precio_v, precio_c, cantidad_solicitada, stock_m):
                                     if cantidad_solicitada > 0:
                                         encontrado = False
@@ -427,10 +422,8 @@ elif menu == "Ventas":
                                                 'cantidad': cantidad_solicitada,
                                                 'stock_max': stock_m
                                             })
-                                        # Recién cuando el producto está seguro en el carrito, limpiamos el buscador
                                         st.session_state["buscar_ventas"] = ""
 
-                                # Pasamos los datos ordenados usando args=
                                 st.button(
                                     "Agregar", 
                                     key=f"btn_add_{p_id}", 
@@ -467,9 +460,6 @@ elif menu == "Ventas":
                 ganancia_neto = round(total_venta_neto - total_costo, 2)
 
                 st.markdown(f"### Total Venta: S/{total_venta_neto:.2f}")
-                if descuento > 0:
-                    st.caption(f"*(Precio original: S/{total_venta_bruto:.2f} | Ahorro: S/{descuento:.2f})*")
-
                 st.markdown(f"### Ganancia: S/{ganancia_neto:.2f}")
                 metodo_pago = st.radio("Forma de Pago:", ["💵 Efectivo", "📱 Yape", "💳 Plin"], horizontal=True)
 
@@ -480,7 +470,7 @@ elif menu == "Ventas":
                         total_c = round(float(item['precio_compra']) * int(item['cantidad']), 2)
                         ganancia_v = round(total_v - total_c, 2)
 
-                        # 🎯 CORRECCIÓN AQUÍ: Llamada limpia a la función con paréntesis normales
+                        # 🚀 LLAMADA CORREGIDA SIN LLAVES RARAS NI CORCHETES MAL PUESTOS
                         if not registrar_venta(
                             producto_id=item['producto_id'],
                             cantidad=int(item['cantidad']),
@@ -503,7 +493,6 @@ elif menu == "Ventas":
                     st.rerun()
             else:
                 st.info("Carrito vacío")
-
 
 # --- PÁGINA REPORTES (Versión Comercial Blindada de Costo Cero) ---
 elif menu == "Reportes":
