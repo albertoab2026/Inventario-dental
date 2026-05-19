@@ -677,6 +677,7 @@ elif menu == "Reportes":
     ventas_raw = obtener_ventas()
     productos_raw = obtener_productos()
     
+    # Mapa de productos seguro
     mapa_productos = {p['producto_id']: p['nombre'] for p in productos_raw if 'producto_id' in p} if productos_raw else {}
     
     if not ventas_raw:
@@ -687,11 +688,15 @@ elif menu == "Reportes":
         
         df = pd.DataFrame(ventas_raw)
         
-        # 1. Normalización de fecha a Perú
-        df['fecha_dt'] = pd.to_datetime(df['fecha'], errors='coerce')
-        df['fecha_peru'] = df['fecha_dt'].apply(lambda x: x - datetime.timedelta(hours=5) if pd.notnull(x) else x)
-        df['Hora'] = df['fecha_peru'].dt.strftime('%H:%M:%S')
-        df['Fecha_Corta'] = df['fecha_peru'].dt.strftime('%Y-%m-%d')
+        # 1. Normalización de fecha a Perú (Garantizamos que la columna fecha exista)
+        if 'fecha' in df.columns:
+            df['fecha_dt'] = pd.to_datetime(df['fecha'], errors='coerce')
+            df['fecha_peru'] = df['fecha_dt'].apply(lambda x: x - datetime.timedelta(hours=5) if pd.notnull(x) else x)
+            df['Hora'] = df['fecha_peru'].dt.strftime('%H:%M:%S')
+            df['Fecha_Corta'] = df['fecha_peru'].dt.strftime('%Y-%m-%d')
+        else:
+            st.error("Error: La columna 'fecha' no se encontró en los datos.")
+            st.stop()
 
         # 2. Selector de fecha
         fecha_busqueda = st.date_input("Selecciona el día a auditar:", datetime.datetime.now().date())
@@ -702,7 +707,7 @@ elif menu == "Reportes":
         if df_filtrado.empty:
             st.warning(f"No hay ventas para el día {fecha_busqueda_str}.")
         else:
-            # 3. Desglose usando nombre de columna sin espacios (total_venta_num)
+            # 3. Desglose seguro usando nombres internos sin espacios
             filas = []
             for _, fila in df_filtrado.iterrows():
                 items = fila.get('items', [])
@@ -716,24 +721,27 @@ elif menu == "Reportes":
                         'Hora': fila['Hora'],
                         'Producto': mapa_productos.get(item.get('producto_id'), 'Desconocido'),
                         'Cantidad': cant,
-                        'total_venta_num': cant * precio # Nombre seguro
+                        'total_venta_final': cant * precio 
                     })
             
             df_final = pd.DataFrame(filas)
             
-            # 4. Ordenar de forma segura
+            # 4. Ordenar y calcular de forma segura
             if 'fecha_sort' in df_final.columns:
                 df_final = df_final.sort_values(by='fecha_sort', ascending=False)
             
-            # 5. Mostrar usando el nombre seguro
-            total_del_dia = df_final['total_venta_num'].sum()
-            st.metric("Ingreso Total del día", f"S/{total_del_dia:.2f}")
+            # Cálculo seguro comprobando si la columna existe
+            if 'total_venta_final' in df_final.columns:
+                total_del_dia = df_final['total_venta_final'].sum()
+                st.metric("Ingreso Total del día", f"S/{total_del_dia:.2f}")
+            else:
+                st.metric("Ingreso Total del día", "S/0.00")
             
-            # Renombramos solo para la visualización final
-            vista_tabla = df_final.rename(columns={'total_venta_num': 'Total Venta'}).drop(columns=['fecha_sort'])
-            
-            st.dataframe(
-                vista_tabla, 
-                use_container_width=True, 
-                height=400
-            )
+            # 5. Visualización final: Renombramos solo para mostrar
+            if not df_final.empty:
+                vista_tabla = df_final.rename(columns={'total_venta_final': 'Total Venta'}).drop(columns=['fecha_sort'], errors='ignore')
+                st.dataframe(
+                    vista_tabla, 
+                    use_container_width=True, 
+                    height=400 # Altura fija para que no sea infinito
+                )
