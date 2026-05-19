@@ -466,19 +466,14 @@ elif menu == "Ventas":
                 if st.button("Finalizar Venta", type="primary", use_container_width=True):
                     ok = True
                     
-                    # 🎯 CAPTURAMOS EL USUARIO CORRECTO PARA TU CLAVE DE PARTICIÓN
-                    # Si st.session_state tiene 'tenant_id' o 'username', lo usamos; de lo contrario por defecto LAB_BALLARTA
-                    u_id = st.session_state.get("tenant_id", st.session_state.get("username", "LAB_BALLARTA"))
-                    
                     for item in st.session_state.carrito:
                         total_v = round(float(item['precio_venta']) * int(item['cantidad']), 2)
                         total_c = round(float(item['precio_compra']) * int(item['cantidad']), 2)
                         ganancia_v = round(total_v - total_c, 2)
 
-                        # Ejecución directa y limpia usando 'usuario_id' como exige DynamoDB
+                        # 🚀 LLAMADA TOTALMENTE LIMPIA: Sin heredar inquilinos externos
                         try:
                             res = registrar_venta(
-                                usuario_id=u_id,
                                 producto_id=item['producto_id'],
                                 cantidad=int(item['cantidad']),
                                 total_venta=total_v,
@@ -496,15 +491,9 @@ elif menu == "Ventas":
 
                     if ok:
                         st.session_state.carrito = []
-                        st.success("✅ Venta registrada con éxito en DynamoDB")
+                        st.success("✅ Venta registrada con éxito")
                         st.balloons()
                         st.rerun()
-
-                if st.button("Vaciar Carrito", use_container_width=True):
-                    st.session_state.carrito = []
-                    st.rerun()
-            else:
-                st.info("Carrito vacío")
 
 # --- PÁGINA REPORTES (Versión Comercial Blindada de Costo Cero) ---
 elif menu == "Reportes":
