@@ -371,7 +371,6 @@ elif menu == "Ventas":
         with col1:
             st.subheader("Seleccionar Productos")
             
-            # Buscador limpio y estándar con su key original
             busqueda_v = st.text_input("🔍 Buscar producto por nombre:", key="buscar_ventas", placeholder="Escriba aquí para filtrar...")
 
             if busqueda_v.strip() == "":
@@ -392,7 +391,6 @@ elif menu == "Ventas":
                         p_precio_compra = float(prod.get('precio_compra', 0.0))
                         
                         cantidad_en_carrito = sum(int(item['cantidad']) for item in st.session_state.carrito if item['producto_id'] == p_id)
-                        
                         p_stock_real = int(prod.get('stock', 0))
                         p_stock_disponible = p_stock_real - cantidad_en_carrito
 
@@ -406,41 +404,48 @@ elif menu == "Ventas":
                                 else:
                                     st.write(f"**{p_nombre}**\nS/{p_precio_venta:.2f} | 🟢 Stock: {p_stock_disponible}")
                             with col_b:
-                                qty = st.number_input("Cant", min_value=0, max_value=max(0, p_stock_disponible), key=f"qty_{p_id}", label_visibility="collapsed")
+                                # Usamos una clave limpia única por producto para que no se duplique en pantalla
+                                qty = st.number_input("Cant", min_value=0, max_value=max(0, p_stock_disponible), key=f"input_qty_{p_id}", label_visibility="collapsed")
                             with col_c:
                                 boton_bloqueado = p_stock_disponible <= 0
                                 
-                                # 🧠 Función rápida que limpia el buscador al hacer click antes del rerun
-                                def limpiar_buscador():
-                                    st.session_state["buscar_ventas"] = ""
-
-                                if st.button("Agregar", key=f"add_{p_id}", use_container_width=True, disabled=boton_bloqueado, on_click=limpiar_buscador):
-                                    if qty > 0:
+                                # 🧠 LÓGICA SEGURA: Añade al carrito y limpia el buscador al mismo tiempo
+                                def procesar_compra(id_prod, nombre_prod, precio_v, precio_c, cantidad_solicitada, stock_m):
+                                    if cantidad_solicitada > 0:
                                         encontrado = False
                                         for item in st.session_state.carrito:
-                                            if item['producto_id'] == p_id:
-                                                item['cantidad'] = int(item['cantidad']) + qty
+                                            if item['producto_id'] == id_prod:
+                                                item['cantidad'] = int(item['cantidad']) + cantidad_solicitada
                                                 encontrado = True
                                                 break
                                         if not encontrado:
                                             st.session_state.carrito.append({
-                                                'producto_id': p_id,
-                                                'nombre': p_nombre,
-                                                'precio_venta': p_precio_venta,
-                                                'precio_compra': p_precio_compra,
-                                                'cantidad': qty,
-                                                'stock_max': p_stock_real
+                                                'producto_id': id_prod,
+                                                'nombre': nombre_prod,
+                                                'precio_venta': precio_v,
+                                                'precio_compra': precio_c,
+                                                'cantidad': cantidad_solicitada,
+                                                'stock_max': stock_m
                                             })
-                                        st.rerun()
+                                        # Recién cuando el producto está seguro en el carrito, limpiamos el buscador
+                                        st.session_state["buscar_ventas"] = ""
 
-                                        
+                                # Pasamos los datos ordenados usando args=
+                                st.button(
+                                    "Agregar", 
+                                    key=f"btn_add_{p_id}", 
+                                    use_container_width=True, 
+                                    disabled=boton_bloqueado, 
+                                    on_click=procesar_compra,
+                                    args=(p_id, p_nombre, p_precio_venta, p_precio_compra, qty, p_stock_real)
+                                )
+
         with col2:
             st.subheader("Carrito")
             if st.session_state.carrito:
                 total_venta_bruto = 0
                 total_costo = 0
                 
-                # Caja de scroll para listas gigantes
                 with st.container(height=300):
                     for index, item in enumerate(st.session_state.carrito):
                         subtotal_venta = float(item['precio_venta']) * int(item['cantidad'])
@@ -450,81 +455,54 @@ elif menu == "Ventas":
                         
                         c_prod, c_del = st.columns([3.8, 1.2])
                         with c_prod:
-                            st.write(f"**({item['cantidad']})** {item['nombre']}\nS/{subtotal_venta:.2f}")
+                            st.write(f"**({item['cantidad']})** {item['nombre']} \n S/{subtotal_venta:.2f}")
                         with c_del:
-                            if st.button("🗑️", key=f"del_cart_{item['producto_id']}_{index}", type="secondary"):
+                            if st.button("🗑️", key=f"del_cart_{item['producto_id']}_{index}"):
                                 st.session_state.carrito.pop(index)
                                 st.rerun()
 
                 st.markdown("---")
-                
-                descuento = st.number_input("🎁 Aplicar Descuento (S/):", min_value=0.0, max_value=total_venta_bruto, value=0.0, step=0.10, key="descuento_venta")
-                
+                descuento = st.number_input("🎁 Aplicar Descuento (S/):", min_value=0.0, value=0.0, step=0.50, key="desc_global")
                 total_venta_neto = round(total_venta_bruto - descuento, 2)
-                ganancia_neta = round(total_venta_neto - total_costo, 2)
+                ganancia_neto = round(total_venta_neto - total_costo, 2)
 
                 st.markdown(f"### Total Venta: S/{total_venta_neto:.2f}")
                 if descuento > 0:
                     st.caption(f"*(Precio original: S/{total_venta_bruto:.2f} | Ahorro: S/{descuento:.2f})*")
-                st.markdown(f"### Ganancia: S/{ganancia_neta:.2f}")
 
-                # Métodos de pago con círculos coloridos
-                metodo_pago = st.radio(
-                    "Forma de Pago:", 
-                    ["💵 Efectivo", "🟣 Yape", "🔵 Plin"], 
-                    horizontal=True
-                )
+                st.markdown(f"### Ganancia: S/{ganancia_neto:.2f}")
+                metodo_pago = st.radio("Forma de Pago:", ["💵 Efectivo", "📱 Yape", "💳 Plin"], horizontal=True)
 
                 if st.button("Finalizar Venta", type="primary", use_container_width=True):
-                    conteo_cantidades = {}
-                    limites_stock = {}
-                    
+                    ok = True
                     for item in st.session_state.carrito:
-                        p_id = item['producto_id']
-                        conteo_cantidades[p_id] = conteo_cantidades.get(p_id, 0) + int(item['cantidad'])
-                        limites_stock[p_id] = (item['nombre'], int(item.get('stock_max', 9999)))
-                    
-                    stock_superado = False
-                    for p_id, cant_total in conteo_cantidades.items():
-                        nombre_p, s_max = limites_stock[p_id]
-                        if cant_total > s_max:
-                            st.error(f"❌ Stock insuficiente para '{nombre_p}'. Intentas vender {cant_total} unidades pero solo quedan {s_max} en stock.")
-                            stock_superado = True
-                    
-                    if not stock_superado:
-                        ok = True
-                        factor_descuento = (total_venta_neto / total_venta_bruto) if total_venta_bruto > 0 else 1.0
+                        total_v = round(float(item['precio_venta']) * int(item['cantidad']), 2)
+                        total_c = round(float(item['precio_compra']) * int(item['cantidad']), 2)
+                        ganancia_v = round(total_v - total_c, 2)
 
-                        for item in st.session_state.carrito:
-                            sub_v_bruto = float(item['precio_venta']) * int(item['cantidad'])
-                            total_v_item = round(sub_v_bruto * factor_descuento, 2)
-                            total_c_item = round(float(item['precio_compra']) * int(item['cantidad']), 2)
-                            ganancia_v_item = round(total_v_item - total_c_item, 2)
+                        if not registrar_venta(
+                            producto_id=item['producto_id'],
+                            cantidad=int(item['cantidad']),
+                            total_venta=total_v,
+                            total_costo=total_c,
+                            ganancia=ganancia_v,
+                            metodo_pago=metodo_pago
+                        ):
+                            ok = False
+                            break
 
-                            metodo_limpio = metodo_pago.split()[-1]
-
-                            if not registrar_venta(
-                                producto_id=item['producto_id'],
-                                cantidad=int(item['cantidad']),
-                                total_venta=total_v_item,
-                                total_costo=total_c_item,
-                                ganancia=ganancia_v_item,
-                                metodo_pago=metodo_limpio
-                            ):
-                                ok = False
-                                break
-
-                        if ok:
-                            st.session_state.carrito = []
-                            st.success("✅ Venta registrada con éxito")
-                            st.balloons()
-                            st.rerun()
+                    if ok:
+                        st.session_state.carrito = []
+                        st.success("✅ Venta registrada con éxito")
+                        st.balloons()
+                        st.rerun()
 
                 if st.button("Vaciar Carrito", use_container_width=True):
                     st.session_state.carrito = []
                     st.rerun()
             else:
                 st.info("Carrito vacío")
+
 # --- PÁGINA REPORTES (Versión Comercial Blindada de Costo Cero) ---
 elif menu == "Reportes":
     st.title("📊 Centro de Analítica - NEXUS")
