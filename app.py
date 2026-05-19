@@ -683,42 +683,42 @@ elif menu == "Reportes":
         import pandas as pd
         df = pd.DataFrame(ventas_raw)
         
-        # 1. Normalizar fecha (Zona horaria Lima)
+        # 1. Asegurar que las columnas básicas sean numéricas para evitar errores de tipo
+        # Convertimos a numérico, si falla lo pone en 0
+        df['total_venta'] = pd.to_numeric(df.get('total_venta', 0), errors='coerce').fillna(0)
+        df['cantidad'] = pd.to_numeric(df.get('cantidad', 1), errors='coerce').fillna(1)
+        
+        # 2. Normalizar fecha
         df['fecha_dt'] = pd.to_datetime(df['fecha']).dt.tz_convert('America/Lima')
         df['Fecha_Corta'] = df['fecha_dt'].dt.date
         df['Hora'] = df['fecha_dt'].dt.strftime('%H:%M:%S')
         
-        # 2. Selector de fecha
         fecha_busqueda = st.date_input("Selecciona el día:")
-        
-        # 3. Filtrar
         df_filtrado = df[df['Fecha_Corta'] == fecha_busqueda].copy()
         
         if df_filtrado.empty:
             st.warning(f"No hay ventas para {fecha_busqueda}.")
         else:
-            # 4. Mapeo de productos y Cálculos de Ganancia
+            # 3. Mapeo seguro con valores por defecto
             mapa_productos = {p['producto_id']: p['nombre'] for p in productos_raw} if productos_raw else {}
             mapa_costos = {p['producto_id']: float(p.get('precio_compra', 0)) for p in productos_raw} if productos_raw else {}
             
             df_filtrado['Producto'] = df_filtrado['producto_id'].map(mapa_productos).fillna(df_filtrado['producto_id'])
             
-            # Cálculo de Ganancia Real
-            df_filtrado['costo_unitario'] = df_filtrado['producto_id'].map(mapa_costos).fillna(0)
-            df_filtrado['ganancia_real'] = df_filtrado['total_venta'] - (df_filtrado['cantidad'] * df_filtrado['costo_unitario'])
+            # Cálculo seguro de costo unitario
+            df_filtrado['costo_unitario'] = df_filtrado['producto_id'].map(mapa_costos).fillna(0.0)
             
-            # Ordenar: Lo más reciente primero
-            df_filtrado = df_filtrado.sort_values(by='fecha_dt', ascending=False)
+            # Cálculo de ganancia con conversión explícita a float
+            df_filtrado['ganancia_real'] = df_filtrado['total_venta'].astype(float) - (df_filtrado['cantidad'].astype(float) * df_filtrado['costo_unitario'].astype(float))
             
-            # 5. Métricas Financieras
+            # 4. Métricas seguras
             st.markdown("### 📈 Rendimiento Financiero")
             m1, m2, m3 = st.columns(3)
             m1.metric("Ingreso Total", f"S/{df_filtrado['total_venta'].sum():.2f}")
             m2.metric("Inversión", f"S/{(df_filtrado['cantidad'] * df_filtrado['costo_unitario']).sum():.2f}")
             m3.metric("GANANCIA REAL 💰", f"S/{df_filtrado['ganancia_real'].sum():.2f}")
             
-            # 6. Distribución de Caja (Yape/Plin/Efectivo)
-            # Aseguramos que la columna 'pago' exista, si no, es efectivo por defecto
+            # 5. Distribución de Caja
             if 'pago' not in df_filtrado.columns: df_filtrado['pago'] = 'Efectivo'
             df_filtrado['pago_lower'] = df_filtrado['pago'].astype(str).str.lower()
             
@@ -732,7 +732,5 @@ elif menu == "Reportes":
             c2.success(f"📱 Yape: S/{yape:.2f}")
             c3.error(f"🔮 Plin: S/{plin:.2f}")
             
-            # 7. Tabla Final
-            st.markdown("### 📋 Detalle de Ventas")
-            vista = df_filtrado[['Hora', 'Producto', 'cantidad', 'total_venta', 'ganancia_real', 'pago']]
-            st.dataframe(vista, use_container_width=True, height=400)
+            # 6. Tabla final
+            st.dataframe(df_filtrado[['Hora', 'Producto', 'cantidad', 'total_venta', 'ganancia_real', 'pago']], use_container_width=True)
