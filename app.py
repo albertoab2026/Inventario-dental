@@ -678,7 +678,7 @@ elif menu == "Reportes":
         ventas_raw = obtener_ventas()
         productos_raw = obtener_productos()  # Cargamos productos para traer los nombres reales
         
-        # Creamos el mapa de ID -> Nombre Real
+        # Creamos el mapa de ID -> Nombre Real del Producto
         mapa_productos = {}
         if productos_raw:
             mapa_productos = {p['producto_id']: p['nombre'] for p in productos_raw if 'producto_id' in p}
@@ -696,35 +696,29 @@ elif menu == "Reportes":
             df_base['fecha_dt'] = pd.to_datetime(df_base['fecha'], errors='coerce')
             df_base['fecha_peru'] = df_base['fecha_dt'].apply(lambda x: x - datetime.timedelta(hours=5) if pd.notnull(x) else x)
             
-            # Ordenamos cronológicamente: lo más reciente primero
-            df_base = df_base.sort_values(by='fecha_peru', ascending=False)
-            
             # Creamos las columnas base de tiempo de forma segura en el df principal
             df_base['Hora'] = df_base['fecha_peru'].dt.strftime('%H:%M:%S').fillna("00:00:00")
             df_base['Fecha_Corta'] = df_base['fecha_peru'].dt.strftime('%Y-%m-%d').fillna("⚠️ Sin Fecha")
 
             # =====================================================================
-            # 📅 SECCIÓN: FILTRADO POR RANGO DE FECHAS
+            # 📅 SECCIÓN: BUSCADOR POR FECHA DEL DÍA (Más fácil y limpio)
             # =====================================================================
-            st.markdown("### 🔍 Filtrar Auditoría")
+            st.markdown("### 🔍 Buscar Reporte Diario")
             
-            # Obtenemos el día actual en Perú para los selectores por defecto
+            # Obtenemos el día actual en Perú para el selector por defecto
             hoy_peru = (datetime.datetime.now() - datetime.timedelta(hours=5)).date()
             
-            c_f1, c_f2 = st.columns(2)
-            with c_f1:
-                fecha_inicio = st.date_input("Desde el día:", hoy_peru)
-            with c_f2:
-                fecha_fin = st.date_input("Hasta el día:", hoy_peru)
+            # Selector simplificado de un solo día
+            fecha_busqueda = st.date_input("Selecciona el día que deseas auditar:", hoy_peru)
                 
-            # Aplicamos el filtro de fecha corta en base al rango seleccionado sobre el DataFrame original
-            df_fecha_filtrado = df_base[(df_base['fecha_peru'].dt.date >= fecha_inicio) & (df_base['fecha_peru'].dt.date <= fecha_fin)].copy()
+            # Filtramos el DataFrame base comparando solo el día seleccionado
+            df_fecha_filtrado = df_base[df_base['fecha_peru'].dt.date == fecha_busqueda].copy()
 
             if df_fecha_filtrado.empty:
-                st.warning("⚠️ No se encontraron transacciones registradas para este rango de fechas.")
+                st.warning(f"⚠️ No se encontraron transacciones registradas para el día {fecha_busqueda}.")
             else:
                 # =====================================================================
-                # 🔄 DESGLOSE DE ITEMS SEGÚN TU CONSOLA (¡Aquí se arregla el truco!)
+                # 🔄 DESGLOSE DE ITEMS Y TRADUCCIÓN DE ID A NOMBRE REAL
                 # =====================================================================
                 filas_desglosadas = []
                 
@@ -735,10 +729,11 @@ elif menu == "Reportes":
                         
                     for item in items_lista:
                         p_id = item.get('producto_id', '')
-                        # Cambiamos el código por el nombre real de tu inventario
-                        nombre_producto_real = mapa_productos.get(p_id, f"Código: {p_id[:8]}...")
                         
-                        # Jalamos y calculamos los valores numéricos tal como están organizados en tu consola
+                        # SUSTITUCIÓN: Si el ID está en el inventario, pone el nombre real.
+                        nombre_producto_real = mapa_productos.get(p_id, f"Desconocido ({p_id[:5]})")
+                        
+                        # Extraemos y calculamos valores económicos de forma segura
                         cant = int(item.get('cantidad', 0))
                         p_venta = float(item.get('precio_venta', 0))
                         p_compra = float(item.get('precio_compra', 0))
@@ -750,7 +745,8 @@ elif menu == "Reportes":
                         filas_desglosadas.append({
                             'Fecha_Corta': fila.get('Fecha_Corta'),
                             'Hora': fila.get('Hora'),
-                            'producto_id': nombre_producto_real, # Nombre real mapeado
+                            'fecha_sort': fila.get('fecha_peru'), # Guardamos para ordenar cronológicamente
+                            'producto_id': nombre_producto_real,   # Nombre traducido
                             'cantidad': cant,
                             'pago': fila.get('pago', 'Efectivo'),
                             'total_venta': total_v,
@@ -758,38 +754,18 @@ elif menu == "Reportes":
                             'ganancia': ganancia_v
                         })
                 
-                # Creamos el df_filtrado final con la estructura exacta que tu código original necesita
+                # Creamos el DataFrame final con los datos limpios desglosados
                 df_filtrado = pd.DataFrame(filas_desglosadas)
 
+                # ⏳ ORDENACIÓN ESTRICTA: De la venta más reciente a la más antigua del día
+                df_filtrado = df_filtrado.sort_values(by='fecha_sort', ascending=False)
+
                 # =====================================================================
-                # 💰 NORMALIZACIÓN Y BLINDAJE DE ATRIBUTOS (Solución Definitiva)
+                # 💰 MÉTODOS DE PAGO Y MÉTRICAS (Lógica de negocio uniforme)
                 # =====================================================================
-                # 1. Identificamos de forma flexible la columna de método de pago
-                col_pago = next((c for c in df_fecha_filtrado.columns if 'pago' in c.lower() or 'metodo' in c.lower()), 'pago')
-        
-                if col_pago in df_fecha_filtrado.columns:
-                    df_fecha_filtrado['pago_limpio'] = df_fecha_filtrado[col_pago].astype(str).str.lower().str.strip()
-                else:
-                    df_fecha_filtrado[col_pago] = 'Efectivo'
-                    df_fecha_filtrado['pago_limpio'] = 'efectivo'
-        
-                # 2. Identificamos de forma flexible la columna de producto
-                col_prod = next((c for c in df_fecha_filtrado.columns if 'prod' in c.lower() or 'nombre' in c.lower()), 'producto_id')
-        
-                # 3. Forzamos que las columnas numéricas existan para evitar el AttributeError
-                for col in ['total_venta', 'total_costo', 'ganancia']:
-                    if col not in df_fecha_filtrado.columns:
-                        df_fecha_filtrado[col] = 0.0
-        
-                # 4. Las convertimos a numéricas de forma totalmente segura sin usar .get()
-                df_fecha_filtrado['total_venta'] = pd.to_numeric(df_fecha_filtrado['total_venta'], errors='coerce').fillna(0.0)
-                df_fecha_filtrado['total_costo'] = pd.to_numeric(df_fecha_filtrado['total_costo'], errors='coerce').fillna(0.0)
-                df_fecha_filtrado['ganancia'] = pd.to_numeric(df_fecha_filtrado['ganancia'], errors='coerce').fillna(0.0)
-                
-                # 5. Igualamos para que el resto de tu código que usa df_filtrado funcione perfecto
-                df_filtrado = df_fecha_filtrado
-                # =====================================================================
-                # 🧮 CÁLCULO ESTRICTO POR CAJA INDIVIDUAL (Tus 3 tarjetas originales)
+                df_filtrado['pago_limpio'] = df_filtrado['pago'].astype(str).str.lower().str.strip()
+
+                # CÁLCULO POR CAJA INDIVIDUAL (Tus 3 tarjetas originales)
                 efectivo_total = df_filtrado[df_filtrado['pago_limpio'].str.contains('efectivo|efec', na=False)]['total_venta'].sum()
                 yape_total = df_filtrado[df_filtrado['pago_limpio'].str.contains('yape', na=False)]['total_venta'].sum()
                 plin_total = df_filtrado[df_filtrado['pago_limpio'].str.contains('plin', na=False)]['total_venta'].sum()
@@ -812,7 +788,7 @@ elif menu == "Reportes":
                 else:
                     m3.metric("GANANCIA REAL NETO 🚨", f"S/{ganancia_neta:.2f}", delta="- Pérdida")
 
-                # Desglose físico de las 3 cajas uniformes
+                # Desglose físico de tus 3 cajas uniformes
                 st.markdown("### 💵 Distribución de Caja")
                 c1, c2, c3 = st.columns(3)
                 with c1:
@@ -823,39 +799,33 @@ elif menu == "Reportes":
                     st.error(f"🔮 **Total Plin:**\n\n### S/{plin_total:.2f}")
 
                 # =====================================================================
-                # 📋 TABLA DIARIA Y DESCARGA CONTABLE (.CSV / EXCEL)
+                # 📋 TABLA DIARIA CON SCROLL INTEGRADO (Evita tablas infinitas)
                 # =====================================================================
                 st.markdown("---")
                 st.markdown("### 📋 Detalle de lo Vendido en el Periodo")
                 
-                columnas_vista = ['Hora', col_prod, 'cantidad', col_pago, 'total_venta', 'ganancia']
-                columnas_existentes = [c for c in columnas_vista if c in df_filtrado.columns]
+                # Preparamos una copia visual limpia cambiando los encabezados para el cliente
+                vista_tabla = df_filtrado[['Hora', 'producto_id', 'cantidad', 'pago', 'total_venta', 'ganancia']].copy()
+                vista_tabla.columns = ['Hora', 'Producto', 'Cant', 'Pago', 'Total Venta', 'Ganancia']
                 
-                vista_tabla = df_filtrado[columnas_existentes].copy()
+                # Renderizamos la tabla con altura fija (300px) para activar el scroll interno automático
+                st.dataframe(vista_tabla, use_container_width=True, height=300)
                 
-                dic_nombres = {'Hora': 'Hora', col_prod: 'Producto', 'cantidad': 'Cant', col_pago: 'Pago', 'total_venta': 'Total Venta', 'ganancia': 'Ganancia'}
-                vista_tabla.rename(columns=dic_nombres, inplace=True)
-                
-                # Renderizamos tu tabla en pantalla
-                st.dataframe(vista_tabla.head(20), use_container_width=True)
-                if len(vista_tabla) > 20:
-                    st.caption(f"💡 *Mostrando las últimas 20 de {len(vista_tabla)} ventas. Usa el botón de abajo para bajar el reporte completo.*")
-                
+                # =====================================================================
+                # 📥 AUDITORÍA Y CIERRE DE CAJA (.CSV COMPATIBLE CON EXCEL)
+                # =====================================================================
                 st.markdown("#### 📥 Auditoría y Cierre de Caja")
                 
-                cols_excel_origen = ['Fecha_Corta', 'Hora', col_prod, 'cantidad', col_pago, 'total_venta', 'total_costo', 'ganancia']
-                cols_validas = [c for c in cols_excel_origen if c in df_filtrado.columns]
-                
-                reporte_excel = df_filtrado[cols_validas].copy()
+                reporte_excel = df_filtrado[['Fecha_Corta', 'Hora', 'producto_id', 'cantidad', 'pago', 'total_venta', 'total_costo', 'ganancia']].copy()
                 reporte_excel.columns = ['Fecha', 'Hora', 'Producto', 'Cantidad', 'Método Pago', 'Venta S/.', 'Costo S/.', 'Ganancia S/.']
                 
-                # REPARACIÓN DEL EXCEL DESORDENADO: Al usar sep=';' y la codificación utf-8-sig, Excel abrirá las columnas separadas de forma limpia automáticamente
+                # Usamos codificación nativa utf-8-sig y separador ';' para que Excel lo abra perfecto en columnas separadas
                 csv_data = reporte_excel.to_csv(index=False, sep=';').encode('utf-8-sig')
                 
                 st.download_button(
                     label="🍏 Descargar Historial Completo para Excel (.CSV)",
                     data=csv_data,
-                    file_name=f"auditoria_nexus_{fecha_inicio}_al_{fecha_fin}.csv",
+                    file_name=f"auditoria_nexus_{fecha_busqueda}.csv",
                     mime="text/csv",
                     use_container_width=True
                 )
