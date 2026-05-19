@@ -485,9 +485,20 @@ elif menu == "Ventas":
                             break
 
                     if ok:
+                        # 1. Limpiamos el carrito de la memoria
                         st.session_state.carrito = []
-                        st.success("✅ Venta registrada con éxito")
+                        
+                        # 2. Mostramos el mensaje de éxito fijo en pantalla
+                        st.success("🎉 ¡Venta registrada con éxito en DynamoDB!")
+                        
+                        # 3. Lanzamos los globos de celebración
                         st.balloons()
+                        
+                        # 4. Esperamos 3 segundos para que puedas ver la confirmación antes de recargar
+                        import time
+                        time.sleep(3.0)
+                        
+                        # 5. Ahora sí, recargamos la página limpia
                         st.rerun()
 
 # --- PÁGINA REPORTES (Versión Comercial Blindada de Costo Cero) ---
