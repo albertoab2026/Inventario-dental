@@ -425,7 +425,8 @@ elif menu == "Ventas":
                                                 'cantidad': qty,
                                                 'stock_max': p_stock_real
                                             })
-                                        st.session_state.buscar_ventas = ''
+                                        # 🎯 CORRECCIÓN CLAVE: Limpieza usando corchetes en una sola línea continua
+                                        st.session_state['buscar_ventas'] = ''
                                         st.rerun()
 
 
