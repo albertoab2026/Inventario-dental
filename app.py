@@ -490,29 +490,29 @@ elif menu == "Ventas":
                                 ok = False
                                 break
                         except Exception as e:
-                            st.error(f"Error: {e}")
+                            st.error(f"Error al registrar: {e}")
                             ok = False
                             break
 
                     if ok:
-                        # 1. Globos de éxito
-                        st.balloons()
-                        st.success("🎉 Venta procesada con éxito.")
+                        import datetime
+                        hora_servidor = datetime.datetime.now()
+                        hora_peru = hora_servidor - datetime.timedelta(hours=5)
+                        fecha_formateada = hora_peru.strftime("%Y-%m-%d %H:%M:%S")
 
-                        # 2. Lógica de Comprobante / WhatsApp
-                        import urllib.parse
-                        mensaje = f"Hola {w_cliente_nombre}, tu compra de S/{total_venta_neto:.2f} fue registrada."
-                        link_wsp = f"https://wa.me/{w_cliente_celular}?text={urllib.parse.quote(mensaje)}"
-                        st.link_button("📲 Enviar Comprobante por WhatsApp", link_wsp)
-
-                        # 3. Guardar estado final
                         st.session_state.ultima_venta = {
+                            "tenant": tenant_actual,
+                            "fecha": fecha_formateada,
+                            "items": items_guardar,
+                            "descuento": descuento,
                             "total": total_venta_neto,
-                            "pago": metodo_pago
+                            "pago": metodo_pago,
+                            "cliente_nom": w_cliente_nombre.strip() if w_cliente_nombre.strip() else "Consumidor Final",
+                            "cliente_cel": w_cliente_celular.strip()
                         }
-                        
-                        # 4. Limpieza y refresco
                         st.session_state.carrito = []
+                        st.success("🎉 Venta procesada con éxito.")
+                        st.balloons()
                         st.rerun()
             else:
                 st.info("🛒 El carrito está vacío. ¡Añade productos del catálogo!")
