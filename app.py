@@ -480,6 +480,7 @@ elif menu == "Ventas":
                         total_c = round(float(item['precio_compra']) * int(item['cantidad']), 2)
                         ganancia_v = round(total_v - total_c, 2)
 
+                        # 🎯 CORRECCIÓN AQUÍ: Llamada limpia a la función con paréntesis normales
                         if not registrar_venta(
                             producto_id=item['producto_id'],
                             cantidad=int(item['cantidad']),
@@ -502,6 +503,7 @@ elif menu == "Ventas":
                     st.rerun()
             else:
                 st.info("Carrito vacío")
+
 
 # --- PÁGINA REPORTES (Versión Comercial Blindada de Costo Cero) ---
 elif menu == "Reportes":
