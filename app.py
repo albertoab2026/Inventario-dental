@@ -359,127 +359,157 @@ if menu == "Productos":
     else:
         st.info("No hay productos. Agrega el primero.")
 
-# --- PÁGINA VENTAS ---
+# --- PÁGINA VENTAS (Diseño Estilo SaaS Comercial) ---
 elif menu == "Ventas":
-    st.title("🛒 Ventas")
+    st.title("🛒 Terminal de Ventas (POS)")
     productos = obtener_productos()
 
     if not productos:
-        st.warning("No tienes productos. Agrega productos primero en la pestaña Productos.")
+        st.warning("⚠️ No tienes productos registrados en el inventario. Agrega algunos primero.")
     else:
-        col1, col2 = st.columns([1.8, 1.2])
-        with col1:
-            st.subheader("Seleccionar Productos")
-            busqueda_v = st.text_input("🔍 Buscar producto por nombre:", key="buscar_ventas", placeholder="Escriba aquí para filtrar...")
+        # Dividimos la pantalla: Izquierda (Productos) | Derecha (Carrito de Compras)
+        col_productos, col_carrito = st.columns([1.7, 1.3])
+        
+        with col_productos:
+            st.markdown("### 🔍 Catálogo de Productos")
+            busqueda_v = st.text_input(
+                "Buscar por nombre:", 
+                key="buscar_ventas", 
+                placeholder="💡 Escribe para filtrar (ej. papa, coca)..."
+            )
 
+            # Si el buscador está vacío, mostramos todos los productos para ahorrar clics (Estilo SaaS)
             if busqueda_v.strip() == "":
-                st.info("💡 Digite el nombre del producto arriba para empezar a vender.")
+                productos_mostrar = productos
             else:
-                productos_filtrados_v = [
+                productos_mostrar = [
                     prod for prod in productos
                     if busqueda_v.lower() in prod.get('nombre', '').lower()
                 ]
 
-                if not productos_filtrados_v:
-                    st.error("❌ No se encontraron productos con ese nombre.")
-                else:
-                    for prod in productos_filtrados_v:
-                        p_id = prod.get('producto_id', 'S/I')
-                        p_nombre = prod.get('nombre', 'Producto sin nombre')
-                        p_precio_venta = float(prod.get('precio_venta', 0.0))
-                        p_precio_compra = float(prod.get('precio_compra', 0.0))
+            if not productos_mostrar:
+                st.error("❌ No se encontraron productos con ese nombre.")
+            else:
+                st.markdown("---")
+                # Iteramos y dibujamos cada producto dentro de una tarjeta visual
+                for prod in productos_mostrar:
+                    p_id = prod.get('producto_id', 'S/I')
+                    p_nombre = prod.get('nombre', 'Producto sin nombre')
+                    p_precio_venta = float(prod.get('precio_venta', 0.0))
+                    p_precio_compra = float(prod.get('precio_compra', 0.0))
+                    
+                    # Control de stock cruzado con el carrito temporal
+                    cantidad_en_carrito = sum(int(item['cantidad']) for item in st.session_state.carrito if item['producto_id'] == p_id)
+                    p_stock_real = int(prod.get('stock', 0))
+                    p_stock_disponible = p_stock_real - cantidad_en_carrito
+                    
+                    # 🎨 CONTENEDOR ESTILO TARJETA PREMIUM
+                    with st.container(border=True):
+                        c_info, c_cant, c_btn = st.columns([2.2, 1.1, 1.2])
                         
-                        cantidad_en_carrito = sum(int(item['cantidad']) for item in st.session_state.carrito if item['producto_id'] == p_id)
-                        p_stock_real = int(prod.get('stock', 0))
-                        p_stock_disponible = p_stock_real - cantidad_en_carrito
-
-                       # 🎨 DIBUJAR EN PANTALLA (Tenga o no tenga stock)
-                        col_a, col_b, col_c = st.columns([2.5, 1.2, 1.3])
-                        with col_a:
-                            # Si ya no queda nada en tienda o todo se subió al carrito temporal
+                        with c_info:
+                            st.markdown(f"**{p_nombre}**")
                             if p_stock_disponible <= 0:
-                                st.write(f"**{p_nombre}**\nS/{p_precio_venta:.2f} | 🟡 Agotado")
+                                st.markdown(f"🔴 **Agotado** · <span style='color:gray;'>S/{p_precio_venta:.2f}</span>", unsafe_allow_html=True)
                             else:
-                                st.write(f"**{p_nombre}**\nS/{p_precio_venta:.2f} | 🟢 Stock: {p_stock_disponible}")
+                                st.markdown(f"🟢 **Stock: {p_stock_disponible}** · **S/{p_precio_venta:.2f}**", unsafe_allow_html=True)
                         
-                        with col_b:
-                            qty = st.number_input("Cant", min_value=0, max_value=max(0, p_stock_disponible), key=f"input_qty_{p_id}", label_visibility="collapsed")
+                        with c_cant:
+                            # Selector numérico compacto e intuitivo
+                            qty = st.number_input(
+                                "Cant", 
+                                min_value=0, 
+                                max_value=max(0, p_stock_disponible), 
+                                key=f"qty_{p_id}", 
+                                label_visibility="collapsed"
+                            )
                         
-                        with col_c:
-                            # Se bloquea el botón si el stock disponible es 0 o menor
-                            boton_bloqueado = p_stock_disponible <= 0
+                        with c_btn:
+                            # Botón adaptativo: deshabilitado si no hay stock
+                            es_invalido = p_stock_disponible <= 0
                             
-                            def procesar_compra(id_prod, nombre_prod, precio_v, precio_c, cantidad_solicitada, stock_m):
-                                if cantidad_solicitada > 0:
-                                    encontrado = False
+                            def agregar_al_carrito_saas(id_p, nom_p, pre_v, pre_c, cant_solicitada, stock_r):
+                                if cant_solicitada > 0:
+                                    existe = False
                                     for item in st.session_state.carrito:
-                                        if item['producto_id'] == id_prod:
-                                            item['cantidad'] = int(item['cantidad']) + cantidad_solicitada
-                                            encontrado = True
+                                        if item['producto_id'] == id_p:
+                                            item['cantidad'] = int(item['cantidad']) + cant_solicitada
+                                            existe = True
                                             break
-                                    if not encontrado:
+                                    if not existe:
                                         st.session_state.carrito.append({
-                                            'producto_id': id_prod,
-                                            'nombre': nombre_prod,
-                                            'precio_venta': precio_v,
-                                            'precio_compra': precio_c,
-                                            'cantidad': cantidad_solicitada,
-                                            'stock_max': stock_m
+                                            'producto_id': id_p,
+                                            'nombre': nom_p,
+                                            'precio_venta': pre_v,
+                                            'precio_compra': pre_c,
+                                            'cantidad': cant_solicitada,
+                                            'stock_max': stock_r
                                         })
+                                    # Limpiamos el input borrando el estado de búsqueda para agilizar el flujo
                                     st.session_state["buscar_ventas"] = ""
 
                             st.button(
-                                "Agregar", 
-                                key=f"btn_add_{p_id}", 
+                                "🛒 Añadir", 
+                                key=f"btn_saas_{p_id}", 
                                 use_container_width=True, 
-                                disabled=boton_bloqueado, 
-                                on_click=procesar_compra,
+                                disabled=es_invalido,
+                                on_click=agregar_al_carrito_saas,
                                 args=(p_id, p_nombre, p_precio_venta, p_precio_compra, qty, p_stock_real)
                             )
 
-        with col2:
-            st.subheader("Carrito")
+        with col_carrito:
+            st.markdown("### 🧾 Resumen de Pedido")
+            
             if st.session_state.carrito:
                 total_venta_bruto = 0
                 total_costo = 0
                 
-                with st.container(height=300):
+                # Caja contenedora con scroll fijo para que el carrito no deforme la pantalla
+                with st.container(height=280, border=True):
                     for index, item in enumerate(st.session_state.carrito):
-                        subtotal_venta = float(item['precio_venta']) * int(item['cantidad'])
-                        subtotal_costo = float(item['precio_compra']) * int(item['cantidad'])
-                        total_venta_bruto += subtotal_venta
-                        total_costo += subtotal_costo
+                        sub_v = float(item['precio_venta']) * int(item['cantidad'])
+                        sub_c = float(item['precio_compra']) * int(item['cantidad'])
+                        total_venta_bruto += sub_v
+                        total_costo += sub_c
                         
-                        c_prod, c_del = st.columns([3.8, 1.2])
-                        with c_prod:
-                            st.write(f"**({item['cantidad']})** {item['nombre']} \n S/{subtotal_venta:.2f}")
-                        with c_del:
-                            if st.button("🗑️", key=f"del_cart_{item['producto_id']}_{index}"):
+                        cc_det, cc_del = st.columns([4.0, 1.0])
+                        with cc_det:
+                            st.markdown(f"**{item['nombre']}** \n*{item['cantidad']} und x S/{item['precio_venta']:.2f}* = **S/{sub_v:.2f}**")
+                        with cc_del:
+                            if st.button("🗑️", key=f"del_saas_{item['producto_id']}_{index}", use_container_width=True):
                                 st.session_state.carrito.pop(index)
                                 st.rerun()
-
+                
                 st.markdown("---")
+                # Sección de totales limpia y destacada
                 descuento = st.number_input("🎁 Aplicar Descuento (S/):", min_value=0.0, value=0.0, step=0.50, key="desc_global")
-                total_venta_neto = round(total_venta_bruto - discount if 'discount' in locals() else total_venta_bruto - descuento, 2)
+                total_venta_neto = round(total_venta_bruto - descuento, 2)
                 ganancia_neto = round(total_venta_neto - total_costo, 2)
 
-                st.markdown(f"### Total Venta: S/{total_venta_neto:.2f}")
-                st.markdown(f"### Ganancia: S/{ganancia_neto:.2f}")
+                # Tarjeta de cobranza llamativa
+                with st.container(border=True):
+                    st.markdown(f"<h3 style='text-align: center; margin:0;'>Total a Cobrar</h3>", unsafe_allow_html=True)
+                    st.markdown(f"<h1 style='text-align: center; color: #2ecc71; margin:0;'>S/{total_venta_neto:.2f}</h1>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='text-align: center; color: gray; margin:0;'>Márgen de ganancia: S/{ganancia_neto:.2f}</p>", unsafe_allow_html=True)
+                
+                st.write("")
                 metodo_pago = st.radio("Forma de Pago:", ["💵 Efectivo", "📱 Yape", "💳 Plin"], horizontal=True)
 
-                if st.button("Finalizar Venta", type="primary", use_container_width=True):
+                if st.button("⚡ Finalizar y Cobrar", type="primary", use_container_width=True):
                     ok = True
-                    
                     for item in st.session_state.carrito:
-                        # 🚀 LLAMADA EXACTA CON LOS 4 PARAMETROS REQUERIDOS
+                        total_v = round(float(item['precio_venta']) * int(item['cantidad']), 2)
+                        total_c = round(float(item['precio_compra']) * int(item['cantidad']), 2)
+                        ganancia_v = round(total_v - total_c, 2)
+
                         try:
                             res = registrar_venta(
-                                producto_id=item['producto_id'],
-                                cantidad=int(item['cantidad']),
-                                precio_venta=float(item['precio_venta']),
-                                precio_compra=float(item['precio_compra'])
+                                item['producto_id'],
+                                int(item['cantidad']),
+                                total_v,
+                                total_c,
+                                ganancia_v
                             )
-                            # Si tu función retorna False o no retorna True, marcamos error
                             if res is False:
                                 ok = False
                                 break
@@ -489,21 +519,20 @@ elif menu == "Ventas":
                             break
 
                     if ok:
-                        # 1. Limpiamos el carrito de la memoria
                         st.session_state.carrito = []
-                        
-                        # 2. Mostramos el mensaje de éxito fijo en pantalla
-                        st.success("🎉 ¡Venta registrada con éxito en DynamoDB!")
-                        
-                        # 3. Lanzamos los globos de celebración
+                        st.success("🎉 ¡Venta registrada y sincronizada en AWS!")
                         st.balloons()
-                        
-                        # 4. Esperamos 3 segundos para que puedas ver la confirmación antes de recargar
                         import time
-                        time.sleep(3.0)
-                        
-                        # 5. Ahora sí, recargamos la página limpia
+                        time.sleep(2.5)
                         st.rerun()
+
+                if st.button("Vaciar Carrito", use_container_width=True):
+                    st.session_state.carrito = []
+                    st.rerun()
+            else:
+                # Carrito vacío con diseño limpio
+                with st.container(border=True):
+                    st.markdown("<p style='text-align: center; color: gray;'>🛒 Esperando productos para la venta...</p>", unsafe_allow_html=True)
 
 # --- PÁGINA REPORTES (Versión Comercial Blindada de Costo Cero) ---
 elif menu == "Reportes":
