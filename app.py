@@ -674,8 +674,8 @@ elif menu == "Ventas":
 elif menu == "Reportes":
         st.title("📊 Centro de Analítica - NEXUS")
         
-        # 1. CARGA DE DATOS ORIGINALES
-        ventas_raw = obtener_ventas()  # Tu query eficiente a DynamoDB
+        # 1. CARGA DE DATOS DESDE DYNAMODB
+        ventas_raw = obtener_ventas()
         
         if not ventas_raw:
             st.info("💡 Aún no se han registrado ventas en este comercio.")
@@ -683,101 +683,126 @@ elif menu == "Reportes":
             import pandas as pd
             import datetime
             
-            # Convertimos a DataFrame para procesar rápido en memoria
+            # Convertimos los registros de DynamoDB a DataFrame
             df = pd.DataFrame(ventas_raw)
             
-            # Aseguramos formato de fecha y orden cronológico (El más reciente primero)
-            df['fecha'] = pd.to_datetime(df['fecha'])
-            df = df.sort_values(by='fecha', ascending=False)
+            # 🕒 CORRECCIÓN DE FECHA Y HORA (Forzar Zona Horaria Perú UTC-5)
+            # Nos aseguramos de que el campo "fecha" se convierta correctamente
+            df['fecha_dt'] = pd.to_datetime(df['fecha'], errors='coerce')
             
+            # Si los datos viejos vienen de la consola de AWS (UTC 0), les aplicamos el desfase de 5 horas
+            df['fecha_peru'] = df['fecha_dt'].apply(lambda x: x - datetime.timedelta(hours=5) if pd.notnull(x) else x)
+            
+            # Ordenamos cronológicamente: lo más reciente primero
+            df = df.sort_values(by='fecha_peru', ascending=False)
+            
+            # Creamos columnas amigables de visualización local
+            df['Hora'] = df['fecha_peru'].dt.strftime('%H:%M:%S')
+            df['Fecha_Corta'] = df['fecha_peru'].dt.strftime('%Y-%m-%d')
+
             # =====================================================================
-            # 📅 SECCIÓN: FILTRADO INTELIGENTE POR FECHAS (Evita tablas infinitas)
+            # 📅 SECCIÓN: FILTRADO POR RANGO DE FECHAS (Adiós tablas infinitas)
             # =====================================================================
             st.markdown("### 🔍 Filtrar Auditoría")
             
-            # Zona horaria local para los selectores por defecto
-            hoy_peru = datetime.datetime.now() - datetime.timedelta(hours=5)
+            # Obtenemos el día actual en Perú para los selectores por defecto
+            hoy_peru = (datetime.datetime.now() - datetime.timedelta(hours=5)).date()
             
             c_f1, c_f2 = st.columns(2)
             with c_f1:
-                fecha_inicio = st.date_input("Desde:", hoy_peru.date())
+                fecha_inicio = st.date_input("Desde el día:", hoy_peru)
             with c_f2:
-                fecha_fin = st.date_input("Hasta:", hoy_peru.date())
+                fecha_fin = st.date_input("Hasta el día:", hoy_peru)
                 
-            # Filtramos el DataFrame según el rango seleccionado
-            mask = (df['fecha'].dt.date >= fecha_inicio) & (df['fecha'].dt.date <= fecha_fin)
-            df_filtrado = df.loc[mask].copy()
-            
-            # Creamos una columna legible para la tabla de visualización diaria
-            df_filtrado['Hora'] = df_filtrado['fecha'].dt.strftime('%H:%M:%S')
-            df_filtrado['Fecha_Corta'] = df_filtrado['fecha'].dt.strftime('%Y-%m-%d')
+            # Aplicamos el filtro de fecha corta en base al rango seleccionado
+            df_filtrado = df[(df['fecha_peru'].dt.date >= fecha_inicio) & (df['fecha_peru'].dt.date <= fecha_fin)].copy()
 
             # =====================================================================
-            # 💰 PROCESAMIENTO DE METRICAS (Limpieza de Emojis de Pago)
+            # 💰 NORMALIZACIÓN DEL MÉTODO DE PAGO (Rastreo tolerante a Emojis)
             # =====================================================================
-            # Convertimos a string y limpiamos espacios para asegurar la suma exacta
-            df_filtrado['metodo_pago_limpio'] = df_filtrado['pago'].astype(str).str.lower()
+            # Buscamos la columna de pago dinámicamente por si cambia de nombre
+            col_pago = next((c for c in df_filtrado.columns if 'pago' in c.lower() or 'metodo' in c.lower()), None)
             
-            # Calculamos totales cruzando las variaciones con/sin emoji
-            efectivo_total = df_filtrado[df_filtrado['metodo_pago_limpio'].str.contains('efectivo')]['total_venta'].sum()
-            yape_total = df_filtrado[df_filtrado['metodo_pago_limpio'].str.contains('yape')]['total_venta'].sum()
-            plin_total = df_filtrado[df_filtrado['metodo_pago_limpio'].str.contains('plin')]['total_venta'].sum()
+            if col_pago:
+                df_filtrado['pago_limpio'] = df_filtrado[col_pago].astype(str).str.lower().str.strip()
+            else:
+                df_filtrado['pago_limpio'] = 'efectivo'
+                col_pago = 'pago'
+
+            # Buscamos el nombre del producto de forma flexible
+            col_prod = next((c for c in df_filtrado.columns if 'prod' in c.lower() or 'nombre' in c.lower()), 'nombre_producto')
+
+            # Convertimos montos a flotantes numéricos para evitar errores de concatenación de texto
+            df_filtrado['total_venta'] = pd.to_numeric(df_filtrado.get('total_venta', 0), errors='coerce').fillna(0)
+            df_filtrado['total_costo'] = pd.to_numeric(df_filtrado.get('total_costo', 0), errors='coerce').fillna(0)
+            df_filtrado['ganancia'] = pd.to_numeric(df_filtrado.get('ganancia', 0), errors='coerce').fillna(0)
+
+            # 🧮 CÁLCULO ESTRICTO POR CAJA INDIVIDUAL
+            efectivo_total = df_filtrado[df_filtrado['pago_limpio'].str.contains('efectivo|efec', na=False)]['total_venta'].sum()
+            yape_total = df_filtrado[df_filtrado['pago_limpio'].str.contains('yape', na=False)]['total_venta'].sum()
+            plin_total = df_filtrado[df_filtrado['pago_limpio'].str.contains('plin', na=False)]['total_venta'].sum()
             
+            # Métricas generales del negocio
             ingreso_total = df_filtrado['total_venta'].sum()
             inversion_total = df_filtrado['total_costo'].sum()
             ganancia_neta = ingreso_total - inversion_total
 
             # =====================================================================
-            # 📊 RENDERIZADO DE TARJETAS COMERCIALES
+            # 📊 PANEL VISUAL EN STREAMLIT
             # =====================================================================
-            st.markdown("### 📈 Rendimiento del Periodo Seleccionado")
+            st.markdown("### 📈 Rendimiento Financiero")
             m1, m2, m3 = st.columns(3)
             m1.metric("Ingreso Total (Ventas)", f"S/{ingreso_total:.2f}")
-            m2.metric("Inversión (Costo de Compra)", f"S/{inversion_total:.2f}")
+            m2.metric("Inversión (Costo Compra)", f"S/{inversion_total:.2f}")
             
-            # Color dinámico para la ganancia
             if ganancia_neta >= 0:
                 m3.metric("GANANCIA REAL NETO 💰", f"S/{ganancia_neta:.2f}")
             else:
                 m3.metric("GANANCIA REAL NETO 🚨", f"S/{ganancia_neta:.2f}", delta="- Pérdida")
 
-            # Distribución de Cajas Dinámicas
+            # Desglose físico de billeteras digitales
             st.markdown("### 💵 Distribución de Caja")
             c1, c2, c3 = st.columns(3)
-            c1.info(f"💵 **Efectivo en Caja:**\n\n### S/{efectivo_total:.2f}")
-            c2.success(f"📱 **Total Yape:**\n\n### S/{yape_total:.2f}")
-            c3.blue(f"🔮 **Total Plin:**\n\n### S/{plin_total:.2f}")
+            with c1:
+                st.info(f"💵 **Efectivo en Caja:**\n\n### S/{efectivo_total:.2f}")
+            with c2:
+                st.success(f"📱 **Total Yape:**\n\n### S/{yape_total:.2f}")
+            with c3:
+                st.subheader(f"🔮 Total Plin:")
+                st.markdown(f"<h3 style='color: #8e44ad;'>S/{plin_total:.2f}</h3>", unsafe_allow_html=True)
 
             # =====================================================================
-            # 📋 TABLAS DE DETALLE Y SISTEMA DE AUDITORÍA DESCARGABLE
+            # 📋 TABLA DIARIA Y DESCARGA CONTABLE (.CSV / EXCEL)
             # =====================================================================
             st.markdown("---")
-            st.markdown("### 📋 Detalle de lo Vendido en el Rango")
+            st.markdown("### 📋 Detalle de lo Vendido en el Periodo")
             
             if df_filtrado.empty:
-                st.warning("⚠️ No se encontraron transacciones en las fechas seleccionadas.")
+                st.warning("⚠️ No se encontraron transacciones registradas para este rango de fechas.")
             else:
-                # Modificamos la estructura visual para que sea idéntica a tus capturas pero limpia
-                vista_tabla = df_filtrado[['Hora', 'nombre_producto', 'cantidad', 'pago', 'total_venta', 'ganancia']].copy()
-                vista_tabla.columns = ['Hora', 'Producto', 'Cant', 'Pago', 'Total Venta', 'Ganancia']
+                # Armamos la vista de tabla para la interfaz de forma segura
+                columnas_vista = ['Hora', col_prod, 'cantidad', col_pago, 'total_venta', 'ganancia']
+                # Filtramos solo las columnas existentes para evitar KeyErrors accidentales
+                columnas_existentes = [c for c in columnas_vista if c in df_filtrado.columns]
                 
-                # Renderizado controlado (Muestra máximo las últimas 20 para no colgar el navegador)
+                vista_tabla = df_filtrado[columnas_existentes].copy()
+                
+                # Renderizamos las transacciones en pantalla (máximo 20 para conservar rendimiento)
                 st.dataframe(vista_tabla.head(20), use_container_width=True)
                 if len(vista_tabla) > 20:
-                    st.caption(f"💡 *Mostrando las últimas 20 de {len(vista_tabla)} ventas. Usa la descarga de abajo para ver la auditoría completa.*")
+                    st.caption(f"💡 *Mostrando las últimas 20 de {len(vista_tabla)} ventas en el sistema. Usa el botón de abajo para ver el reporte completo.*")
                 
-                # Botón de Descarga Excel (CSV compatible) para Auditorías Completa
-                st.markdown("#### 📥 Descargar Reporte Contable")
+                # Configuración del motor de descargas contables
+                st.markdown("#### 📥 Auditoría y Cierre de Caja")
                 
-                # Preparamos un reporte profesional para el dueño del local
-                reporte_excel = df_filtrado[['Fecha_Corta', 'Hora', 'nombre_producto', 'cantidad', 'pago', 'total_venta', 'total_costo', 'ganancia']].copy()
+                reporte_excel = df_filtrado[['Fecha_Corta', 'Hora', col_prod, 'cantidad', col_pago, 'total_venta', 'total_costo', 'ganancia']].copy()
                 reporte_excel.columns = ['Fecha', 'Hora', 'Producto', 'Cantidad', 'Método Pago', 'Venta S/.', 'Costo S/.', 'Ganancia S/.']
                 
-                csv_auditoria = reporte_excel.to_csv(index=False).encode('utf-8')
+                csv_data = reporte_excel.to_csv(index=False).encode('utf-8')
                 
                 st.download_button(
                     label="🍏 Descargar Historial Completo para Excel (.CSV)",
-                    data=csv_auditoria,
+                    data=csv_data,
                     file_name=f"auditoria_nexus_{fecha_inicio}_al_{fecha_fin}.csv",
                     mime="text/csv",
                     use_container_width=True
