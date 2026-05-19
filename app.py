@@ -475,6 +475,8 @@ elif menu == "Ventas":
 
                 if st.button("⚡ Finalizar y Registrar Venta", type="primary", use_container_width=True):
                     ok = True
+                    items_guardar = [item.copy() for item in st.session_state.carrito]
+                    
                     for item in st.session_state.carrito:
                         try:
                             res = registrar_venta(
@@ -484,14 +486,33 @@ elif menu == "Ventas":
                                 precio_compra=float(item['precio_compra']),
                                 pago=metodo_pago
                             )
-                            if res is False: ok = False
+                            if res is False:
+                                ok = False
+                                break
                         except Exception as e:
-                            st.error(f"Error: {e}"); ok = False
-                    
+                            st.error(f"Error: {e}")
+                            ok = False
+                            break
+
                     if ok:
-                        st.session_state.carrito = []
-                        st.success("🎉 Venta procesada con éxito.")
+                        # 1. Globos de éxito
                         st.balloons()
+                        st.success("🎉 Venta procesada con éxito.")
+
+                        # 2. Lógica de Comprobante / WhatsApp
+                        import urllib.parse
+                        mensaje = f"Hola {w_cliente_nombre}, tu compra de S/{total_venta_neto:.2f} fue registrada."
+                        link_wsp = f"https://wa.me/{w_cliente_celular}?text={urllib.parse.quote(mensaje)}"
+                        st.link_button("📲 Enviar Comprobante por WhatsApp", link_wsp)
+
+                        # 3. Guardar estado final
+                        st.session_state.ultima_venta = {
+                            "total": total_venta_neto,
+                            "pago": metodo_pago
+                        }
+                        
+                        # 4. Limpieza y refresco
+                        st.session_state.carrito = []
                         st.rerun()
             else:
                 st.info("🛒 El carrito está vacío. ¡Añade productos del catálogo!")
