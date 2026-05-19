@@ -674,66 +674,33 @@ elif menu == "Ventas":
 elif menu == "Reportes":
     st.title("📊 Centro de Analítica - NEXUS")
     
-    # 1. CARGA DE DATOS
     ventas_raw = obtener_ventas()
     productos_raw = obtener_productos()
     
-    # --- BLOQUE DE INSPECCIÓN (EL "CHIVATO") ---
+    # Diagnóstico en pantalla
     if ventas_raw:
-        st.sidebar.markdown("---")
         st.sidebar.subheader("🛠️ Diagnóstico Técnico")
-        st.sidebar.write(f"Ventas totales en consola: {len(ventas_raw)}")
-        # Mostramos una muestra del primer registro para ver cómo viene la fecha
-        st.sidebar.write("Formato de fecha de la primera venta:", ventas_raw[0].get('fecha'))
-    # --------------------------------------------
-
-    mapa_productos = {p['producto_id']: p['nombre'] for p in productos_raw if 'producto_id' in p} if productos_raw else {}
+        st.sidebar.write(f"Ventas totales: {len(ventas_raw)}")
+        st.sidebar.write("Ejemplo fecha:", ventas_raw[0].get('fecha'))
     
     if not ventas_raw:
-        st.info("💡 Aún no se han registrado ventas en este comercio.")
+        st.info("💡 No hay ventas.")
     else:
         import pandas as pd
-        import datetime
+        df = pd.DataFrame(ventas_raw)
         
-        df_base = pd.DataFrame(ventas_raw)
+        # Convertimos a formato fecha ignorando la hora
+        df['fecha_dt'] = pd.to_datetime(df['fecha']).dt.date
         
-        # 🕒 NORMALIZACIÓN HORARIA: Conversión a fecha de Lima
-        df_base['fecha_dt'] = pd.to_datetime(df_base['fecha'], utc=True) # Reconoce el formato UTC
-        df_base['fecha_lima'] = df_base['fecha_dt'].dt.tz_convert('America/Lima') # Cambia a hora Perú
+        # Selector de fecha
+        fecha_busqueda = st.date_input("Selecciona el día:")
         
-        # Extraemos solo la fecha (año-mes-día) para comparar
-        df_base['Fecha_Corta'] = df_base['fecha_lima'].dt.date 
-        df_base['Hora'] = df_base['fecha_lima'].dt.strftime('%H:%M:%S')
-
-        # 🔍 BUSCADOR
-        hoy_peru = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-5))).date()
-        fecha_busqueda = st.date_input("Selecciona el día que deseas auditar:", hoy_peru)
-            
-        # Filtramos comparando objetos 'date' directamente
-        df_filtrado_dia = df_base[df_base['Fecha_Corta'] == fecha_busqueda].copy()
+        # FILTRO CRÍTICO: Comparamos solo la fecha (año-mes-día)
+        df_filtrado = df[df['fecha_dt'] == fecha_busqueda].copy()
         
-        # --- DIAGNÓSTICO SI NO HAY VENTAS ---
-        if df_filtrado_dia.empty:
-            st.warning(f"⚠️ No hay ventas para el día {fecha_busqueda_str}")
-            st.write("Fechas disponibles en tu base de datos:")
-            st.write(df_base['Fecha_Corta'].unique())
-        # ------------------------------------
-
-        # (El resto de tu lógica de cálculo queda igual, pero ahora ya sabes qué fecha buscar)
-        if not df_filtrado_dia.empty:
-            filas_desglosadas = []
-            for _, fila in df_filtrado_dia.iterrows():
-                items = fila.get('items', [])
-                if not isinstance(items, list): items = []
-                for item in items:
-                    cant = float(item.get('cantidad', 0))
-                    p_v = float(item.get('precio_venta', 0))
-                    filas_desglosadas.append({
-                        'Hora': fila['Hora'],
-                        'Producto': mapa_productos.get(item.get('producto_id'), 'Desconocido'),
-                        'Cant': cant,
-                        'Total': cant * p_v
-                    })
-            
-            df_final = pd.DataFrame(filas_desglosadas)
-            st.dataframe(df_final, use_container_width=True)
+        if df_filtrado.empty:
+            st.warning(f"No hay ventas para {fecha_busqueda}. Intenta revisar si las ventas son de otro día.")
+            st.write("Fechas disponibles en base de datos:", df['fecha_dt'].unique())
+        else:
+            st.success(f"¡Encontré {len(df_filtrado)} ventas para hoy!")
+            st.dataframe(df_filtrado)
