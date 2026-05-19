@@ -677,71 +677,37 @@ elif menu == "Reportes":
     ventas_raw = obtener_ventas()
     productos_raw = obtener_productos()
     
-    # Mapa de productos seguro
-    mapa_productos = {p['producto_id']: p['nombre'] for p in productos_raw if 'producto_id' in p} if productos_raw else {}
-    
     if not ventas_raw:
-        st.info("💡 Aún no hay ventas registradas.")
+        st.info("💡 No hay ventas registradas.")
     else:
         import pandas as pd
-        import datetime
-        
         df = pd.DataFrame(ventas_raw)
         
-        # 1. Normalización de fecha a Perú (Garantizamos que la columna fecha exista)
-        if 'fecha' in df.columns:
-            df['fecha_dt'] = pd.to_datetime(df['fecha'], errors='coerce')
-            df['fecha_peru'] = df['fecha_dt'].apply(lambda x: x - datetime.timedelta(hours=5) if pd.notnull(x) else x)
-            df['Hora'] = df['fecha_peru'].dt.strftime('%H:%M:%S')
-            df['Fecha_Corta'] = df['fecha_peru'].dt.strftime('%Y-%m-%d')
-        else:
-            st.error("Error: La columna 'fecha' no se encontró en los datos.")
-            st.stop()
-
-        # 2. Selector de fecha
-        fecha_busqueda = st.date_input("Selecciona el día a auditar:", datetime.datetime.now().date())
-        fecha_busqueda_str = fecha_busqueda.strftime('%Y-%m-%d')
+        # 1. Normalizar fecha (Convertimos a hora de Perú)
+        # Esto soluciona que las fechas de la noche se pasen al día siguiente
+        df['fecha_dt'] = pd.to_datetime(df['fecha']).dt.tz_convert('America/Lima')
+        df['Fecha_Corta'] = df['fecha_dt'].dt.date
+        df['Hora'] = df['fecha_dt'].dt.strftime('%H:%M:%S')
         
-        df_filtrado = df[df['Fecha_Corta'] == fecha_busqueda_str].copy()
+        # 2. Selector de fecha
+        fecha_busqueda = st.date_input("Selecciona el día:")
+        
+        # 3. Filtro
+        df_filtrado = df[df['Fecha_Corta'] == fecha_busqueda].copy()
         
         if df_filtrado.empty:
-            st.warning(f"No hay ventas para el día {fecha_busqueda_str}.")
+            st.warning(f"No hay ventas para {fecha_busqueda}.")
         else:
-            # 3. Desglose seguro usando nombres internos sin espacios
-            filas = []
-            for _, fila in df_filtrado.iterrows():
-                items = fila.get('items', [])
-                if not isinstance(items, list): items = []
-                for item in items:
-                    cant = float(item.get('cantidad', 0))
-                    precio = float(item.get('precio_venta', 0))
-                    
-                    filas.append({
-                        'fecha_sort': fila['fecha_peru'], 
-                        'Hora': fila['Hora'],
-                        'Producto': mapa_productos.get(item.get('producto_id'), 'Desconocido'),
-                        'Cantidad': cant,
-                        'total_venta_final': cant * precio 
-                    })
+            # 4. Preparar tabla con nombres reales (usando tu lógica original)
+            mapa_productos = {p['producto_id']: p['nombre'] for p in productos_raw} if productos_raw else {}
             
-            df_final = pd.DataFrame(filas)
+            # Formatear visualización
+            df_filtrado['Producto'] = df_filtrado['producto_id'].map(mapa_productos).fillna(df_filtrado['producto_id'])
+            vista = df_filtrado[['Hora', 'Producto', 'cantidad', 'total_venta']]
             
-            # 4. Ordenar y calcular de forma segura
-            if 'fecha_sort' in df_final.columns:
-                df_final = df_final.sort_values(by='fecha_sort', ascending=False)
+            st.success(f"✅ Mostrando {len(vista)} ventas para el día {fecha_busqueda}")
+            st.dataframe(vista, use_container_width=True)
             
-            # Cálculo seguro comprobando si la columna existe
-            if 'total_venta_final' in df_final.columns:
-                total_del_dia = df_final['total_venta_final'].sum()
-                st.metric("Ingreso Total del día", f"S/{total_del_dia:.2f}")
-            else:
-                st.metric("Ingreso Total del día", "S/0.00")
-            
-            # 5. Visualización final: Renombramos solo para mostrar
-            if not df_final.empty:
-                vista_tabla = df_final.rename(columns={'total_venta_final': 'Total Venta'}).drop(columns=['fecha_sort'], errors='ignore')
-                st.dataframe(
-                    vista_tabla, 
-                    use_container_width=True, 
-                    height=400 # Altura fija para que no sea infinito
-                )
+            # Métricas rápidas
+            total_dia = df_filtrado['total_venta'].sum()
+            st.metric("Ingreso Total del día", f"S/{total_dia:.2f}")
