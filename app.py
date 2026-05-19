@@ -426,10 +426,10 @@ elif menu == "Ventas":
                                                 'stock_max': p_stock_real
                                             })
 
-                                        st.session_state["buscar_ventas"] = 
-                                        ""
+                                            st.session_state["buscar_ventas"] = 
+                                            ""
                  
-                                        st.rerun()
+                                            st.rerun()
 
         with col2:
             st.subheader("Carrito")
