@@ -692,11 +692,13 @@ elif menu == "Reportes":
             # Convertimos los registros de DynamoDB a DataFrame inicial
             df_base = pd.DataFrame(ventas_raw)
             
-            # 🕒 CORRECCIÓN DE FECHA Y HORA (Forzar Zona Horaria Perú UTC-5)
+            # 🕒 AJUSTE HORARIO ANTICIPADO: Convertimos a objeto fecha de forma segura
             df_base['fecha_dt'] = pd.to_datetime(df_base['fecha'], errors='coerce')
+            
+            # Restamos las 5 horas de desfase UTC para devolver el registro al horario exacto de Perú
             df_base['fecha_peru'] = df_base['fecha_dt'].apply(lambda x: x - datetime.timedelta(hours=5) if pd.notnull(x) else x)
             
-            # Creamos las columnas base de tiempo y una de FECHA LIMPIA en formato Texto para comparar sin fallas
+            # Ahora que está en hora Perú, extraemos la Hora y la Fecha Corta correctas
             df_base['Hora'] = df_base['fecha_peru'].dt.strftime('%H:%M:%S').fillna("00:00:00")
             df_base['Fecha_Corta'] = df_base['fecha_peru'].dt.strftime('%Y-%m-%d').fillna("⚠️ Sin Fecha")
 
@@ -705,20 +707,19 @@ elif menu == "Reportes":
             # =====================================================================
             st.markdown("### 🔍 Buscar Reporte Diario")
             
-            # Obtenemos el día actual en Perú para el selector por defecto
+            # Obtenemos el día actual real en Perú para el calendario
             hoy_peru = (datetime.datetime.now() - datetime.timedelta(hours=5)).date()
             
-            # Selector simplificado de un solo día
+            # Selector de fecha simplificado
             fecha_busqueda = st.date_input("Selecciona el día que deseas auditar:", hoy_peru)
             fecha_busqueda_str = fecha_busqueda.strftime('%Y-%m-%d')
                 
-            # FILTRO SEGURO: Comparamos texto contra texto para evitar errores de zona horaria
+            # FILTRO SEGURO: Comparamos texto contra texto (Garantiza que no haya cruces)
             df_fecha_filtrado = df_base[df_base['Fecha_Corta'] == fecha_busqueda_str].copy()
 
             if df_fecha_filtrado.empty:
                 st.warning(f"⚠️ No se encontraron transacciones registradas para el día {fecha_busqueda_str}.")
                 
-                # Renderizamos métricas y distribución en cero de forma limpia para que no quede vacío
                 st.markdown("### 📈 Rendimiento Financiero")
                 m1, m2, m3 = st.columns(3)
                 m1.metric("Ingreso Total (Ventas)", "S/0.00")
@@ -743,11 +744,8 @@ elif menu == "Reportes":
                         
                     for item in items_lista:
                         p_id = item.get('producto_id', '')
-                        
-                        # SUSTITUCIÓN: Si el ID está en el inventario, pone el nombre real.
                         nombre_producto_real = mapa_productos.get(p_id, f"Desconocido ({p_id[:5]})")
                         
-                        # Extraemos y calculamos valores económicos de forma segura
                         cant = int(item.get('cantidad', 0))
                         p_venta = float(item.get('precio_venta', 0))
                         p_compra = float(item.get('precio_compra', 0))
@@ -759,8 +757,8 @@ elif menu == "Reportes":
                         filas_desglosadas.append({
                             'Fecha_Corta': fila.get('Fecha_Corta'),
                             'Hora': fila.get('Hora'),
-                            'fecha_sort': fila.get('fecha_peru'), # Guardamos para ordenar cronológicamente
-                            'producto_id': nombre_producto_real,   # Nombre traducido
+                            'fecha_sort': fila.get('fecha_peru'),
+                            'producto_id': nombre_producto_real,
                             'cantidad': cant,
                             'pago': fila.get('pago', 'Efectivo'),
                             'total_venta': total_v,
@@ -768,14 +766,11 @@ elif menu == "Reportes":
                             'ganancia': ganancia_v
                         })
                 
-                # Creamos el DataFrame final con los datos limpios desglosados
                 df_filtrado = pd.DataFrame(filas_desglosadas)
 
-                # 🛡️ CONTROL CRÍTICO: Ordenamos solo si la tabla tiene datos
                 if not df_filtrado.empty and 'fecha_sort' in df_filtrado.columns:
                     df_filtrado = df_filtrado.sort_values(by='fecha_sort', ascending=False)
                 
-                # Aseguramos columnas numéricas mínimas para evitar pantallas rojas
                 for col in ['total_venta', 'total_costo', 'ganancia', 'pago']:
                     if col not in df_filtrado.columns:
                         df_filtrado[col] = 0.0 if col != 'pago' else 'Efectivo'
@@ -785,12 +780,10 @@ elif menu == "Reportes":
                 # =====================================================================
                 df_filtrado['pago_limpio'] = df_filtrado['pago'].astype(str).str.lower().str.strip()
 
-                # CÁLCULO POR CAJA INDIVIDUAL (Tus 3 tarjetas originales)
                 efectivo_total = df_filtrado[df_filtrado['pago_limpio'].str.contains('efectivo|efec', na=False)]['total_venta'].sum()
                 yape_total = df_filtrado[df_filtrado['pago_limpio'].str.contains('yape', na=False)]['total_venta'].sum()
                 plin_total = df_filtrado[df_filtrado['pago_limpio'].str.contains('plin', na=False)]['total_venta'].sum()
                 
-                # Métricas generales del negocio
                 ingreso_total = df_filtrado['total_venta'].sum()
                 inversion_total = df_filtrado['total_costo'].sum()
                 ganancia_neta = ingreso_total - inversion_total
@@ -808,7 +801,6 @@ elif menu == "Reportes":
                 else:
                     m3.metric("GANANCIA REAL NETO 🚨", f"S/{ganancia_neta:.2f}", delta="- Pérdida")
 
-                # Desglose físico de tus 3 cajas uniformes
                 st.markdown("### 💵 Distribución de Caja")
                 c1, c2, c3 = st.columns(3)
                 with c1:
@@ -819,21 +811,18 @@ elif menu == "Reportes":
                     st.error(f"🔮 **Total Plin:**\n\n### S/{plin_total:.2f}")
 
                 # =====================================================================
-                # 📋 TABLA DIARIA AUTO-AJUSTABLE (Maximizar/Minimizar a gusto)
+                # 📋 TABLA DIARIA AUTO-AJUSTABLE Y MAXIMIZABLE
                 # =====================================================================
                 st.markdown("---")
                 st.markdown("### 📋 Detalle de lo Vendido en el Periodo")
                 
-                # Preparamos una copia visual limpia cambiando los encabezados para el cliente
                 columnas_vista = ['Hora', 'producto_id', 'cantidad', 'pago', 'total_venta', 'ganancia']
                 columnas_validas = [c for c in columnas_vista if c in df_filtrado.columns]
                 
                 vista_tabla = df_filtrado[columnas_validas].copy()
-                
                 dic_renombrar = {'Hora': 'Hora', 'producto_id': 'Producto', 'cantidad': 'Cant', 'pago': 'Pago', 'total_venta': 'Total Venta', 'ganancia': 'Ganancia'}
                 vista_tabla.rename(columns=dic_renombrar, inplace=True)
                 
-                # RENDERIZADO PROTEGIDO: Solo si el DataFrame visual tiene filas válidas
                 if not vista_tabla.empty:
                     st.dataframe(
                         vista_tabla, 
@@ -841,10 +830,10 @@ elif menu == "Reportes":
                         max_height=400
                     )
                 else:
-                    st.info("ℹ️ No hay registros desglozados disponibles para estructurar la tabla.")
+                    st.info("ℹ️ No hay registros desglosados disponibles para estructurar la tabla.")
                 
                 # =====================================================================
-                # 📥 AUDITORÍA Y CIERRE DE CAJA (.CSV COMPATIBLE CON EXCEL)
+                # 📥 AUDITORÍA (.CSV)
                 # =====================================================================
                 st.markdown("#### 📥 Auditoría y Cierre de Caja")
                 
@@ -852,11 +841,9 @@ elif menu == "Reportes":
                 cols_excel_validas = [c for c in cols_excel if c in df_filtrado.columns]
                 
                 reporte_excel = df_filtrado[cols_excel_validas].copy()
-                
                 dic_excel = {'Fecha_Corta': 'Fecha', 'Hora': 'Hora', 'producto_id': 'Producto', 'cantidad': 'Cantidad', 'pago': 'Método Pago', 'total_venta': 'Venta S/.', 'total_costo': 'Costo S/.', 'ganancia': 'Ganancia S/.'}
                 reporte_excel.rename(columns=dic_excel, inplace=True)
                 
-                # Usamos codificación nativa utf-8-sig y separador ';' para que Excel lo abra perfecto en columnas separadas
                 csv_data = reporte_excel.to_csv(index=False, sep=';').encode('utf-8-sig')
                 
                 st.download_button(
