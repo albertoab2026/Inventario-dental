@@ -497,9 +497,9 @@ elif menu == "Ventas":
                     items_guardar = [item.copy() for item in st.session_state.carrito]
                     
                 # Dentro del bloque for item in st.session_state.carrito:
-                for item in st.session_state.carrito: # Línea 500
+                for item in st.session_state.carrito:
                         try:
-                            res = registrar_venta( # Línea 502
+                            res = registrar_venta(
                                 producto_id=item['producto_id'],
                                 cantidad=int(item['cantidad']),
                                 precio_venta=float(item['precio_venta']),
@@ -513,14 +513,13 @@ elif menu == "Ventas":
                             st.error(f"Error: {e}")
                             ok = False
                             break
-
+                
                     if ok:
                         import datetime
-                        # CORRECCIÓN DE HORA: Zona horaria de Perú (UTC-5)
                         hora_servidor = datetime.datetime.now()
                         hora_peru = hora_servidor - datetime.timedelta(hours=5)
                         fecha_formateada = hora_peru.strftime("%Y-%m-%d %H:%M:%S")
-
+                
                         st.session_state.ultima_venta = {
                             "tenant": tenant_actual,
                             "fecha": fecha_formateada,
@@ -528,7 +527,7 @@ elif menu == "Ventas":
                             "descuento": descuento,
                             "total": total_venta_neto,
                             "pago": metodo_pago,
-                            "cliente_nom": w_cliente_nombre if w_cliente_nombre.strip() else "Consumidor Final",
+                            "cliente_nom": w_cliente_nombre.strip() if w_cliente_nombre.strip() else "Consumidor Final",
                             "cliente_cel": w_cliente_celular.strip()
                         }
                         st.session_state.carrito = []
