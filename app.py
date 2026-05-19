@@ -683,58 +683,48 @@ elif menu == "Reportes":
         import pandas as pd
         df = pd.DataFrame(ventas_raw)
         
-        # 1. Corrección Horaria Estricta
-        # Convertimos a datetime y ajustamos a Lima (restamos 5 horas si es UTC)
-        df['fecha_dt'] = pd.to_datetime(df['fecha'])
-        if df['fecha_dt'].dt.tz:
-            df['fecha_dt'] = df['fecha_dt'].dt.tz_convert('America/Lima')
-        else:
-            df['fecha_dt'] = df['fecha_dt'] - pd.Timedelta(hours=5)
-            
+        # 1. Ajuste Horario
+        df['fecha_dt'] = pd.to_datetime(df['fecha']).dt.tz_localize(None) - pd.Timedelta(hours=5)
         df['Fecha_Corta'] = df['fecha_dt'].dt.date
         df['Hora'] = df['fecha_dt'].dt.strftime('%H:%M:%S')
         
-        # 2. Selector de fecha
         fecha_busqueda = st.date_input("Selecciona el día:")
         df_filtrado = df[df['Fecha_Corta'] == fecha_busqueda].copy()
         
         if df_filtrado.empty:
             st.warning(f"No hay ventas para {fecha_busqueda}.")
         else:
-            # Mapeos
+            # 2. Mapeos
             mapa_productos = {p['producto_id']: p['nombre'] for p in productos_raw} if productos_raw else {}
-            mapa_costos = {p['producto_id']: float(p.get('precio_compra', 0)) for p in productos_raw} if productos_raw else {}
-            
             df_filtrado['Producto'] = df_filtrado['producto_id'].map(mapa_productos).fillna(df_filtrado['producto_id'])
-            df_filtrado['costo_unitario'] = df_filtrado['producto_id'].map(mapa_costos).fillna(0.0)
-            df_filtrado['ganancia_real'] = df_filtrado['total_venta'].astype(float) - (df_filtrado['cantidad'].astype(float) * df_filtrado['costo_unitario'].astype(float))
             
-            # 3. Clasificación de pagos (Más robusta)
-            # Imprime en consola los valores únicos para depurar si necesitas
-            if 'pago' in df_filtrado.columns:
-                pago_col = 'pago'
-            elif 'metodo_pago' in df_filtrado.columns:
-                pago_col = 'metodo_pago'
-            else:
-                pago_col = None
+            # 3. CORRECCIÓN DE PAGOS: Buscamos en todas las columnas posibles
+            # Si no tienes la columna 'pago', este código te dirá qué columnas tienes
+            columnas_disponibles = df_filtrado.columns.tolist()
+            # Asumimos que el método de pago está en alguna columna. 
+            # Cambia 'pago' por el nombre real si es diferente (ej: 'metodo', 'medio_pago')
+            col_pago = 'pago' if 'pago' in columnas_disponibles else (columnas_disponibles[-1])
             
-            if pago_col:
-                df_filtrado['pago_norm'] = df_filtrado[pago_col].astype(str).str.lower()
-            else:
-                df_filtrado['pago_norm'] = 'efectivo'
-
-            # Ordenar por hora (más reciente primero)
+            df_filtrado['pago_norm'] = df_filtrado[col_pago].astype(str).str.lower()
+            
+            # Ordenar
             df_filtrado = df_filtrado.sort_values(by='fecha_dt', ascending=False)
             
-            # 4. Cálculos de Caja
+            # 4. Cálculo de Totales (Yape/Plin/Efectivo)
             yape = df_filtrado[df_filtrado['pago_norm'].str.contains('yape', na=False)]['total_venta'].sum()
             plin = df_filtrado[df_filtrado['pago_norm'].str.contains('plin', na=False)]['total_venta'].sum()
             efectivo = df_filtrado[~df_filtrado['pago_norm'].str.contains('yape|plin', na=False)]['total_venta'].sum()
             
             st.markdown("### 💵 Distribución de Caja")
             c1, c2, c3 = st.columns(3)
-            c1.info(f"💵 Efectivo: S/{efectivo:.2f}")
-            c2.success(f"📱 Yape: S/{yape:.2f}")
-            c3.error(f"🔮 Plin: S/{plin:.2f}")
+            c1.metric("Efectivo", f"S/{efectivo:.2f}")
+            c2.metric("Yape", f"S/{yape:.2f}")
+            c3.metric("Plin", f"S/{plin:.2f}")
             
-            st.dataframe(df_filtrado[['Hora', 'Producto', 'cantidad', 'total_venta', 'ganancia_real', 'pago_norm']], use_container_width=True)
+            # 5. TABLA FIJA: use_container_width=True evita que se mueva sola
+            st.markdown("---")
+            st.dataframe(
+                df_filtrado[['Hora', 'Producto', 'cantidad', 'total_venta', 'pago_norm']], 
+                use_container_width=True,
+                hide_index=True
+            )
