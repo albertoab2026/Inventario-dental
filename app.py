@@ -714,6 +714,7 @@ elif menu == "Reportes":
             yape = df_filtrado[df_filtrado['pago_norm'] == 'yape']['total_venta'].sum()
             plin = df_filtrado[df_filtrado['pago_norm'] == 'plin']['total_venta'].sum()
             efectivo = df_filtrado[df_filtrado['pago_norm'] == 'efectivo']['total_venta'].sum()
+            total_ventas_dia = efectivo + yape + plin
             
         # 5. Visualización estable (Diseño mejorado)
         st.markdown("""
@@ -742,30 +743,25 @@ elif menu == "Reportes":
             if 'ganancia_real' not in df_mostrar.columns: df_mostrar['ganancia_real'] = 0
             st.dataframe(df_mostrar[columnas_a_mostrar], use_container_width=True)
     
-        # 6. Descarga a Excel con Totales calculados en Python
+        # 6. Descarga a Excel con Totales
         import io
         
+        # Usamos df_filtrado porque ya sabemos que tiene los datos
         if not df_filtrado.empty:
             buffer = io.BytesIO()
-            # Creamos una copia para el reporte
-            df_reporte = df_filtrado.copy()
-            
-            # Aseguramos que 'total_venta' sea numérico para sumar
-            df_reporte['total_venta'] = pd.to_numeric(df_reporte['total_venta'], errors='coerce').fillna(0)
-            
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                df_reporte.to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
+                df_filtrado.to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
                 
-                worksheet = writer.sheets['Ventas_Auditoria']
                 workbook = writer.book
+                worksheet = writer.sheets['Ventas_Auditoria']
                 money_fmt = workbook.add_format({'num_format': 'S/ #,##0.00'})
                 
-                # Escribimos los totales calculados directamente sin fórmulas de Excel
-                total_monto = df_reporte['total_venta'].sum()
-                row_idx = len(df_reporte) + 1
+                # Calcular el total sumando la columna 'total_venta'
+                total_sum = df_filtrado['total_venta'].sum()
                 
+                row_idx = len(df_filtrado) + 1
                 worksheet.write(row_idx, 1, "TOTALES:")
-                worksheet.write(row_idx, 2, total_monto, money_fmt) # Asegúrate que columna 2 es 'total_venta'
+                worksheet.write(row_idx, 2, total_sum, money_fmt)
             
             st.download_button(
                 label="📥 Descargar Reporte en Excel (Auditoría)",
@@ -774,4 +770,4 @@ elif menu == "Reportes":
                 mime="application/vnd.ms-excel"
             )
         else:
-            st.warning("No hay ventas para mostrar.")
+            st.warning("No hay ventas para esta fecha.")
