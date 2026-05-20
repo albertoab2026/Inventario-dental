@@ -715,57 +715,41 @@ elif menu == "Reportes":
             plin = df_filtrado[df_filtrado['pago_norm'] == 'plin']['total_venta'].sum()
             efectivo = df_filtrado[df_filtrado['pago_norm'] == 'efectivo']['total_venta'].sum()
             
-        # 5. Visualización estable (CSS corregido para fondo oscuro)
+        # 5. Visualización estable (Diseño mejorado)
         st.markdown("""
             <style>
-            /* Contenedor de las métricas */
-            div[data-testid="metric-container"] { 
-                background-color: #0f172a !important; /* Azul más oscuro para contraste */
-                padding: 20px !important; 
-                border-radius: 12px !important; 
-                border: 1px solid #334155 !important; 
-            }
-            /* Color de los valores: Blanco brillante */
-            div[data-testid="metric-container"] [data-testid="stMetricValue"] { 
-                font-size: 3rem !important; 
-                color: #ffffff !important; 
-                font-weight: bold !important;
-            }
-            /* Color de las etiquetas: Gris claro */
-            div[data-testid="metric-container"] label { 
-                font-size: 1.5rem !important; 
-                color: #94a3b8 !important; 
-            }
+            div[data-testid="metric-container"] { background-color: #1e293b; padding: 20px; border-radius: 10px; border: 1px solid #475569; }
+            div[data-testid="metric-container"] label { font-size: 1.2rem !important; }
+            div[data-testid="metric-container"] [data-testid="stMetricValue"] { font-size: 2.5rem !important; color: #38bdf8 !important; }
             </style>
         """, unsafe_allow_html=True)
     
-        # 6. Descarga a Excel con Totales
-        import io
+        st.markdown("### 💵 Resumen del Día")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("💰 Total Ventas", f"S/{total_ventas_dia:.2f}")
+        c2.metric("💵 Efectivo", f"S/{efectivo:.2f}")
+        c3.metric("📱 Yape", f"S/{yape:.2f}")
+        c4.metric("🔮 Plin", f"S/{plin:.2f}")
+    
+        delta_val = ganancia_hoy - ganancia_pasada
+        st.metric("📈 Ganancia Real (Hoy)", f"S/{ganancia_hoy:.2f}", delta=f"{delta_val:.2f} vs hace 7 días")
+    
+        # Tabla con Expansor y Columna Ganancia
+        columnas_a_mostrar = ['Hora', 'Producto', 'cantidad', 'total_venta', 'ganancia_real', 'pago_norm']
+        with st.expander("📊 Ver detalle de ventas (Maximizar/Minimizar)"):
+            # Aseguramos que 'ganancia_real' se muestre en la tabla
+            df_mostrar = df_filtrado.copy()
+            if 'ganancia_real' not in df_mostrar.columns: df_mostrar['ganancia_real'] = 0
+            st.dataframe(df_mostrar[columnas_a_mostrar], use_container_width=True)
+    
+        # Botón de Descarga Excel (Auditoría)
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df_mostrar[columnas_a_mostrar].to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
         
-        # Intentamos obtener los datos del reporte. 
-        # Si 'df_mostrar' no existe, usamos un DataFrame vacío para no romper la app.
-        if 'df_mostrar' not in locals():
-            df_mostrar = pd.DataFrame()
-
-        if not df_mostrar.empty:
-            buffer = io.BytesIO()
-            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                df_mostrar[columnas_a_mostrar].to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
-                
-                workbook = writer.book
-                worksheet = writer.sheets['Ventas_Auditoria']
-                money_fmt = workbook.add_format({'num_format': 'S/ #,##0.00'})
-                
-                row_idx = len(df_mostrar) + 1
-                worksheet.write(row_idx, 2, "TOTALES:")
-                worksheet.write_formula(row_idx, 3, f'=SUM(D2:D{row_idx})', money_fmt)
-                worksheet.write_formula(row_idx, 4, f'=SUM(E2:E{row_idx})', money_fmt)
-            
-            st.download_button(
-                label="📥 Descargar Reporte en Excel (Auditoría)",
-                data=buffer,
-                file_name=f"Reporte_NEXUS_{fecha_busqueda}.xlsx",
-                mime="application/vnd.ms-excel"
-            )
-        else:
-            st.warning("No hay datos disponibles para generar el reporte de Excel.")
+        st.download_button(
+            label="📥 Descargar Reporte en Excel (Auditoría)",
+            data=buffer,
+            file_name=f"Reporte_NEXUS_{fecha_busqueda}.xlsx",
+            mime="application/vnd.ms-excel"
+        )
