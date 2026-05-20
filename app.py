@@ -156,13 +156,12 @@ def actualizar_inventario_masivo(df_editado):
     if nombre_nuevo:
         try:
             if agregar_producto(nombre_nuevo, pv_nuevo, pc_nuevo, stk_nuevo, cat_nuevo):
-                st.toast("✅ ¡Producto agregado con éxito a tu inventario!", icon="📦")
+                st.toast("✅ ¡Producto agregado!", icon="📦")
                 st.rerun()
         except Exception as e:
-            st.error(f"Error al agregar: {e}")
-    # --- FIN DEL BLOQUE DE AGREGAR ---
+            st.error(f"Error: {e}")
 
-# --- FUNCIÓN DE VENTAS (Nivel 0) ---
+# --- FUNCIÓN DE VENTAS (Asegúrate de que 'def' esté pegado al margen izquierdo) ---
 def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago):
     try:
         id_dueno = st.session_state.user_data['usuario_id']
