@@ -680,17 +680,21 @@ elif menu == "Reportes":
             df_filtrado['pago_norm'] = df_filtrado['pago'].astype(str).str.replace('💵', '').str.replace('📱', '').str.replace('💳', '').str.replace('🔮', '').str.strip().str.lower()
             df_filtrado['pago_norm'] = df_filtrado['pago_norm'].apply(lambda x: x if x in ['yape', 'plin'] else 'efectivo')
 
-            # 4. Cálculos financieros y Ganancia Real
-            df_filtrado['total_venta'] = pd.to_numeric(df_filtrado['total_venta'], errors='coerce').fillna(0)
-            df_filtrado['precio_venta'] = pd.to_numeric(df_filtrado['precio_venta'], errors='coerce').fillna(0)
-            df_filtrado['precio_compra'] = pd.to_numeric(df_filtrado['precio_compra'], errors='coerce').fillna(0)
+            # 4. Cálculos financieros y Ganancia Real (Limpieza estricta)
+            cols = ['total_venta', 'precio_venta', 'precio_compra', 'cantidad']
             
-            # Ganancia real: (Venta - Compra) * Cantidad
+            # Convertimos todo a numérico, forzando a 0 si hay errores o vacíos
+            for col in cols:
+                df_filtrado[col] = pd.to_numeric(df_filtrado[col], errors='coerce').fillna(0)
+                if col in df_pasada.columns:
+                    df_pasada[col] = pd.to_numeric(df_pasada[col], errors='coerce').fillna(0)
+            
+            # Ahora que son números puros, realizamos la operación
             df_filtrado['ganancia_real'] = (df_filtrado['precio_venta'] - df_filtrado['precio_compra']) * df_filtrado['cantidad']
             ganancia_hoy = df_filtrado['ganancia_real'].sum()
             
             # Ganancia semana pasada
-            df_pasada['ganancia_real'] = (pd.to_numeric(df_pasada['precio_venta'], errors='coerce') - pd.to_numeric(df_pasada['precio_compra'], errors='coerce')) * pd.to_numeric(df_pasada['cantidad'], errors='coerce')
+            df_pasada['ganancia_real'] = (df_pasada['precio_venta'] - df_pasada['precio_compra']) * df_pasada['cantidad']
             ganancia_pasada = df_pasada['ganancia_real'].sum()
             
             yape = df_filtrado[df_filtrado['pago_norm'] == 'yape']['total_venta'].sum()
