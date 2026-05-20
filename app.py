@@ -133,9 +133,9 @@ def agregar_producto(nombre, precio_venta, precio_compra, stock, categoria):
         st.error(f"Error: {e}")
         return False
 
-# --- AQUÍ DEBE IR EL PASO 1 (La función de actualización masiva) ---
 def actualizar_inventario_masivo(df_editado):
     try:
+        # Spinner para feedback visual
         with st.spinner("Actualizando base de datos..."):
             for index, row in df_editado.iterrows():
                 tabla_productos.update_item(
@@ -152,36 +152,20 @@ def actualizar_inventario_masivo(df_editado):
                         ':c': row['categoria']
                     }
                 )
-        st.success("✅ ¡Inventario actualizado correctamente!")
+        st.success("✅ ¡Inventario actualizado con éxito!")
         return True
     except Exception as e:
         st.error(f"Error al actualizar: {e}")
         return False
         
-# --- Asegúrate de inicializar las variables antes de usarlas ---
-# Esto evita el NameError
-nombre_nuevo = st.session_state.get('nombre_input', "")
-pv_nuevo = st.session_state.get('pv_input', 0.0)
-pc_nuevo = st.session_state.get('pc_input', 0.0)
-stk_nuevo = st.session_state.get('stk_input', 0)
-cat_nuevo = st.session_state.get('cat_input', "")
-
-# --- Lógica de Agregar Producto ---
-if nombre_nuevo:
-    try:
-        if agregar_producto(nombre_nuevo, pv_nuevo, pc_nuevo, stk_nuevo, cat_nuevo):
-            st.toast("✅ ¡Producto agregado!", icon="📦")
-            st.rerun()
-    except Exception as e:
-        st.error(f"Error al agregar: {e}")
-
-# --- FUNCIONES DE VENTAS Y PRODUCTOS ---
+# Cambia la definición de la función así:
 def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago):
     try:
         id_dueno = st.session_state.user_data['usuario_id']
         fecha_utc = datetime.now(timezone.utc).isoformat()
         total_venta = float(precio_venta) * int(cantidad)
         
+        # Guardamos el valor directamente
         tabla_ventas.put_item(Item={
             'usuario_id': id_dueno,
             'Venta_id': str(uuid.uuid4()),
@@ -189,13 +173,13 @@ def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago):
             'cantidad': int(cantidad),
             'total_venta': Decimal(str(total_venta)),
             'fecha': fecha_utc,
-            'pago': str(pago)
+            'pago': str(pago)  # <--- ASEGÚRATE DE QUE ESTA LÍNEA ESTÉ AQUÍ
         })
         return True
     except Exception as e:
         st.error(f"Error en venta: {e}")
         return False
-        
+
 def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
     try:
         id_dueno = st.session_state.user_data['usuario_id']  
@@ -222,6 +206,7 @@ def eliminar_producto(producto_id):
     except Exception as e:
         st.error(f"Error al eliminar en la base de datos: {e}")
         return False
+
 # ======= 4. PANTALLA LOGIN =======
 def mostrar_login():
     st.markdown("""
@@ -360,11 +345,10 @@ if menu == "Productos":
 
         # LA TABLA EDITABLE
         df_editado = st.data_editor(
-            df_mostrar[columnas_ordenadas], # Usamos nuestra nueva lista ordenada
+            df_mostrar[['producto_id', 'nombre', 'precio_venta', 'precio_compra', 'stock', 'categoria']],
             column_config={
                 "producto_id": None,
                 "precio_venta": st.column_config.NumberColumn(format="S/%.2f"),
-                "precio_compra": st.column_config.NumberColumn(format="S/%.2f"),
             },
             use_container_width=True,
             height=400
