@@ -756,10 +756,13 @@ elif menu == "Reportes":
                 worksheet = writer.sheets['Ventas_Auditoria']
                 money_fmt = workbook.add_format({'num_format': 'S/ #,##0.00'})
 
-                # Ajustar ancho de columnas automáticamente
+                # 6. Ajustar ancho de columnas de forma segura
                 for i, col in enumerate(df_filtrado.columns):
-                    column_len = max(df_filtrado[col].astype(str).map(len).max(), len(str(col))) + 2
-                    worksheet.set_column(i, i, column_len)
+                    # Convertimos a string y manejamos posibles errores de tipo
+                    column_data = df_filtrado[col].astype(str)
+                    column_len = max(column_data.map(len).max(), len(str(col))) + 2
+                    # Limitamos el ancho máximo para evitar errores en columnas muy largas
+                    worksheet.set_column(i, i, min(column_len, 50))
                 
                 # Calcular el total sumando la columna 'total_venta'
                 total_sum = df_filtrado['total_venta'].sum()
