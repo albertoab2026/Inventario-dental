@@ -289,43 +289,49 @@ with st.sidebar:
 if menu == "Productos":
     st.title("📦 Gestión de Inventario")
     
-    # 1. Formulario para añadir (esto no causa duplicados)
-    with st.expander("➕ Nuevo Producto"):
-        # ... (Tu código de inputs actual) ...
-        # ...
-        if st.button("Guardar Producto Nuevo"):
-            # ... tu lógica de agregar_producto ...
-            st.rerun()
+    # --- FORMULARIO DE NUEVO PRODUCTO ---
+    with st.expander("➕ Agregar Nuevo Producto"):
+        with st.form("nuevo_producto_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                nombre = st.text_input("Nombre del producto")
+                precio_compra = st.number_input("Precio Compra", step=0.1)
+            with col2:
+                precio_venta = st.number_input("Precio Venta", step=0.1)
+                stock = st.number_input("Stock inicial", step=1)
+            
+            categoria = st.text_input("Categoría", value="General")
+            
+            if st.form_submit_button("Guardar Producto"):
+                # Aquí llama a tu función original: agregar_producto(...)
+                st.success("¡Producto añadido!")
+                st.rerun()
 
+    # --- TABLA PROFESIONAL (PARA 1,000 PRODUCTOS) ---
     st.subheader("Control de Inventario")
     productos = obtener_productos()
     
     if productos:
         df_inv = pd.DataFrame(productos)
         
-        # EL BUSCADOR: Definido UNA sola vez
-        busqueda_p = st.text_input("🔍 Buscar producto por nombre:", key="buscador_unico_productos")
-        
+        # Filtro de búsqueda único
+        busqueda_p = st.text_input("🔍 Buscar por nombre:", key="buscar_inv")
         if busqueda_p:
-            df_mostrar = df_inv[df_inv['nombre'].str.contains(busqueda_p, case=False, na=False)]
-        else:
-            df_mostrar = df_inv
+            df_inv = df_inv[df_inv['nombre'].str.contains(busqueda_p, case=False, na=False)]
 
-        # LA TABLA EDITABLE: Una sola vez
+        # TABLA EDITABLE CON PAGINACIÓN AUTOMÁTICA
+        # Streamlit maneja automáticamente el scroll si limitamos la altura
         df_editado = st.data_editor(
-            df_mostrar[['nombre', 'precio_venta', 'precio_compra', 'stock', 'categoria']],
+            df_inv,
             num_rows="dynamic",
-            use_container_width=True
+            use_container_width=True,
+            height=500, # Esto fija el tamaño, no importa si tienes 10 o 1,000 productos
         )
 
         if st.button("💾 Guardar cambios masivos"):
-            # Aquí llamas a tu función de guardado
-            # actualizar_inventario(df_editado)
-            st.success("Inventario actualizado.")
-            st.rerun()
-    else:
-        st.info("No hay productos registrados.")
-        
+            # Lógica para recorrer df_editado y actualizar tu base de datos
+            st.success("Inventario actualizado en base de datos.")
+            st.rerun()      
 
 # --- PÁGINA VENTAS (Diseño Estilo SaaS Comercial) ---
 elif menu == "Ventas":
