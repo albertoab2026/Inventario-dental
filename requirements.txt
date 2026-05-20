@@ -3,4 +3,4 @@ boto3
 pytz
 plotly
 pandas
-xlsxwriter
+xlsxwriter==3.1.0
