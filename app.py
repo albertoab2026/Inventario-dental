@@ -358,8 +358,9 @@ if menu == "Productos":
 
         df_editado = st.data_editor(
             df_mostrar[columnas_a_mostrar],
+            key='editor_inventario',
             column_config={
-                "producto_id": None, # Esto lo oculta de la vista del usuario
+                "producto_id": None,
                 "precio_compra": st.column_config.NumberColumn(format="S/%.2f"),
                 "precio_venta": st.column_config.NumberColumn(format="S/%.2f"),
             },
