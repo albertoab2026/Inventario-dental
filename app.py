@@ -701,16 +701,20 @@ elif menu == "Reportes":
             plin = df_filtrado[df_filtrado['pago_norm'] == 'plin']['total_venta'].sum()
             efectivo = df_filtrado[df_filtrado['pago_norm'] == 'efectivo']['total_venta'].sum()
             
-        # 5. Visualización estable (Protegida contra errores)
-        delta_val = ganancia_hoy - ganancia_pasada
+        # 5. Visualización estable
+        # Calculamos el total de ventas del día actual
+        total_ventas_dia = df_filtrado['total_venta'].sum()
         
-        st.markdown("### 💵 Distribución de Caja")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("💵 Efectivo", f"S/{efectivo:.2f}")
-        c2.metric("📱 Yape", f"S/{yape:.2f}")
-        c3.metric("🔮 Plin", f"S/{plin:.2f}")
-        # Aquí la nueva métrica con flecha
-        st.metric("💰 Ganancia Real (Hoy)", f"S/{ganancia_hoy:.2f}", delta=f"{delta_val:.2f} vs hace 7 días")
+        st.markdown("### 💵 Resumen del Día")
+        c1, c2, c3, c4 = st.columns(4) # Añadimos una cuarta columna
+        c1.metric("💰 Total Ventas", f"S/{total_ventas_dia:.2f}")
+        c2.metric("💵 Efectivo", f"S/{efectivo:.2f}")
+        c3.metric("📱 Yape", f"S/{yape:.2f}")
+        c4.metric("🔮 Plin", f"S/{plin:.2f}")
+    
+        # Métrica de ganancia real con su comparación
+        delta_val = ganancia_hoy - ganancia_pasada
+        st.metric("📈 Ganancia Real (Hoy)", f"S/{ganancia_hoy:.2f}", delta=f"{delta_val:.2f} vs hace 7 días")
         
         # Protección: Aseguramos que las columnas existan antes de mostrarlas
         columnas_a_mostrar = ['Hora', 'Producto', 'cantidad', 'total_venta', 'pago_norm']
