@@ -744,8 +744,9 @@ elif menu == "Reportes":
             col_graf1, col_graf2 = st.columns(2)
         
             with col_graf1:
-                df_top = df_filtrado.groupby('producto_id')['total_venta'].sum().reset_index().sort_values('total_venta', ascending=False).head(10)
-                fig_bar = px.bar(df_top, x='total_venta', y='producto_id', orientation='h', title="Top 10 Productos")
+                # Ahora usamos 'Producto' (con P mayúscula) en lugar de 'producto_id'
+                df_top = df_filtrado.groupby('Producto')['total_venta'].sum().reset_index().sort_values('total_venta', ascending=False).head(10)
+                fig_bar = px.bar(df_top, x='total_venta', y='Producto', orientation='h', title="Top 10 Productos")
                 st.plotly_chart(fig_bar, use_container_width=True)
         
             with col_graf2:
@@ -757,9 +758,10 @@ elif menu == "Reportes":
                 fig_line = px.area(df_hora, x='Hora', y='total_venta', title="Tendencia de Ventas", line_shape='spline')
                 st.plotly_chart(fig_line, use_container_width=True)
         
-            # Tabla con Expansor
+            # Asegúrate de actualizar también la tabla dentro del expansor
             with st.expander("📊 Ver detalle de ventas (Maximizar/Minimizar)"):
-                columnas_a_mostrar = ['Hora', 'producto_id', 'cantidad', 'total_venta', 'ganancia_real', 'pago']
+                # Cambiamos 'producto_id' por 'Producto' aquí también
+                columnas_a_mostrar = ['Hora', 'Producto', 'cantidad', 'total_venta', 'ganancia_real', 'pago']
                 st.dataframe(df_filtrado[columnas_a_mostrar], use_container_width=True)
         else:
             st.warning("No hay datos para mostrar gráficos ni detalles.")
