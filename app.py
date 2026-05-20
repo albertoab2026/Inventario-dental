@@ -369,9 +369,7 @@ if menu == "Productos":
         # BOTÓN DE GUARDADO CON LÓGICA DE CONFIRMACIÓN
         if st.button("💾 Guardar cambios masivos"):
             # Llamamos a la función
-            if actualizar_inventario_masivo(df_editado):
-                # El mensaje de success es persistente, se quedará ahí
-                st.success("✅ ¡Inventario actualizado correctamente!")
+            actualizar_inventario_masivo(df_editado)
                                
 # --- PÁGINA VENTAS (Diseño Estilo SaaS Comercial) ---
 elif menu == "Ventas":
