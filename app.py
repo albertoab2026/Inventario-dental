@@ -2,6 +2,7 @@ import streamlit as st
 import boto3
 from boto3.dynamodb.conditions import Key
 import pandas as pd
+import io
 import uuid
 from datetime import datetime, timedelta, timezone
 import hashlib
