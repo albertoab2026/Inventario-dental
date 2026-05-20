@@ -133,6 +133,23 @@ def agregar_producto(nombre, precio_venta, precio_compra, stock, categoria):
         st.error(f"Error: {e}")
         return False
 
+def procesar_carga_excel(df):
+    try:
+        with st.spinner("Procesando Excel..."):
+            for index, row in df.iterrows():
+                agregar_producto(
+                    nombre=str(row['nombre']),
+                    precio_venta=float(row['precio_venta']),
+                    precio_compra=float(row['precio_compra']),
+                    stock=int(row['stock']),
+                    categoria=str(row['categoria'])
+                )
+        st.success("✅ ¡Carga de productos completada!")
+        return True
+    except Exception as e:
+        st.error(f"Error al procesar el Excel: {e}")
+        return False
+    
 def actualizar_inventario_masivo(df_editado):
     try:
         # Añadimos un contador para saber cuántas filas está procesando
@@ -323,6 +340,21 @@ with st.sidebar:
 # --- PÁGINA PRODUCTOS (VERSIÓN PROFESIONAL) ---
 if menu == "Productos":
     st.title("📦 Gestión de Inventario")
+
+    # Subida de archivo Excel
+    with st.expander("📂 Carga masiva desde Excel"):
+        archivo = st.file_uploader("Sube tu archivo Excel", type=["xlsx", "xls"])
+        
+        if archivo:
+            df_excel = pd.read_excel(archivo)
+            st.write("Vista previa de los datos:")
+            st.dataframe(df_excel.head()) # Muestra las primeras filas para verificar
+            
+            if st.button("🚀 Procesar Carga Masiva"):
+                # Simplemente llamamos a la función.
+                # La función ya tiene el spinner y el mensaje de éxito.
+                procesar_carga_excel(df_excel)
+                st.rerun() # Esto es necesario para refrescar la tabla después de subir el archivo
     
     # 1. FORMULARIO SEGURO (Uso de st.form para evitar conflictos)
     with st.expander("➕ Agregar Nuevo Producto"):
