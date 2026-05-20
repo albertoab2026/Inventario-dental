@@ -742,14 +742,32 @@ elif menu == "Reportes":
             if 'ganancia_real' not in df_mostrar.columns: df_mostrar['ganancia_real'] = 0
             st.dataframe(df_mostrar[columnas_a_mostrar], use_container_width=True)
     
-        # Botón de Descarga Excel (Auditoría)
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            df_mostrar[columnas_a_mostrar].to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
+        # 6. Descarga a Excel (Versión final)
+        import io
         
-        st.download_button(
-            label="📥 Descargar Reporte en Excel (Auditoría)",
-            data=buffer,
-            file_name=f"Reporte_NEXUS_{fecha_busqueda}.xlsx",
-            mime="application/vnd.ms-excel"
-        )
+        # Definimos df_mostrar basándonos en tu tabla filtrada
+        df_mostrar = df_filtrado.copy()
+        
+        if not df_mostrar.empty:
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                # Usamos las columnas que ya tenías definidas
+                df_mostrar[columnas_a_mostrar].to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
+                
+                workbook = writer.book
+                worksheet = writer.sheets['Ventas_Auditoria']
+                money_fmt = workbook.add_format({'num_format': 'S/ #,##0.00'})
+                
+                row_idx = len(df_mostrar) + 1
+                worksheet.write(row_idx, 2, "TOTALES:")
+                worksheet.write_formula(row_idx, 3, f'=SUM(D2:D{row_idx})', money_fmt)
+                worksheet.write_formula(row_idx, 4, f'=SUM(E2:E{row_idx})', money_fmt)
+            
+            st.download_button(
+                label="📥 Descargar Reporte en Excel (Auditoría)",
+                data=buffer,
+                file_name=f"Reporte_NEXUS_{fecha_busqueda}.xlsx",
+                mime="application/vnd.ms-excel"
+            )
+        else:
+            st.info("💡 No hay datos en esta fecha para generar el Excel.")
