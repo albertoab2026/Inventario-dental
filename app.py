@@ -745,24 +745,21 @@ elif menu == "Reportes":
         # 6. Descarga a Excel con Totales
         import io
         
-        # Aseguramos que usamos los datos filtrados correctamente
-        df_mostrar = df_filtrado.copy()
-        
-        if not df_mostrar.empty:
+        # Usamos directamente df_filtrado que ya tiene los datos correctos
+        if not df_filtrado.empty:
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                # Escribimos los datos seleccionados
-                df_mostrar[columnas_a_mostrar].to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
+                # Usamos df_filtrado para generar el archivo
+                df_filtrado.to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
                 
                 workbook = writer.book
                 worksheet = writer.sheets['Ventas_Auditoria']
                 money_fmt = workbook.add_format({'num_format': 'S/ #,##0.00'})
                 
-                # Fórmulas de totales
-                # Columna C es 'cantidad' (índice 1), Columna D es 'total_venta' (índice 2)
-                row_idx = len(df_mostrar) + 1
+                row_idx = len(df_filtrado) + 1
                 worksheet.write(row_idx, 1, "TOTALES:")
-                # Sumamos la columna D (índice 2) que es total_venta
+                # Asegúrate que la columna de totales es la que contiene 'total_venta'
+                # Si tu Excel sale vacío, es porque la columna 'total_venta' no está en la posición esperada
                 worksheet.write_formula(row_idx, 2, f'=SUM(C2:C{row_idx})', money_fmt)
             
             st.download_button(
@@ -772,4 +769,4 @@ elif menu == "Reportes":
                 mime="application/vnd.ms-excel"
             )
         else:
-            st.info("No hay datos en esta fecha para generar el Excel.")
+            st.warning("No hay datos disponibles para el día seleccionado.")
