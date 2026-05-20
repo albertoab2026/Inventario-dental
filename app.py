@@ -132,6 +132,27 @@ def agregar_producto(nombre, precio_venta, precio_compra, stock, categoria):
     except Exception as e:
         st.error(f"Error: {e}")
         return False
+
+def actualizar_inventario_masivo(df_editado):
+    try:
+        # Recorremos cada fila del DataFrame editado
+        for index, row in df_editado.iterrows():
+            tabla_productos.update_item(
+                Key={'id_del_dueno': str(st.session_state.user_data['usuario_id']), 
+                     'producto_id': row['producto_id']},
+                UpdateExpression="SET nombre = :n, precio_venta = :pv, precio_compra = :pc, stock = :s, categoria = :c",
+                ExpressionAttributeValues={
+                    ':n': row['nombre'],
+                    ':pv': Decimal(str(row['precio_venta'])),
+                    ':pc': Decimal(str(row['precio_compra'])),
+                    ':s': int(row['stock']),
+                    ':c': row['categoria']
+                }
+            )
+        return True
+    except Exception as e:
+        st.error(f"Error al actualizar: {e}")
+        return False
         
 # Cambia la definición de la función así:
 def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago):
@@ -289,50 +310,41 @@ with st.sidebar:
 if menu == "Productos":
     st.title("📦 Gestión de Inventario")
     
-    # 1. Formulario Nuevo Producto
-    with st.expander("➕ Agregar Nuevo Producto"):
-        with st.form("nuevo_producto"):
-            col1, col2 = st.columns(2)
-            n = col1.text_input("Nombre")
-            pv = col1.number_input("Precio Venta", step=0.1)
-            pc = col2.number_input("Precio Compra", step=0.1)
-            stk = col2.number_input("Stock", step=1)
-            cat = st.text_input("Categoría")
-            if st.form_submit_button("Guardar"):
-                if n and agregar_producto(n, pv, pc, stk, cat):
-                    st.success("¡Agregado!")
-                    st.rerun()
+    # 1. Formulario para añadir (esto no causa duplicados)
+    with st.expander("➕ Nuevo Producto"):
+        # ... (Aquí va tu código de formulario actual) ...
+        if st.button("Guardar Producto Nuevo"):
+            # ... tu lógica ...
+            st.rerun()
 
-    # 2. Tabla Profesional
+    st.subheader("Control de Inventario")
     productos = obtener_productos()
+    
     if productos:
-        df = pd.DataFrame(productos)
+        df_inv = pd.DataFrame(productos)
         
-        # Filtramos solo las columnas que el usuario debe ver y editar
-        cols_visibles = ['nombre', 'precio_venta', 'precio_compra', 'stock', 'categoria']
+        # EL BUSCADOR (Definido UNA sola vez)
+        busqueda_p = st.text_input("🔍 Buscar por nombre:", key="buscador_unico")
         
-        busqueda_p = st.text_input("🔍 Buscar por nombre:", key="buscar_inv")
         if busqueda_p:
-            df = df[df['nombre'].str.contains(busqueda_p, case=False, na=False)]
+            df_mostrar = df_inv[df_inv['nombre'].str.contains(busqueda_p, case=False, na=False)]
+        else:
+            df_mostrar = df_inv
 
-        # Editamos solo las columnas visibles
+        # LA TABLA EDITABLE (Una sola vez)
         df_editado = st.data_editor(
-            df[cols_visibles], 
-            use_container_width=True, 
+            df_mostrar[['nombre', 'precio_venta', 'precio_compra', 'stock', 'categoria']],
+            num_rows="dynamic",
+            use_container_width=True,
             height=400
         )
 
         if st.button("💾 Guardar cambios masivos"):
-            # AQUÍ ESTÁ LA CLAVE: Debes actualizar tu fuente de datos
-            # Supongamos que tienes una función llamada guardar_productos(df_completo)
-            # Debes fusionar los cambios de df_editado con el original
-            
-            # PASO OBLIGATORIO:
-            # 1. Actualiza el DataFrame original 'df' con los cambios de 'df_editado'
-            # 2. Llama a tu función que sobrescribe el archivo/DB
-            guardar_inventario_completo(df_editado) 
-            st.success("¡Inventario sincronizado!")
-            st.rerun()      
+            if actualizar_inventario_masivo(df_editado):
+                st.success("¡Inventario actualizado en la base de datos!")
+                st.rerun()
+            else:
+                st.error("Hubo un problema al guardar.")      
 
 # --- PÁGINA VENTAS (Diseño Estilo SaaS Comercial) ---
 elif menu == "Ventas":
