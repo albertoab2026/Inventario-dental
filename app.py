@@ -135,13 +135,14 @@ def agregar_producto(nombre, precio_venta, precio_compra, stock, categoria):
 
 def actualizar_inventario_masivo(df_editado):
     try:
-        # Spinner para feedback visual
-        with st.spinner("Actualizando base de datos..."):
+        with st.spinner("Actualizando..."):
             for index, row in df_editado.iterrows():
+                # Obtenemos el ID original de alguna forma, 
+                # o asegúrate de que 'producto_id' esté en el df_editado
                 tabla_productos.update_item(
                     Key={
                         'id_del_dueno': str(st.session_state.user_data['usuario_id']),
-                        'producto_id': str(row['producto_id'])
+                        'producto_id': str(row['producto_id']) # Asegúrate de que este ID exista
                     },
                     UpdateExpression="SET nombre = :n, precio_venta = :pv, precio_compra = :pc, stock = :s, categoria = :c",
                     ExpressionAttributeValues={
@@ -152,10 +153,10 @@ def actualizar_inventario_masivo(df_editado):
                         ':c': row['categoria']
                     }
                 )
-        st.success("✅ ¡Inventario actualizado con éxito!")
+        st.success("✅ ¡Inventario actualizado!")
         return True
     except Exception as e:
-        st.error(f"Error al actualizar: {e}")
+        st.error(f"Error: {e}")
         return False
         
 # Cambia la definición de la función así:
