@@ -740,24 +740,32 @@ elif menu == "Reportes":
         """, unsafe_allow_html=True)
     
         # 6. Descarga a Excel con Totales
-        import io 
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            df_mostrar[columnas_a_mostrar].to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
-            
-            workbook = writer.book
-            worksheet = writer.sheets['Ventas_Auditoria']
-            
-            money_fmt = workbook.add_format({'num_format': 'S/ #,##0.00'})
-            
-            row_idx = len(df_mostrar) + 1
-            worksheet.write(row_idx, 2, "TOTALES:")
-            worksheet.write_formula(row_idx, 3, f'=SUM(D2:D{row_idx})', money_fmt)
-            worksheet.write_formula(row_idx, 4, f'=SUM(E2:E{row_idx})', money_fmt)
+        import io
         
-        st.download_button(
-            label="📥 Descargar Reporte en Excel (Auditoría)",
-            data=buffer,
-            file_name=f"Reporte_NEXUS_{fecha_busqueda}.xlsx",
-            mime="application/vnd.ms-excel"
-        )
+        # Intentamos obtener los datos del reporte. 
+        # Si 'df_mostrar' no existe, usamos un DataFrame vacío para no romper la app.
+        if 'df_mostrar' not in locals():
+            df_mostrar = pd.DataFrame()
+
+        if not df_mostrar.empty:
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                df_mostrar[columnas_a_mostrar].to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
+                
+                workbook = writer.book
+                worksheet = writer.sheets['Ventas_Auditoria']
+                money_fmt = workbook.add_format({'num_format': 'S/ #,##0.00'})
+                
+                row_idx = len(df_mostrar) + 1
+                worksheet.write(row_idx, 2, "TOTALES:")
+                worksheet.write_formula(row_idx, 3, f'=SUM(D2:D{row_idx})', money_fmt)
+                worksheet.write_formula(row_idx, 4, f'=SUM(E2:E{row_idx})', money_fmt)
+            
+            st.download_button(
+                label="📥 Descargar Reporte en Excel (Auditoría)",
+                data=buffer,
+                file_name=f"Reporte_NEXUS_{fecha_busqueda}.xlsx",
+                mime="application/vnd.ms-excel"
+            )
+        else:
+            st.warning("No hay datos disponibles para generar el reporte de Excel.")
