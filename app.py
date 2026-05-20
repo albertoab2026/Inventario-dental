@@ -742,25 +742,30 @@ elif menu == "Reportes":
             if 'ganancia_real' not in df_mostrar.columns: df_mostrar['ganancia_real'] = 0
             st.dataframe(df_mostrar[columnas_a_mostrar], use_container_width=True)
     
-        # 6. Descarga a Excel con Totales
+        # 6. Descarga a Excel con Totales calculados en Python
         import io
         
-        # Usamos directamente df_filtrado que ya tiene los datos correctos
         if not df_filtrado.empty:
             buffer = io.BytesIO()
+            # Creamos una copia para el reporte
+            df_reporte = df_filtrado.copy()
+            
+            # Aseguramos que 'total_venta' sea numérico para sumar
+            df_reporte['total_venta'] = pd.to_numeric(df_reporte['total_venta'], errors='coerce').fillna(0)
+            
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                # Usamos df_filtrado para generar el archivo
-                df_filtrado.to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
+                df_reporte.to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
                 
-                workbook = writer.book
                 worksheet = writer.sheets['Ventas_Auditoria']
+                workbook = writer.book
                 money_fmt = workbook.add_format({'num_format': 'S/ #,##0.00'})
                 
-                row_idx = len(df_filtrado) + 1
+                # Escribimos los totales calculados directamente sin fórmulas de Excel
+                total_monto = df_reporte['total_venta'].sum()
+                row_idx = len(df_reporte) + 1
+                
                 worksheet.write(row_idx, 1, "TOTALES:")
-                # Asegúrate que la columna de totales es la que contiene 'total_venta'
-                # Si tu Excel sale vacío, es porque la columna 'total_venta' no está en la posición esperada
-                worksheet.write_formula(row_idx, 2, f'=SUM(C2:C{row_idx})', money_fmt)
+                worksheet.write(row_idx, 2, total_monto, money_fmt) # Asegúrate que columna 2 es 'total_venta'
             
             st.download_button(
                 label="📥 Descargar Reporte en Excel (Auditoría)",
@@ -769,4 +774,4 @@ elif menu == "Reportes":
                 mime="application/vnd.ms-excel"
             )
         else:
-            st.warning("No hay datos disponibles para el día seleccionado.")
+            st.warning("No hay ventas para mostrar.")
