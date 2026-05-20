@@ -133,6 +133,19 @@ def agregar_producto(nombre, precio_venta, precio_compra, stock, categoria):
         st.error(f"Error: {e}")
         return False
 
+def borrar_producto(producto_id, id_dueno):
+    try:
+        tabla_productos.delete_item(
+            Key={
+                'id_del_dueno': str(id_dueno),
+                'producto_id': str(producto_id)
+            }
+        )
+        return True
+    except Exception as e:
+        st.error(f"Error al borrar: {e}")
+        return False
+
 def procesar_carga_excel(df):
     tamanio_bloque = 25
     total_filas = len(df)
