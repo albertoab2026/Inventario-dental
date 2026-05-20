@@ -724,28 +724,47 @@ elif menu == "Reportes":
             </style>
         """, unsafe_allow_html=True)
     
-        st.markdown("### 💵 Resumen del Día")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("💰 Total Ventas", f"S/{total_ventas_dia:.2f}")
-        c2.metric("💵 Efectivo", f"S/{efectivo:.2f}")
-        c3.metric("📱 Yape", f"S/{yape:.2f}")
-        c4.metric("🔮 Plin", f"S/{plin:.2f}")
+        # 5. Visualización estable (CSS corregido para fondo oscuro)
+        st.markdown("""
+            <style>
+            /* Contenedor de las métricas */
+            div[data-testid="metric-container"] { 
+                background-color: #0f172a !important; /* Azul más oscuro para contraste */
+                padding: 20px !important; 
+                border-radius: 12px !important; 
+                border: 1px solid #334155 !important; 
+            }
+            /* Color de los valores: Blanco brillante */
+            div[data-testid="metric-container"] [data-testid="stMetricValue"] { 
+                font-size: 3rem !important; 
+                color: #ffffff !important; 
+                font-weight: bold !important;
+            }
+            /* Color de las etiquetas: Gris claro */
+            div[data-testid="metric-container"] label { 
+                font-size: 1.5rem !important; 
+                color: #94a3b8 !important; 
+            }
+            </style>
+        """, unsafe_allow_html=True)
     
-        delta_val = ganancia_hoy - ganancia_pasada
-        st.metric("📈 Ganancia Real (Hoy)", f"S/{ganancia_hoy:.2f}", delta=f"{delta_val:.2f} vs hace 7 días")
-    
-        # Tabla con Expansor y Columna Ganancia
-        columnas_a_mostrar = ['Hora', 'Producto', 'cantidad', 'total_venta', 'ganancia_real', 'pago_norm']
-        with st.expander("📊 Ver detalle de ventas (Maximizar/Minimizar)"):
-            # Aseguramos que 'ganancia_real' se muestre en la tabla
-            df_mostrar = df_filtrado.copy()
-            if 'ganancia_real' not in df_mostrar.columns: df_mostrar['ganancia_real'] = 0
-            st.dataframe(df_mostrar[columnas_a_mostrar], use_container_width=True)
-    
-        # Botón de Descarga Excel (Auditoría)
+        # 6. Descarga a Excel con Totales
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             df_mostrar[columnas_a_mostrar].to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
+            
+            # Acceder al libro y hoja para agregar sumatorias
+            workbook = writer.book
+            worksheet = writer.sheets['Ventas_Auditoria']
+            
+            # Formato de dinero
+            money_fmt = workbook.add_format({'num_format': 'S/ #,##0.00'})
+            
+            # Calcular fila final
+            row_idx = len(df_mostrar) + 1
+            worksheet.write(row_idx, 2, "TOTALES:")
+            worksheet.write_formula(row_idx, 3, f'=SUM(D2:D{row_idx})', money_fmt) # Suma total_venta
+            worksheet.write_formula(row_idx, 4, f'=SUM(E2:E{row_idx})', money_fmt) # Suma ganancia_real
         
         st.download_button(
             label="📥 Descargar Reporte en Excel (Auditoría)",
