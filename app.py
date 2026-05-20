@@ -743,30 +743,21 @@ elif menu == "Reportes":
             if 'ganancia_real' not in df_mostrar.columns: df_mostrar['ganancia_real'] = 0
             st.dataframe(df_mostrar[columnas_a_mostrar], use_container_width=True)
     
-        # 6. Descarga a Excel con Totales
+        # 6. Descarga a Excel (Versión Estable y Robusta)
         import io
         
-        # Usamos df_filtrado porque ya sabemos que tiene los datos
         if not df_filtrado.empty:
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                # Escribimos los datos sin intentar ajustar el ancho manualmente
                 df_filtrado.to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
                 
                 workbook = writer.book
                 worksheet = writer.sheets['Ventas_Auditoria']
                 money_fmt = workbook.add_format({'num_format': 'S/ #,##0.00'})
-
-                # 6. Ajustar ancho de columnas de forma segura
-                for i, col in enumerate(df_filtrado.columns):
-                    # Convertimos a string y manejamos posibles errores de tipo
-                    column_data = df_filtrado[col].astype(str)
-                    column_len = max(column_data.map(len).max(), len(str(col))) + 2
-                    # Limitamos el ancho máximo para evitar errores en columnas muy largas
-                    worksheet.set_column(i, i, min(column_len, 50))
                 
-                # Calcular el total sumando la columna 'total_venta'
+                # Escribir el total calculado
                 total_sum = df_filtrado['total_venta'].sum()
-                
                 row_idx = len(df_filtrado) + 1
                 worksheet.write(row_idx, 1, "TOTALES:")
                 worksheet.write(row_idx, 2, total_sum, money_fmt)
@@ -778,4 +769,4 @@ elif menu == "Reportes":
                 mime="application/vnd.ms-excel"
             )
         else:
-            st.warning("No hay ventas para esta fecha.")
+            st.warning("No hay ventas para generar el reporte.")
