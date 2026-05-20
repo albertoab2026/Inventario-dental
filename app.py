@@ -666,6 +666,19 @@ elif menu == "Reportes":
         # --- NUEVA LÓGICA DE COMPARATIVA ---
         fecha_semana_pasada = fecha_busqueda - timedelta(days=7)
         df_pasada = df[df['Fecha_Corta'] == fecha_semana_pasada].copy()
+
+        # --- NUEVA LÓGICA DE COMPARATIVA ---
+        fecha_semana_pasada = fecha_busqueda - timedelta(days=7)
+        df_pasada = df[df['Fecha_Corta'] == fecha_semana_pasada].copy()
+        
+        # --- INICIALIZACIÓN (Para que no falle los días sin ventas) ---
+        efectivo = 0.0
+        yape = 0.0
+        plin = 0.0
+        ganancia_hoy = 0.0
+        ganancia_pasada = 0.0
+        total_ventas_dia = 0.0
+        # -------------------------------------------------------------
         
         if df_filtrado.empty:
             st.warning(f"No hay ventas para {fecha_busqueda}.")
