@@ -714,25 +714,41 @@ elif menu == "Reportes":
             plin = df_filtrado[df_filtrado['pago_norm'] == 'plin']['total_venta'].sum()
             efectivo = df_filtrado[df_filtrado['pago_norm'] == 'efectivo']['total_venta'].sum()
             
-        # 5. Visualización estable
-        # Calculamos el total de ventas del día actual
-        total_ventas_dia = df_filtrado['total_venta'].sum()
-        
+        # 5. Visualización estable (Diseño mejorado)
+        st.markdown("""
+            <style>
+            div[data-testid="metric-container"] { background-color: #1e293b; padding: 20px; border-radius: 10px; border: 1px solid #475569; }
+            div[data-testid="metric-container"] label { font-size: 1.2rem !important; }
+            div[data-testid="metric-container"] [data-testid="stMetricValue"] { font-size: 2.5rem !important; color: #38bdf8 !important; }
+            </style>
+        """, unsafe_allow_html=True)
+    
         st.markdown("### 💵 Resumen del Día")
-        c1, c2, c3, c4 = st.columns(4) # Añadimos una cuarta columna
+        c1, c2, c3, c4 = st.columns(4)
         c1.metric("💰 Total Ventas", f"S/{total_ventas_dia:.2f}")
         c2.metric("💵 Efectivo", f"S/{efectivo:.2f}")
         c3.metric("📱 Yape", f"S/{yape:.2f}")
         c4.metric("🔮 Plin", f"S/{plin:.2f}")
     
-        # Métrica de ganancia real con su comparación
         delta_val = ganancia_hoy - ganancia_pasada
         st.metric("📈 Ganancia Real (Hoy)", f"S/{ganancia_hoy:.2f}", delta=f"{delta_val:.2f} vs hace 7 días")
-        
-        # Protección: Aseguramos que las columnas existan antes de mostrarlas
-        columnas_a_mostrar = ['Hora', 'Producto', 'cantidad', 'total_venta', 'pago_norm']
-        for col in columnas_a_mostrar:
-            if col not in df_filtrado.columns:
-                df_filtrado[col] = 'N/A' # Si falta algo, le pone N/A en lugar de romper la app
     
-        st.dataframe(df_filtrado[columnas_a_mostrar], use_container_width=True)
+        # Tabla con Expansor y Columna Ganancia
+        columnas_a_mostrar = ['Hora', 'Producto', 'cantidad', 'total_venta', 'ganancia_real', 'pago_norm']
+        with st.expander("📊 Ver detalle de ventas (Maximizar/Minimizar)"):
+            # Aseguramos que 'ganancia_real' se muestre en la tabla
+            df_mostrar = df_filtrado.copy()
+            if 'ganancia_real' not in df_mostrar.columns: df_mostrar['ganancia_real'] = 0
+            st.dataframe(df_mostrar[columnas_a_mostrar], use_container_width=True)
+    
+        # Botón de Descarga Excel (Auditoría)
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df_mostrar[columnas_a_mostrar].to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
+        
+        st.download_button(
+            label="📥 Descargar Reporte en Excel (Auditoría)",
+            data=buffer,
+            file_name=f"Reporte_NEXUS_{fecha_busqueda}.xlsx",
+            mime="application/vnd.ms-excel"
+        )
