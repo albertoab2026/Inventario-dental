@@ -740,8 +740,9 @@ elif menu == "Reportes":
         """, unsafe_allow_html=True)
     
         # 6. Descarga a Excel con Totales
-        import io
+        import io # Importación forzada aquí mismo
         buffer = io.BytesIO()
+        import pandas as pd # Aseguramos tener pandas disponible
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             df_mostrar[columnas_a_mostrar].to_excel(writer, sheet_name='Ventas_Auditoria', index=False)
             
@@ -755,8 +756,8 @@ elif menu == "Reportes":
             # Calcular fila final
             row_idx = len(df_mostrar) + 1
             worksheet.write(row_idx, 2, "TOTALES:")
-            worksheet.write_formula(row_idx, 3, f'=SUM(D2:D{row_idx})', money_fmt) # Suma total_venta
-            worksheet.write_formula(row_idx, 4, f'=SUM(E2:E{row_idx})', money_fmt) # Suma ganancia_real
+            worksheet.write_formula(row_idx, 3, f'=SUM(D2:D{row_idx})', money_fmt)
+            worksheet.write_formula(row_idx, 4, f'=SUM(E2:E{row_idx})', money_fmt)
         
         st.download_button(
             label="📥 Descargar Reporte en Excel (Auditoría)",
