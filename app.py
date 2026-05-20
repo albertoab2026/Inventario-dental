@@ -326,56 +326,6 @@ if menu == "Productos":
     else:
         st.info("No hay productos registrados.")
         
-    # --- BLOQUE BLINDADO DE PRODUCTOS ---
-    if productos:
-        # 🔍 BUSCADOR EN TIEMPO REAL
-        busqueda_p = st.text_input("🔍 Buscar producto por nombre:", key="buscar_inventario")
-        
-        # Filtramos la lista original según lo que escriba el usuario
-        productos_filtrados = [
-            p for p in productos 
-            if busqueda_p.lower() in p.get('nombre', '').lower()
-        ]
-
-        productos_limpios = []
-        for p in productos_filtrados:
-            p_limpio = {
-                'producto_id': p.get('producto_id', 'S/I'),
-                'nombre': p.get('nombre', 'Producto sin nombre'),
-                'precio_compra': float(p.get('precio_compra', 0.0)),
-                'precio_venta': float(p.get('precio_venta', 0.0)),
-                'stock': int(p.get('stock', 0)),
-                'categoria': p.get('categoria', 'General')
-            }
-            productos_limpios.append(p_limpio)
-
-        st.markdown("---")
-        st.subheader("🗑️ Control de Inventario")
-        
-        for p in productos_limpios:
-            p_id = p['producto_id']
-            p_nombre = p['nombre']
-            p_stock = p['stock']
-            p_precio = p['precio_venta']
-            p_cat = p['categoria']
-            
-            # Formato en columnas para que entre perfecto en pantallas móviles
-            col_info, col_btn = st.columns([4, 1])
-            with col_info:
-            # Usamos un expansor para que la edición no ocupe espacio visual innecesario
-                with st.expander(f"📝 {p_nombre} | S/{p_precio:.2f}"):
-                    with st.form(key=f"edit_form_{p_id}"):
-                        nuevo_nombre = st.text_input("Nombre del Producto", value=p_nombre)
-                        nuevo_precio = st.number_input("Precio de Venta", value=float(p_precio), format="%.2f")
-                    
-                        if st.form_submit_button("Guardar Cambios"):
-                            # Aquí debes llamar a tu función que actualiza la base de datos
-                            # Ejemplo: actualizar_producto(p_id, nuevo_nombre, nuevo_precio)
-                            st.success(f"Producto actualizado correctamente.")
-                            st.rerun() # Recarga para ver el cambio instantáneo
-
-    else:
-        st.info("No hay productos. Agrega el primero.")
 
 # --- PÁGINA VENTAS (Diseño Estilo SaaS Comercial) ---
 elif menu == "Ventas":
