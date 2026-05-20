@@ -748,9 +748,10 @@ elif menu == "Reportes":
                 df_top = df_filtrado.groupby('Producto')['total_venta'].sum().reset_index().sort_values('total_venta', ascending=False).head(10)
                 fig_bar = px.bar(df_top, x='total_venta', y='Producto', orientation='h', title="Top 10 Productos")
                 st.plotly_chart(fig_bar, use_container_width=True)
-        
+
+                df_filtrado['pago_norm'] = df_filtrado['pago'].str.lower().str.capitalize()
             with col_graf2:
-                fig_pie = px.pie(df_filtrado, values='total_venta', names='pago', title="Distribución de Pagos", hole=0.4)
+                fig_pie = px.pie(df_filtrado, values='total_venta', names='pago_norm', title="Distribución de Pagos", hole=0.4)
                 st.plotly_chart(fig_pie, use_container_width=True)
         
             if 'Hora' in df_filtrado.columns:
