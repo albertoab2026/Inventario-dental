@@ -138,28 +138,17 @@ def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago):
         id_dueno = st.session_state.user_data['usuario_id']
         fecha_utc = datetime.now(timezone.utc).isoformat()
         total_venta = float(precio_venta) * int(cantidad)
-        total_costo = float(precio_compra) * int(cantidad)
-        ganancia = total_venta - total_costo
         
+        # Guardamos el valor directamente
         tabla_ventas.put_item(Item={
             'usuario_id': id_dueno,
             'Venta_id': str(uuid.uuid4()),
             'producto_id': producto_id,
             'cantidad': int(cantidad),
-            'precio_venta': Decimal(str(precio_venta)),
-            'precio_compra': Decimal(str(precio_compra)),
             'total_venta': Decimal(str(total_venta)),
-            'total_costo': Decimal(str(total_costo)),
-            'ganancia': Decimal(str(ganancia)),
             'fecha': fecha_utc,
-            'pago': pago  # <--- AGREGA ESTA LÍNEA AQUÍ
+            'pago': str(pago)  # <--- ASEGÚRATE DE QUE ESTA LÍNEA ESTÉ AQUÍ
         })
-        
-        response = tabla_productos.get_item(Key={'id_del_dueno': str(id_dueno), 'producto_id': str(producto_id)})
-        if 'Item' in response:
-            nuevo_stock = response['Item']['stock'] - int(cantidad)
-            actualizar_producto(producto_id, response['Item']['precio_venta'], nuevo_stock)
-            
         return True
     except Exception as e:
         st.error(f"Error en venta: {e}")
@@ -676,12 +665,14 @@ elif menu == "Reportes":
             mapa_productos = {p['producto_id']: p['nombre'] for p in productos_raw} if productos_raw else {}
             df_filtrado['Producto'] = df_filtrado['producto_id'].map(mapa_productos).fillna(df_filtrado['producto_id'])
             
-            # 3. Gestión de pagos (Lógica preventiva)
-            # Como el campo no existe en tu BD, asignamos 'Efectivo' por defecto hasta que lo implementes
-            if 'pago' in df_filtrado.columns:
-                df_filtrado['pago_norm'] = df_filtrado['pago'].astype(str).str.lower()
-            else:
-                df_filtrado['pago_norm'] = 'efectivo' # Placeholder hasta que envíes el campo real
+            # 3. Gestión de pagos
+        if 'pago' in df_filtrado.columns:
+            # Cambia el orden: primero limpias los emojis, luego conviertes a minúsculas y luego rellenas los vacíos
+            df_filtrado['pago_norm'] = df_filtrado['pago'].astype(str).str.replace('💵', '').str.replace('📱', '').str.replace('💳', '').str.replace('🔮', '').str.strip().str.lower()
+            df_filtrado['pago_norm'] = df_filtrado['pago_norm'].replace(['none', 'nan', ''], 'efectivo')
+        else:
+            # Si la columna ni siquiera existe en la BD, forzamos 'efectivo'
+            df_filtrado['pago_norm'] = 'efectivo'
             
             # 4. Cálculos financieros
             df_filtrado['total_venta'] = pd.to_numeric(df_filtrado['total_venta'], errors='coerce').fillna(0)
