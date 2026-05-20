@@ -133,9 +133,9 @@ def agregar_producto(nombre, precio_venta, precio_compra, stock, categoria):
         st.error(f"Error: {e}")
         return False
 
+# --- AQUÍ DEBE IR EL PASO 1 (La función de actualización masiva) ---
 def actualizar_inventario_masivo(df_editado):
     try:
-        # Spinner para feedback visual
         with st.spinner("Actualizando base de datos..."):
             for index, row in df_editado.iterrows():
                 tabla_productos.update_item(
