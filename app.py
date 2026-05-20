@@ -289,48 +289,49 @@ with st.sidebar:
 if menu == "Productos":
     st.title("📦 Gestión de Inventario")
     
-    # --- FORMULARIO DE NUEVO PRODUCTO ---
+    # 1. Formulario Nuevo Producto
     with st.expander("➕ Agregar Nuevo Producto"):
-        with st.form("nuevo_producto_form"):
+        with st.form("nuevo_producto"):
             col1, col2 = st.columns(2)
-            with col1:
-                nombre = st.text_input("Nombre del producto")
-                precio_compra = st.number_input("Precio Compra", step=0.1)
-            with col2:
-                precio_venta = st.number_input("Precio Venta", step=0.1)
-                stock = st.number_input("Stock inicial", step=1)
-            
-            categoria = st.text_input("Categoría", value="General")
-            
-            if st.form_submit_button("Guardar Producto"):
-                # Aquí llama a tu función original: agregar_producto(...)
-                st.success("¡Producto añadido!")
-                st.rerun()
+            n = col1.text_input("Nombre")
+            pv = col1.number_input("Precio Venta", step=0.1)
+            pc = col2.number_input("Precio Compra", step=0.1)
+            stk = col2.number_input("Stock", step=1)
+            cat = st.text_input("Categoría")
+            if st.form_submit_button("Guardar"):
+                if n and agregar_producto(n, pv, pc, stk, cat):
+                    st.success("¡Agregado!")
+                    st.rerun()
 
-    # --- TABLA PROFESIONAL (PARA 1,000 PRODUCTOS) ---
-    st.subheader("Control de Inventario")
+    # 2. Tabla Profesional
     productos = obtener_productos()
-    
     if productos:
-        df_inv = pd.DataFrame(productos)
+        df = pd.DataFrame(productos)
         
-        # Filtro de búsqueda único
+        # Filtramos solo las columnas que el usuario debe ver y editar
+        cols_visibles = ['nombre', 'precio_venta', 'precio_compra', 'stock', 'categoria']
+        
         busqueda_p = st.text_input("🔍 Buscar por nombre:", key="buscar_inv")
         if busqueda_p:
-            df_inv = df_inv[df_inv['nombre'].str.contains(busqueda_p, case=False, na=False)]
+            df = df[df['nombre'].str.contains(busqueda_p, case=False, na=False)]
 
-        # TABLA EDITABLE CON PAGINACIÓN AUTOMÁTICA
-        # Streamlit maneja automáticamente el scroll si limitamos la altura
+        # Editamos solo las columnas visibles
         df_editado = st.data_editor(
-            df_inv,
-            num_rows="dynamic",
-            use_container_width=True,
-            height=500, # Esto fija el tamaño, no importa si tienes 10 o 1,000 productos
+            df[cols_visibles], 
+            use_container_width=True, 
+            height=400
         )
 
         if st.button("💾 Guardar cambios masivos"):
-            # Lógica para recorrer df_editado y actualizar tu base de datos
-            st.success("Inventario actualizado en base de datos.")
+            # AQUÍ ESTÁ LA CLAVE: Debes actualizar tu fuente de datos
+            # Supongamos que tienes una función llamada guardar_productos(df_completo)
+            # Debes fusionar los cambios de df_editado con el original
+            
+            # PASO OBLIGATORIO:
+            # 1. Actualiza el DataFrame original 'df' con los cambios de 'df_editado'
+            # 2. Llama a tu función que sobrescribe el archivo/DB
+            guardar_inventario_completo(df_editado) 
+            st.success("¡Inventario sincronizado!")
             st.rerun()      
 
 # --- PÁGINA VENTAS (Diseño Estilo SaaS Comercial) ---
