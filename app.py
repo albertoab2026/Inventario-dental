@@ -684,11 +684,17 @@ elif menu == "Reportes":
         plin = df_filtrado[df_filtrado['pago_norm'] == 'plin']['total_venta'].sum()
         efectivo = df_filtrado[df_filtrado['pago_norm'] == 'efectivo']['total_venta'].sum()
             
-        # 5. Visualización estable
+        # 5. Visualización estable (Protegida contra errores)
         st.markdown("### 💵 Distribución de Caja")
         c1, c2, c3 = st.columns(3)
         c1.metric("💵 Efectivo", f"S/{efectivo:.2f}")
         c2.metric("📱 Yape", f"S/{yape:.2f}")
         c3.metric("🔮 Plin", f"S/{plin:.2f}")
-        
-        st.dataframe(df_filtrado[['Hora', 'Producto', 'cantidad', 'total_venta', 'pago_norm']], use_container_width=True)
+    
+        # Protección: Aseguramos que las columnas existan antes de mostrarlas
+        columnas_a_mostrar = ['Hora', 'Producto', 'cantidad', 'total_venta', 'pago_norm']
+        for col in columnas_a_mostrar:
+            if col not in df_filtrado.columns:
+                df_filtrado[col] = 'N/A' # Si falta algo, le pone N/A en lugar de romper la app
+    
+        st.dataframe(df_filtrado[columnas_a_mostrar], use_container_width=True)
