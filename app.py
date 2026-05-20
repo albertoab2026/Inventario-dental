@@ -179,7 +179,7 @@ def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago):
             'pago': str(pago)
         })
         return True
-    except Exception as e:  # <--- ESTO DEBE ESTAR AL MISMO NIVEL QUE 'try'
+    except Exception as e:
         st.error(f"Error en venta: {e}")
         return False
 
