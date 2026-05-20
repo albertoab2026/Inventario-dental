@@ -428,6 +428,27 @@ if menu == "Productos":
             use_container_width=True,
             height=400
         )
+        # --- NUEVO BLOQUE: SECTOR DE BORRADO SEGURO ---
+        st.divider()
+        st.subheader("🗑️ Eliminar Producto")
+        
+        # 1. Selector limpio para evitar errores de selección en la tabla
+        producto_a_borrar = st.selectbox(
+            "Selecciona el producto a eliminar:",
+            options=df_mostrar['nombre'].tolist(),
+            key="selector_borrado"
+        )
+        
+        # 2. Botón de acción con confirmación
+        if st.button("❌ Confirmar Eliminación"):
+            # Encontramos la fila del producto seleccionado
+            fila_prod = df_inv[df_inv['nombre'] == producto_a_borrar].iloc[0]
+            
+            # Llamamos a la función borrar que definiste antes
+            if borrar_producto(fila_prod['producto_id'], st.session_state.user_data['usuario_id']):
+                st.success(f"¡{producto_a_borrar} eliminado correctamente!")
+                st.rerun() # Esto recarga y limpia la tabla inmediatamente
+        
         # BOTÓN DE GUARDADO CON LÓGICA DE CONFIRMACIÓN
         if st.button("💾 Guardar cambios masivos"):
             # Llamamos a la función
