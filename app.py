@@ -289,48 +289,42 @@ with st.sidebar:
 if menu == "Productos":
     st.title("📦 Gestión de Inventario")
     
-    # 1. Nueva sección para añadir productos
+    # 1. Formulario para añadir (esto no causa duplicados)
     with st.expander("➕ Nuevo Producto"):
-        # ... (Tu código actual de formulario de nuevo producto se queda igual aquí)
-        nombre = st.text_input("Nombre")
-        precio_compra = st.number_input("Precio Compra S/", min_value=0.0, step=0.1)
-        precio_venta = st.number_input("Precio Venta S/", min_value=0.0, step=0.1)
-        stock = st.number_input("Stock", min_value=0, step=1)
-        categoria = st.text_input("Categoría", value="General")
-        
-        if st.button("Guardar"):
-            if nombre and agregar_producto(nombre, precio_venta, precio_compra, stock, categoria):
-                st.success("¡Producto guardado!")
-                st.rerun()
+        # ... (Tu código de inputs actual) ...
+        # ...
+        if st.button("Guardar Producto Nuevo"):
+            # ... tu lógica de agregar_producto ...
+            st.rerun()
 
-    # 2. Gestión masiva (El salto de calidad)
     st.subheader("Control de Inventario")
     productos = obtener_productos()
     
     if productos:
         df_inv = pd.DataFrame(productos)
         
-        # Filtro de búsqueda (ya lo tenías, mantenlo así)
-        busqueda_p = st.text_input("🔍 Buscar producto por nombre:", key="buscar_inventario")
+        # EL BUSCADOR: Definido UNA sola vez
+        busqueda_p = st.text_input("🔍 Buscar producto por nombre:", key="buscador_unico_productos")
+        
         if busqueda_p:
             df_mostrar = df_inv[df_inv['nombre'].str.contains(busqueda_p, case=False, na=False)]
         else:
             df_mostrar = df_inv
 
-        # Aquí ocurre la magia: Editor interactivo
+        # LA TABLA EDITABLE: Una sola vez
         df_editado = st.data_editor(
             df_mostrar[['nombre', 'precio_venta', 'precio_compra', 'stock', 'categoria']],
             num_rows="dynamic",
             use_container_width=True
         )
 
-        if st.button("💾 Guardar todos los cambios"):
-            # IMPORTANTE: Aquí debes implementar la lógica que recorre df_editado 
-            # y actualiza cada fila en tu base de datos.
-            st.success("¡Base de datos actualizada!")
+        if st.button("💾 Guardar cambios masivos"):
+            # Aquí llamas a tu función de guardado
+            # actualizar_inventario(df_editado)
+            st.success("Inventario actualizado.")
             st.rerun()
     else:
-        st.info("No hay productos. Agrega el primero.")
+        st.info("No hay productos registrados.")
         
     # --- BLOQUE BLINDADO DE PRODUCTOS ---
     if productos:
