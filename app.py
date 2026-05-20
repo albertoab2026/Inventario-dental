@@ -665,7 +665,7 @@ elif menu == "Reportes":
             mapa_productos = {p['producto_id']: p['nombre'] for p in productos_raw} if productos_raw else {}
             df_filtrado['Producto'] = df_filtrado['producto_id'].map(mapa_productos).fillna(df_filtrado['producto_id'])
             
-    # 3. Gestión de pagos (Lógica forzada y robusta)
+        # 3. Gestión de pagos (Lógica forzada y robusta)
         if 'pago' not in df_filtrado.columns:
             df_filtrado['pago'] = 'efectivo'
     
@@ -684,11 +684,11 @@ elif menu == "Reportes":
         plin = df_filtrado[df_filtrado['pago_norm'] == 'plin']['total_venta'].sum()
         efectivo = df_filtrado[df_filtrado['pago_norm'] == 'efectivo']['total_venta'].sum()
             
-            # 5. Visualización estable
-            st.markdown("### 💵 Distribución de Caja")
-            c1, c2, c3 = st.columns(3)
-            c1.metric("💵 Efectivo", f"S/{efectivo:.2f}")
-            c2.metric("📱 Yape", f"S/{yape:.2f}")
-            c3.metric("🔮 Plin", f"S/{plin:.2f}")
-            
-            st.dataframe(df_filtrado[['Hora', 'Producto', 'cantidad', 'total_venta', 'pago_norm']], use_container_width=True)
+        # 5. Visualización estable
+        st.markdown("### 💵 Distribución de Caja")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("💵 Efectivo", f"S/{efectivo:.2f}")
+        c2.metric("📱 Yape", f"S/{yape:.2f}")
+        c3.metric("🔮 Plin", f"S/{plin:.2f}")
+        
+        st.dataframe(df_filtrado[['Hora', 'Producto', 'cantidad', 'total_venta', 'pago_norm']], use_container_width=True)
