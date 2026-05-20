@@ -152,16 +152,22 @@ def actualizar_inventario_masivo(df_editado):
                         ':c': row['categoria']
                     }
                 )
-# --- Lógica de Agregar Producto ---
-    if nombre_nuevo:
-        try:
-            if agregar_producto(nombre_nuevo, pv_nuevo, pc_nuevo, stk_nuevo, cat_nuevo):
-                st.toast("✅ ¡Producto agregado!", icon="📦")
-                st.rerun()
-        except Exception as e:
-            st.error(f"Error: {e}")
+        st.success("✅ ¡Inventario actualizado correctamente!")
+        return True
+    except Exception as e:
+        st.error(f"Error al actualizar: {e}")
+        return False
 
-# --- FUNCIÓN DE VENTAS (Asegúrate de que 'def' esté pegado al margen izquierdo) ---
+# --- Lógica de Agregar Producto ---
+if nombre_nuevo:
+    try:
+        if agregar_producto(nombre_nuevo, pv_nuevo, pc_nuevo, stk_nuevo, cat_nuevo):
+            st.toast("✅ ¡Producto agregado!", icon="📦")
+            st.rerun()
+    except Exception as e:
+        st.error(f"Error al agregar: {e}")
+
+# --- FUNCIONES DE VENTAS Y PRODUCTOS ---
 def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago):
     try:
         id_dueno = st.session_state.user_data['usuario_id']
@@ -208,7 +214,6 @@ def eliminar_producto(producto_id):
     except Exception as e:
         st.error(f"Error al eliminar en la base de datos: {e}")
         return False
-
 # ======= 4. PANTALLA LOGIN =======
 def mostrar_login():
     st.markdown("""
