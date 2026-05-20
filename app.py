@@ -157,7 +157,7 @@ def actualizar_inventario_masivo(df_editado):
         
         # SI LLEGA AQUÍ, EL MENSAJE DEBE SALIR
         if contador > 0:
-            st.success(f"✅ ¡Inventario actualizado! Se modificaron {contador} productos.")
+            st.success("✅ ¡Inventario actualizado correctamente!")
             return True
         else:
             st.warning("⚠️ No se detectaron cambios en el inventario.")
