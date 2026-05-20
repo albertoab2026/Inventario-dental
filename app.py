@@ -755,6 +755,11 @@ elif menu == "Reportes":
                 workbook = writer.book
                 worksheet = writer.sheets['Ventas_Auditoria']
                 money_fmt = workbook.add_format({'num_format': 'S/ #,##0.00'})
+
+                # Ajustar ancho de columnas automáticamente
+                for i, col in enumerate(df_filtrado.columns):
+                    column_len = max(df_filtrado[col].astype(str).map(len).max(), len(str(col))) + 2
+                    worksheet.set_column(i, i, column_len)
                 
                 # Calcular el total sumando la columna 'total_venta'
                 total_sum = df_filtrado['total_venta'].sum()
