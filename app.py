@@ -734,37 +734,35 @@ elif menu == "Reportes":
         
         delta_val = ganancia_hoy - ganancia_pasada
         st.metric("📝 Ganancia Real (Hoy)", f"S/{ganancia_hoy:.2f}", delta=f"{delta_val:.2f} vs hace 7 días")
-        st.write("Columnas disponibles:", df_filtrado.columns.tolist())
-        # --- NUEVA SECCIÓN DE GRÁFICOS ---
+        
+        # --- SECCIÓN DE GRÁFICOS Y TABLA ---
         import plotly.express as px
         st.write("---")
         st.subheader("📊 Análisis Visual del Día")
         
-        col_graf1, col_graf2 = st.columns(2)
+        if not df_filtrado.empty:
+            col_graf1, col_graf2 = st.columns(2)
         
-        with col_graf1:
-            # Gráfico de Barras: Top Productos
-            df_top = df_filtrado.groupby('Producto')['total_venta'].sum().reset_index().sort_values('total_venta', ascending=False).head(10)
-            fig_bar = px.bar(df_top, x='total_venta', y='Producto', orientation='h', title="Top 10 Productos (S/.)")
-            st.plotly_chart(fig_bar, use_container_width=True)
+            with col_graf1:
+                df_top = df_filtrado.groupby('producto_id')['total_venta'].sum().reset_index().sort_values('total_venta', ascending=False).head(10)
+                fig_bar = px.bar(df_top, x='total_venta', y='producto_id', orientation='h', title="Top 10 Productos")
+                st.plotly_chart(fig_bar, use_container_width=True)
         
-        with col_graf2:
-            # Gráfico de Torta: Métodos de Pago
-            fig_pie = px.pie(df_filtrado, values='total_venta', names='pago_norm', title="Distribución de Pagos", hole=0.4)
-            st.plotly_chart(fig_pie, use_container_width=True)
+            with col_graf2:
+                fig_pie = px.pie(df_filtrado, values='total_venta', names='pago', title="Distribución de Pagos", hole=0.4)
+                st.plotly_chart(fig_pie, use_container_width=True)
         
-        # Gráfico de Líneas: Tendencia por Hora
-        df_hora = df_filtrado.groupby('Fecha_Hora_Mov')['total_venta'].sum().reset_index()
-        fig_line = px.area(df_hora, x='Fecha_Hora_Mov', y='total_venta', title="Tendencia de Ventas por Hora", line_shape='spline')
-        st.plotly_chart(fig_line, use_container_width=True)
-    
-        # Tabla con Expansor y Columna Ganancia
-        columnas_a_mostrar = ['Hora', 'Producto', 'cantidad', 'total_venta', 'ganancia_real', 'pago_norm']
-        with st.expander("📊 Ver detalle de ventas (Maximizar/Minimizar)"):
-            # Aseguramos que 'ganancia_real' se muestre en la tabla
-            df_mostrar = df_filtrado.copy()
-            if 'ganancia_real' not in df_mostrar.columns: df_mostrar['ganancia_real'] = 0
-            st.dataframe(df_mostrar[columnas_a_mostrar], use_container_width=True)
+            if 'Hora' in df_filtrado.columns:
+                df_hora = df_filtrado.groupby('Hora')['total_venta'].sum().reset_index()
+                fig_line = px.area(df_hora, x='Hora', y='total_venta', title="Tendencia de Ventas", line_shape='spline')
+                st.plotly_chart(fig_line, use_container_width=True)
+        
+            # Tabla con Expansor
+            with st.expander("📊 Ver detalle de ventas (Maximizar/Minimizar)"):
+                columnas_a_mostrar = ['Hora', 'producto_id', 'cantidad', 'total_venta', 'ganancia_real', 'pago']
+                st.dataframe(df_filtrado[columnas_a_mostrar], use_container_width=True)
+        else:
+            st.warning("No hay datos para mostrar gráficos ni detalles.")
     
         # 6. Descarga a Excel (Versión Estable y Robusta)
         import io
