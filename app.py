@@ -368,17 +368,11 @@ if menu == "Productos":
         )
         # BOTÓN DE GUARDADO CON LÓGICA DE CONFIRMACIÓN
         if st.button("💾 Guardar cambios masivos"):
-            with st.spinner("Guardando en la base de datos..."):
-                # Aquí llamamos a la función que definiste en la línea 135
-                if 'actualizar_inventario_masivo' in globals():
-                    if actualizar_inventario_masivo(df_editado):
-                        st.success("✅ ¡Inventario actualizado!")
-                        st.rerun()
-                else:
-                    st.error("Error técnico: La función de actualización no está cargada.")
-    else:
-        st.info("No hay productos registrados.")
-        
+            # Llamamos a la función
+            if actualizar_inventario_masivo(df_editado):
+                # El mensaje de success es persistente, se quedará ahí
+                st.success("✅ ¡Inventario actualizado correctamente!")
+                               
 # --- PÁGINA VENTAS (Diseño Estilo SaaS Comercial) ---
 elif menu == "Ventas":
     st.title("🛒 Terminal de Ventas (POS Premium)")
