@@ -760,7 +760,7 @@ elif menu == "Reportes":
                 total_sum = df_filtrado['total_venta'].sum()
                 row_idx = len(df_filtrado) + 1
                 worksheet.write(row_idx, 1, "TOTALES:")
-                worksheet.write(row_idx, 2, total_sum, money_fmt)
+                worksheet.write(row_idx, 5, total_sum, money_fmt)
             
             st.download_button(
                 label="📥 Descargar Reporte en Excel (Auditoría)",
