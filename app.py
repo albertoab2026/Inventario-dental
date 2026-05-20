@@ -665,27 +665,24 @@ elif menu == "Reportes":
             mapa_productos = {p['producto_id']: p['nombre'] for p in productos_raw} if productos_raw else {}
             df_filtrado['Producto'] = df_filtrado['producto_id'].map(mapa_productos).fillna(df_filtrado['producto_id'])
             
-            # 3. Gestión de pagos (Lógica forzada y robusta)
-            if 'pago' not in df_filtrado.columns:
-                df_filtrado['pago'] = 'efectivo'
-            
-            # Rellenamos los None/NaN con 'efectivo'
-            df_filtrado['pago'] = df_filtrado['pago'].fillna('efectivo')
-            
-            # Limpiamos, normalizamos y estandarizamos
-            df_filtrado['pago_norm'] = df_filtrado['pago'].astype(str).str.replace('💵', '').str.replace('📱', '').str.replace('💳', '').str.replace('🔮', '').str.strip().str.lower()
-            
-            # Último filtro de seguridad: cualquier cosa que no sea yape o plin, va a efectivo
-            df_filtrado['pago_norm'] = df_filtrado['pago_norm'].apply(lambda x: x if x in ['yape', 'plin'] else 'efectivo')
-        else:
-            # Si la columna ni siquiera existe en la BD, forzamos 'efectivo'
-            df_filtrado['pago_norm'] = 'efectivo'
-            
-            # 4. Cálculos financieros
-            df_filtrado['total_venta'] = pd.to_numeric(df_filtrado['total_venta'], errors='coerce').fillna(0)
-            yape = df_filtrado[df_filtrado['pago_norm'] == 'yape']['total_venta'].sum()
-            plin = df_filtrado[df_filtrado['pago_norm'] == 'plin']['total_venta'].sum()
-            efectivo = df_filtrado[df_filtrado['pago_norm'] == 'efectivo']['total_venta'].sum()
+    # 3. Gestión de pagos (Lógica forzada y robusta)
+        if 'pago' not in df_filtrado.columns:
+            df_filtrado['pago'] = 'efectivo'
+    
+        # Rellenamos los None/NaN con 'efectivo'
+        df_filtrado['pago'] = df_filtrado['pago'].fillna('efectivo')
+    
+        # Limpiamos, normalizamos y estandarizamos
+        df_filtrado['pago_norm'] = df_filtrado['pago'].astype(str).str.replace('💵', '').str.replace('📱', '').str.replace('💳', '').str.replace('🔮', '').str.strip().str.lower()
+    
+        # Último filtro de seguridad: cualquier cosa que no sea yape o plin, va a efectivo
+        df_filtrado['pago_norm'] = df_filtrado['pago_norm'].apply(lambda x: x if x in ['yape', 'plin'] else 'efectivo')
+
+        # 4. Cálculos financieros (Esto ya no tiene indentación de 'else')
+        df_filtrado['total_venta'] = pd.to_numeric(df_filtrado['total_venta'], errors='coerce').fillna(0)
+        yape = df_filtrado[df_filtrado['pago_norm'] == 'yape']['total_venta'].sum()
+        plin = df_filtrado[df_filtrado['pago_norm'] == 'plin']['total_venta'].sum()
+        efectivo = df_filtrado[df_filtrado['pago_norm'] == 'efectivo']['total_venta'].sum()
             
             # 5. Visualización estable
             st.markdown("### 💵 Distribución de Caja")
