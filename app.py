@@ -663,39 +663,51 @@ elif menu == "Reportes":
         df_filtrado = df[df['Fecha_Corta'] == fecha_busqueda].copy()
         df_filtrado = df_filtrado.sort_values(by='fecha_dt', ascending=False)
         
+        # --- NUEVA LÓGICA DE COMPARATIVA ---
+        fecha_semana_pasada = fecha_busqueda - timedelta(days=7)
+        df_pasada = df[df['Fecha_Corta'] == fecha_semana_pasada].copy()
+        
         if df_filtrado.empty:
             st.warning(f"No hay ventas para {fecha_busqueda}.")
         else:
-            # 2. Mapeo de productos
+        # 2. Mapeo de productos
             mapa_productos = {p['producto_id']: p['nombre'] for p in productos_raw} if productos_raw else {}
             df_filtrado['Producto'] = df_filtrado['producto_id'].map(mapa_productos).fillna(df_filtrado['producto_id'])
             
-        # 3. Gestión de pagos (Lógica forzada y robusta)
-        if 'pago' not in df_filtrado.columns:
-            df_filtrado['pago'] = 'efectivo'
-    
-        # Rellenamos los None/NaN con 'efectivo'
-        df_filtrado['pago'] = df_filtrado['pago'].fillna('efectivo')
-    
-        # Limpiamos, normalizamos y estandarizamos
-        df_filtrado['pago_norm'] = df_filtrado['pago'].astype(str).str.replace('💵', '').str.replace('📱', '').str.replace('💳', '').str.replace('🔮', '').str.strip().str.lower()
-    
-        # Último filtro de seguridad: cualquier cosa que no sea yape o plin, va a efectivo
-        df_filtrado['pago_norm'] = df_filtrado['pago_norm'].apply(lambda x: x if x in ['yape', 'plin'] else 'efectivo')
+            # 3. Gestión de pagos
+            if 'pago' not in df_filtrado.columns: df_filtrado['pago'] = 'efectivo'
+            df_filtrado['pago'] = df_filtrado['pago'].fillna('efectivo')
+            df_filtrado['pago_norm'] = df_filtrado['pago'].astype(str).str.replace('💵', '').str.replace('📱', '').str.replace('💳', '').str.replace('🔮', '').str.strip().str.lower()
+            df_filtrado['pago_norm'] = df_filtrado['pago_norm'].apply(lambda x: x if x in ['yape', 'plin'] else 'efectivo')
 
-        # 4. Cálculos financieros (Esto ya no tiene indentación de 'else')
-        df_filtrado['total_venta'] = pd.to_numeric(df_filtrado['total_venta'], errors='coerce').fillna(0)
-        yape = df_filtrado[df_filtrado['pago_norm'] == 'yape']['total_venta'].sum()
-        plin = df_filtrado[df_filtrado['pago_norm'] == 'plin']['total_venta'].sum()
-        efectivo = df_filtrado[df_filtrado['pago_norm'] == 'efectivo']['total_venta'].sum()
+            # 4. Cálculos financieros y Ganancia Real
+            df_filtrado['total_venta'] = pd.to_numeric(df_filtrado['total_venta'], errors='coerce').fillna(0)
+            df_filtrado['precio_venta'] = pd.to_numeric(df_filtrado['precio_venta'], errors='coerce').fillna(0)
+            df_filtrado['precio_compra'] = pd.to_numeric(df_filtrado['precio_compra'], errors='coerce').fillna(0)
+            
+            # Ganancia real: (Venta - Compra) * Cantidad
+            df_filtrado['ganancia_real'] = (df_filtrado['precio_venta'] - df_filtrado['precio_compra']) * df_filtrado['cantidad']
+            ganancia_hoy = df_filtrado['ganancia_real'].sum()
+            
+            # Ganancia semana pasada
+            df_pasada['ganancia_real'] = (pd.to_numeric(df_pasada['precio_venta'], errors='coerce') - pd.to_numeric(df_pasada['precio_compra'], errors='coerce')) * pd.to_numeric(df_pasada['cantidad'], errors='coerce')
+            ganancia_pasada = df_pasada['ganancia_real'].sum()
+            
+            yape = df_filtrado[df_filtrado['pago_norm'] == 'yape']['total_venta'].sum()
+            plin = df_filtrado[df_filtrado['pago_norm'] == 'plin']['total_venta'].sum()
+            efectivo = df_filtrado[df_filtrado['pago_norm'] == 'efectivo']['total_venta'].sum()
             
         # 5. Visualización estable (Protegida contra errores)
+        delta_val = ganancia_hoy - ganancia_pasada
+        
         st.markdown("### 💵 Distribución de Caja")
         c1, c2, c3 = st.columns(3)
         c1.metric("💵 Efectivo", f"S/{efectivo:.2f}")
         c2.metric("📱 Yape", f"S/{yape:.2f}")
         c3.metric("🔮 Plin", f"S/{plin:.2f}")
-    
+        # Aquí la nueva métrica con flecha
+        st.metric("💰 Ganancia Real (Hoy)", f"S/{ganancia_hoy:.2f}", delta=f"{delta_val:.2f} vs hace 7 días")
+        
         # Protección: Aseguramos que las columnas existan antes de mostrarlas
         columnas_a_mostrar = ['Hora', 'Producto', 'cantidad', 'total_venta', 'pago_norm']
         for col in columnas_a_mostrar:
