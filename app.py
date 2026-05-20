@@ -135,15 +135,14 @@ def agregar_producto(nombre, precio_venta, precio_compra, stock, categoria):
 
 def actualizar_inventario_masivo(df_editado):
     try:
-        with st.spinner("Actualizando..."):
+        # Añadimos un contador para saber cuántas filas está procesando
+        contador = 0
+        with st.spinner("Actualizando base de datos..."):
             for index, row in df_editado.iterrows():
-                # Si esto falla, es porque 'producto_id' no está en el DataFrame
-                producto_id_actual = row['producto_id'] 
-                
                 tabla_productos.update_item(
                     Key={
                         'id_del_dueno': str(st.session_state.user_data['usuario_id']),
-                        'producto_id': str(producto_id_actual)
+                        'producto_id': str(row['producto_id'])
                     },
                     UpdateExpression="SET nombre = :n, precio_venta = :pv, precio_compra = :pc, stock = :s, categoria = :c",
                     ExpressionAttributeValues={
@@ -154,10 +153,19 @@ def actualizar_inventario_masivo(df_editado):
                         ':c': row['categoria']
                     }
                 )
-        st.success("✅ ¡Inventario actualizado!")
-        return True
+                contador += 1
+        
+        # SI LLEGA AQUÍ, EL MENSAJE DEBE SALIR
+        if contador > 0:
+            st.success(f"✅ ¡Inventario actualizado! Se modificaron {contador} productos.")
+            return True
+        else:
+            st.warning("⚠️ No se detectaron cambios en el inventario.")
+            return False
+            
     except Exception as e:
-        st.error(f"Error técnico: {e}") # Esto te dirá exactamente qué columna falta
+        # Esto te dirá exactamente por qué falla y no muestra el mensaje
+        st.error(f"Error al actualizar en la base de datos: {e}")
         return False
         
 # Cambia la definición de la función así:
