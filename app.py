@@ -228,6 +228,8 @@ def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago, cl
             'Venta_id': str(uuid.uuid4()),
             'producto_id': producto_id,
             'cantidad': int(cantidad),
+            'precio_venta': Decimal(str(precio_venta)),
+            'precio_compra': Decimal(str(precio_compra)),
             'total_venta': Decimal(str(total_venta)),
             'fecha': fecha_utc,
             'pago': str(pago),
@@ -610,15 +612,19 @@ elif menu == "Ventas":
                         st.markdown("---")
                         st.subheader("Opciones de post-venta:")
                         
-                        # Ejemplo de cómo recuperar tus botones (ajusta según tus funciones previas)
+                        # En tu sección de post-venta
                         c1, c2, c3 = st.columns(3)
                         with c1:
-                            st.button("🖨️ Imprimir Ticket") # Tu lógica aquí
+                            if st.button("🖨️ Imprimir Ticket", use_container_width=True):
+                                pass # Tu lógica
                         with c2:
-                            st.button("📊 Descargar Excel") # Tu lógica aquí
+                            if st.button("📊 Descargar Excel", use_container_width=True):
+                                pass # Tu lógica
                         with c3:
-                            st.link_button("📲 Enviar WhatsApp", f"https://wa.me/{w_cliente_celular}")
-                            
+                            # Usamos un botón normal que redirija, así mantiene el mismo estilo que los otros
+                            if st.button("📲 Enviar WhatsApp", use_container_width=True):
+                                st.markdown(f'<meta http-equiv="refresh" content="0; url=https://wa.me/{w_cliente_celular}">', unsafe_allow_html=True)
+                           
                         # Limpiamos y refrescamos
                         st.session_state.carrito = []
                         if st.button("🔄 Nueva Venta"):
