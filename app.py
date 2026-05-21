@@ -512,9 +512,15 @@ elif menu == "Ventas":
                             c_info, c_cant, c_btn = st.columns([2.1, 1.1, 1.2])
                             with c_info:
                                 st.markdown(f"**{p_nombre}**")
+                                
+                                # Lógica del semáforo:
                                 if p_stock_disponible <= 0:
                                     st.markdown(f"🔴 **Agotado** · <span style='color:gray;'>S/{p_precio_venta:.2f}</span>", unsafe_allow_html=True)
+                                elif p_stock_disponible <= 5:
+                                    # Aquí aparece el amarillo para stock bajo (1 a 5 unidades)
+                                    st.markdown(f"🟡 **Stock: {p_stock_disponible}** · **S/{p_precio_venta:.2f}**", unsafe_allow_html=True)
                                 else:
+                                    # Stock saludable (más de 5 unidades)
                                     st.markdown(f"🟢 **Stock: {p_stock_disponible}** · **S/{p_precio_venta:.2f}**", unsafe_allow_html=True)
                             
                             with c_cant:
