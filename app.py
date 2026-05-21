@@ -215,7 +215,7 @@ def actualizar_inventario_masivo(df_editado):
         return False
         
 # Cambia la definición de la función así:
-def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago):
+def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago, cliente, celular):
     try:
         id_dueno = st.session_state.user_data['usuario_id']
         fecha_utc = datetime.now(timezone.utc).isoformat()
@@ -229,7 +229,9 @@ def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago):
             'cantidad': int(cantidad),
             'total_venta': Decimal(str(total_venta)),
             'fecha': fecha_utc,
-            'pago': str(pago)  # <--- ASEGÚRATE DE QUE ESTA LÍNEA ESTÉ AQUÍ
+            'pago': str(pago)
+            'cliente': str(cliente),
+            'celular': str(celular)
         })
         return True
     except Exception as e:
