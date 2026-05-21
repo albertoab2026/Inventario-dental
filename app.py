@@ -101,6 +101,7 @@ def registrar_dueno(dni, nombre, nombre_negocio, email, password, rubro):
 def obtener_productos():
     try:
         id_dueno = st.session_state.user_data['usuario_id']
+        
         response = tabla_productos.query(KeyConditionExpression=Key('id_del_dueno').eq(id_dueno))
         return response.get('Items', [])
     except Exception as e:
@@ -242,8 +243,10 @@ def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
         tabla_productos.update_item(
             Key={'id_del_dueno': str(id_dueno), 'producto_id': str(producto_id)},
             UpdateExpression="SET precio_venta = :p, stock = :s",
-            ExpressionAttributeValues={':p': Decimal(str(nuevo_precio)), ':s': int(nuevo_stock)}
-        )
+            ExpressionAttributeValues={
+    ':p': Decimal(str(nuevo_precio)), 
+    ':s': int(nuevo_stock)  # FUERZA EL ENTERO AQUÍ
+}
         return True
     except Exception as e:
         st.error(f"Error actualizando: {e}")
@@ -571,13 +574,29 @@ elif menu == "Ventas":
                     
                     for item in st.session_state.carrito:
                         try:
+                            # 1. Registramos la venta (lo que ya tienes)
                             res = registrar_venta(
                                 producto_id=item['producto_id'],
                                 cantidad=int(item['cantidad']),
                                 precio_venta=float(item['precio_venta']),
                                 precio_compra=float(item['precio_compra']),
-                                pago=metodo_pago
+                                pago=metodo_pago,
+                                cliente=w_cliente_nombre.strip() if w_cliente_nombre.strip() else "Consumidor Final",
+                                celular=w_cliente_celular.strip()
                             )
+                            
+                            # 2. AQUÍ ESTÁ EL CAMBIO: Descontamos el stock
+                            # Calculamos el nuevo stock restando lo vendido al stock original
+                            # Nota: asegúrate que item['stock_max'] sea el stock real del producto
+                            nuevo_stock = int(item['stock_max']) - int(item['cantidad'])
+                            
+                            # Llamamos a tu función de actualización (la que definiste antes)
+                            actualizar_producto(
+                                producto_id=item['producto_id'],
+                                nuevo_precio=float(item['precio_venta']),
+                                nuevo_stock=nuevo_stock
+                            )
+                            
                             if res is False:
                                 ok = False
                                 break
@@ -586,28 +605,6 @@ elif menu == "Ventas":
                             ok = False
                             break
 
-                    if ok:
-                        import datetime
-                        hora_servidor = datetime.datetime.now()
-                        hora_peru = hora_servidor - datetime.timedelta(hours=5)
-                        fecha_formateada = hora_peru.strftime("%Y-%m-%d %H:%M:%S")
-
-                        st.session_state.ultima_venta = {
-                            "tenant": tenant_actual,
-                            "fecha": fecha_formateada,
-                            "items": items_guardar,
-                            "descuento": descuento,
-                            "total": total_venta_neto,
-                            "pago": metodo_pago,
-                            "cliente_nom": w_cliente_nombre.strip() if w_cliente_nombre.strip() else "Consumidor Final",
-                            "cliente_cel": w_cliente_celular.strip()
-                        }
-                        st.session_state.carrito = []
-                        st.success("🎉 Venta procesada con éxito.")
-                        st.balloons()
-                        st.rerun()
-            else:
-                st.info("🛒 El carrito está vacío. ¡Añade productos del catálogo!")
         # =====================================================================
         # 🏢 SECCIÓN: COMPROBANTE DIGITAL AUTO-GENERADO CON DESCUENTO REFLEJADO
         # =====================================================================
