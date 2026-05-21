@@ -216,13 +216,13 @@ def actualizar_inventario_masivo(df_editado):
         return False
         
 # Cambia la definición de la función así:
-def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago):
+def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago, cliente, celular):
     try:
         id_dueno = st.session_state.user_data['usuario_id']
         fecha_utc = datetime.now(timezone.utc).isoformat()
         total_venta = float(precio_venta) * int(cantidad)
-        
-        # Guardamos el valor directamente
+
+        # Aquí guardamos los datos en tu tabla NEXUS_VENTAS
         tabla_ventas.put_item(Item={
             'usuario_id': id_dueno,
             'Venta_id': str(uuid.uuid4()),
@@ -230,11 +230,13 @@ def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago):
             'cantidad': int(cantidad),
             'total_venta': Decimal(str(total_venta)),
             'fecha': fecha_utc,
-            'pago': str(pago)  # <--- ASEGÚRATE DE QUE ESTA LÍNEA ESTÉ AQUÍ
+            'pago': str(pago),
+            'cliente': str(cliente),    # <-- Ahora sí los recibe
+            'celular': str(celular)     # <-- Ahora sí los recibe
         })
         return True
     except Exception as e:
-        st.error(f"Error en venta: {e}")
+        st.error(f"Error al registrar en tabla: {e}")
         return False
 
 def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
