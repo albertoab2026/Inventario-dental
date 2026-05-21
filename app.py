@@ -239,14 +239,18 @@ def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago):
 
 def actualizar_producto(producto_id, nuevo_precio, nuevo_stock):
     try:
-        id_dueno = st.session_state.user_data['usuario_id']  
+        id_dueno = st.session_state.user_data['usuario_id']
         tabla_productos.update_item(
-            Key={'id_del_dueno': str(id_dueno), 'producto_id': str(producto_id)},
+            Key={
+                'id_del_dueno': str(id_dueno), 
+                'producto_id': str(producto_id)
+            },
             UpdateExpression="SET precio_venta = :p, stock = :s",
             ExpressionAttributeValues={
-    ':p': Decimal(str(nuevo_precio)), 
-    ':s': int(nuevo_stock)  # FUERZA EL ENTERO AQUÍ
-}
+                ':p': Decimal(str(nuevo_precio)),
+                ':s': int(nuevo_stock)
+            }
+        )
         return True
     except Exception as e:
         st.error(f"Error actualizando: {e}")
