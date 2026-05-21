@@ -576,16 +576,28 @@ elif menu == "Ventas":
                                 cantidad=int(item['cantidad']),
                                 precio_venta=float(item['precio_venta']),
                                 precio_compra=float(item['precio_compra']),
-                                pago=metodo_pago
+                                pago=metodo_pago,
+                                cliente=w_cliente_nombre.strip() if w_cliente_nombre.strip() else "Consumidor Final",
+                                celular=w_cliente_celular.strip()
                             )
-                            if res is False:
+                            # --- AQUÍ ESTÁ EL AJUSTE ---
+                            if res:
+                                nuevo_stock = int(item['stock_max']) - int(item['cantidad'])
+                                actualizar_producto(
+                                    producto_id=item['producto_id'], 
+                                    nuevo_precio=item['precio_venta'], 
+                                    nuevo_stock=nuevo_stock
+                                )
+                            else:
                                 ok = False
                                 break
+                            # ---------------------------
+                            
                         except Exception as e:
                             st.error(f"Error al registrar: {e}")
                             ok = False
                             break
-
+                            
                     if ok:
                         import datetime
                         hora_servidor = datetime.datetime.now()
