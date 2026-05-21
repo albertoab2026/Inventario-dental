@@ -228,6 +228,8 @@ def registrar_venta(producto_id, cantidad, precio_venta, precio_compra, pago, cl
             'producto_id': producto_id,
             'cantidad': int(cantidad),
             'total_venta': Decimal(str(total_venta)),
+            'precio_venta': Decimal(str(precio_venta)),
+            'precio_compra': Decimal(str(precio_compra)),
             'fecha': fecha_utc,
             'pago': str(pago),
             'cliente': str(cliente),
