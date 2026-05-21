@@ -576,11 +576,10 @@ elif menu == "Ventas":
 
                 if st.button("⚡ Finalizar y Registrar Venta", type="primary", use_container_width=True):
                     ok = True
-                    items_guardar = [item.copy() for item in st.session_state.carrito]
-                    
+                    # 1. Procesar registro y stock
                     for item in st.session_state.carrito:
                         try:
-                            # 1. Registramos la venta (lo que ya tienes)
+                            # Registramos la venta
                             res = registrar_venta(
                                 producto_id=item['producto_id'],
                                 cantidad=int(item['cantidad']),
@@ -590,26 +589,43 @@ elif menu == "Ventas":
                                 cliente=w_cliente_nombre.strip() if w_cliente_nombre.strip() else "Consumidor Final",
                                 celular=w_cliente_celular.strip()
                             )
-                            
-                            # 2. AQUÍ ESTÁ EL CAMBIO: Descontamos el stock
-                            # Calculamos el nuevo stock restando lo vendido al stock original
-                            # Nota: asegúrate que item['stock_max'] sea el stock real del producto
+                            # Actualizamos stock
                             nuevo_stock = int(item['stock_max']) - int(item['cantidad'])
-                            
-                            # Llamamos a tu función de actualización (la que definiste antes)
-                            actualizar_producto(
-                                producto_id=item['producto_id'],
-                                nuevo_precio=float(item['precio_venta']),
-                                nuevo_stock=nuevo_stock
-                            )
+                            actualizar_producto(item['producto_id'], item['precio_venta'], nuevo_stock)
                             
                             if res is False:
                                 ok = False
                                 break
                         except Exception as e:
-                            st.error(f"Error al registrar: {e}")
+                            st.error(f"Error: {e}")
                             ok = False
                             break
+                    
+                    # 2. Si todo salió bien, mostramos el éxito y opciones
+                    if ok:
+                        st.success("🎉 ¡Venta procesada con éxito!")
+                        st.balloons()
+                        
+                        # Aquí recuperas tus botones de descarga e impresión
+                        st.markdown("---")
+                        st.subheader("Opciones de post-venta:")
+                        
+                        # Ejemplo de cómo recuperar tus botones (ajusta según tus funciones previas)
+                        c1, c2, c3 = st.columns(3)
+                        with c1:
+                            st.button("🖨️ Imprimir Ticket") # Tu lógica aquí
+                        with c2:
+                            st.button("📊 Descargar Excel") # Tu lógica aquí
+                        with c3:
+                            st.link_button("📲 Enviar WhatsApp", f"https://wa.me/{w_cliente_celular}")
+                            
+                        # Limpiamos y refrescamos
+                        st.session_state.carrito = []
+                        if st.button("🔄 Nueva Venta"):
+                            st.rerun()
+                    else:
+                        st.error("❌ Hubo un error al registrar la venta.")
+
 
         # =====================================================================
         # 🏢 SECCIÓN: COMPROBANTE DIGITAL AUTO-GENERADO CON DESCUENTO REFLEJADO
