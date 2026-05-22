@@ -481,27 +481,34 @@ if menu == "Productos":
             pc_nuevo = st.number_input("Precio Compra", step=0.1)
             stk_nuevo = st.number_input("Stock", step=1)
             
-            # --- Lógica simplificada para Categoría ---
+            # --- Lógica de Categorías DENTRO del form ---
             rubro = st.session_state.user_data.get('rubro', 'Otro')
             opciones_base = CATEGORIAS_POR_RUBRO.get(rubro, ["General"])
             opciones_lista = opciones_base + ["+ Agregar nueva categoría"]
             
-            seleccion_cat = st.selectbox("Selecciona categoría", opciones_lista)
+            # Usamos un session_state para mantener el valor seleccionado
+            if "temp_cat_sel" not in st.session_state:
+                st.session_state.temp_cat_sel = opciones_lista[0]
             
-            # Siempre definimos cat_final, ya sea del selectbox o del input manual
+            seleccion_cat = st.selectbox("Categoría", opciones_lista, key="temp_cat_sel")
+            
+            cat_final = seleccion_cat
             if seleccion_cat == "+ Agregar nueva categoría":
-                cat_final = st.text_input("Escribe el nombre de tu nueva categoría:")
-            else:
-                cat_final = seleccion_cat
-    
+                cat_final = st.text_input("Escribe el nombre de tu nueva categoría:", key="input_cat_manual")
+            
             # --- Botón de guardar ---
             if st.form_submit_button("Guardar Producto Nuevo"):
-                if nombre_nuevo and cat_final:
+                # Si seleccionó agregar pero el input manual está vacío, forzamos error
+                if seleccion_cat == "+ Agregar nueva categoría" and not cat_final:
+                    st.error("Por favor, escribe el nombre de la nueva categoría.")
+                elif nombre_nuevo:
                     if agregar_producto(nombre_nuevo, pv_nuevo, pc_nuevo, stk_nuevo, cat_final):
                         st.success("¡Producto agregado!")
+                        # Limpiamos el estado después de guardar
+                        st.session_state.temp_cat_sel = opciones_lista[0]
                         st.rerun()
                 else:
-                    st.error("Debes completar el nombre y la categoría")
+                    st.error("El nombre es obligatorio")
 
     st.subheader("Control de Inventario")
     productos = obtener_productos()
