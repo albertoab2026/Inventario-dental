@@ -32,21 +32,25 @@ if 'carrito' not in st.session_state:
 # CSS Global Limpio
 st.markdown("""
 <style>
-    /* CSS GLOBAL MAESTRO - Aplicado una sola vez */
+    /* CSS GLOBAL MAESTRO */
     .feature-grid {
         display: grid !important;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+        grid-template-columns: repeat(2, 1fr) !important;
         gap: 20px !important;
-        margin-top: 40px !important;
+        margin-top: 30px !important;
+        width: 100% !important;
     }
     .feature-card {
-        background: #1E293B !important;
-        padding: 20px !important;
+        padding: 25px !important;
         border-radius: 15px !important;
         text-align: center !important;
-        border: 1px solid #334155 !important;
         color: white !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
     }
+    .card-1 { background: #1e3a8a !important; }
+    .card-2 { background: #991b1b !important; }
+    .card-3 { background: #064e3b !important; }
+    .card-4 { background: #92400e !important; }
     .header-box { text-align: center; margin-bottom: 30px; }
 </style>
 """, unsafe_allow_html=True)
