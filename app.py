@@ -557,7 +557,7 @@ with st.expander("➕ Agregar Nuevo Producto"):
             actualizar_inventario_masivo(df_editado)
                                
 # --- PÁGINA VENTAS (Diseño Estilo SaaS Comercial) ---
-elif menu == "Ventas":
+if menu == "Ventas":
     st.title("🛒 Terminal de Ventas")
     
     productos = obtener_productos()
