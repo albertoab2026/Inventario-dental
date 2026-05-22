@@ -64,17 +64,39 @@ def hash_password(password):
 
 def login(usuario_o_dni, password):
     try:
+        # 1. Intentar buscar por ID de usuario
         response = tabla_usuarios.get_item(Key={'usuario_id': usuario_o_dni})
         user = response.get('Item')
+        
+        # 2. Si no existe, buscar por DNI usando el índice
         if not user:
-            response = tabla_usuarios.query(IndexName='dni-index', KeyConditionExpression=Key('dni').eq(usuario_o_dni))
+            response = tabla_usuarios.query(
+                IndexName='dni-index', 
+                KeyConditionExpression=Key('dni').eq(usuario_o_dni)
+            )
             if response['Items']:
                 user = response['Items'][0]
-        if user and user.get('password_hash') == hash_password(password) and user.get('activo', True):
-            return user
+        
+        # 3. Validaciones
+        if user and user.get('password_hash') == hash_password(password):
+            
+            # --- Validación de Suscripción (Trial vs Premium) ---
+            # Si NO es premium, verificamos que no hayan pasado los 7 días
+            if user.get('plan') != 'premium':
+                fecha_fin = datetime.fromisoformat(user.get('fecha_trial_fin'))
+                # Comparamos la fecha actual con la fecha de fin
+                if datetime.now() > fecha_fin:
+                    st.error("❌ Tu periodo de prueba de 7 días ha finalizado. Contacta a soporte.")
+                    return None
+            
+            # --- Validación de cuenta activa ---
+            if user.get('activo', True):
+                return user
+        
         return None
+        
     except Exception as e:
-        st.error(f"Error login: {e}")
+        st.error(f"Error en el login: {e}")
         return None
 
 def registrar_dueno(dni, nombre, nombre_negocio, email, password, rubro):
