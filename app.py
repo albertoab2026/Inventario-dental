@@ -29,11 +29,22 @@ if 'user_data' not in st.session_state:
 if 'carrito' not in st.session_state:
     st.session_state.carrito = []
 
-# ======= 3. ENCABEZADO CENTRADO =======
+# ======= 3. ENCABEZADO DENTRO DE UN CUADRO =======
 st.markdown("""
-<div style='text-align: center; margin-bottom: 30px;'>
-    <h1 style='font-size: 3.5rem; color: #60A5FA; margin-bottom: 5px;'>⚡ NEXUS</h1>
-    <p style='font-size: 1.3rem; color: #94A3B8;'>Sistema de Gestión para Negocios - Simple, Rápido y Eficiente</p>
+<style>
+    .header-container {
+        background-color: #1E293B !important; /* Mismo color que tus tarjetas */
+        padding: 30px !important;
+        border-radius: 20px !important;
+        border: 1px solid #334155 !important;
+        text-align: center !important;
+        margin-bottom: 30px !important;
+    }
+</style>
+
+<div class='header-container'>
+    <h1 style='font-size: 3.5rem; color: #60A5FA; margin: 0;'>⚡ NEXUS</h1>
+    <p style='font-size: 1.2rem; color: #94A3B8; margin-top: 10px;'>Sistema de Gestión para Negocios - Facil, Rápido y Eficiente</p>
 </div>
 """, unsafe_allow_html=True)
 
