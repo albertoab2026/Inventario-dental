@@ -359,9 +359,13 @@ def eliminar_producto(producto_id):
 st.markdown("<div class='header-container'><h1>⚡ NEXUS</h1><p>Tu negocio en control total. Empieza hoy mismo.</p></div>", unsafe_allow_html=True)
 
 # Barra de regalo
-# Solo mostrar si el usuario NO está logueado
+# --- BANNER INTELIGENTE ---
 if not st.session_state.get("logged_in", False):
     st.warning("¡PRUEBA 7 DÍAS GRATIS! Regístrate ahora sin compromiso.")
+else:
+    # Banner para USUARIOS LOGUEADOS (informativo y profesional)
+    # Aquí puedes extraer los días restantes si los tienes en user_data
+    st.info("⚡ Estás en modo de prueba. ¡Disfruta de la gestión total de tu negocio!")    
 
 if not st.session_state.logged_in:
     # Contenedor centralizado para login/registro
