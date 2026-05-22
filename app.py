@@ -474,41 +474,35 @@ if menu == "Productos":
                 st.rerun() # Esto es necesario para refrescar la tabla después de subir el archivo
     
 # 1. FORMULARIO SEGURO
-    with st.expander("➕ Agregar Nuevo Producto"):
-        with st.form("form_nuevo_prod", clear_on_submit=True):
-            nombre_nuevo = st.text_input("Nombre del producto")
-            pv_nuevo = st.number_input("Precio Venta", step=0.1)
-            pc_nuevo = st.number_input("Precio Compra", step=0.1)
-            stk_nuevo = st.number_input("Stock", step=1)
-            
-            # --- PASO 1: Selector de categoría FUERA del formulario ---
-            rubro = st.session_state.user_data.get('rubro', 'Otro')
-            opciones_base = CATEGORIAS_POR_RUBRO.get(rubro, ["General"])
-            opciones_lista = opciones_base + ["+ Agregar nueva categoría"]
-            
-            # Esta selección define qué usaremos para el producto
-            seleccion_cat = st.selectbox("Selecciona categoría", opciones_lista, key="sel_cat")
-            
-            if seleccion_cat == "+ Agregar nueva categoría":
-                cat_final = st.text_input("Escribe el nombre de la nueva categoría:")
+    # 1. EXPANDER (Solo el título que despliega el formulario)
+with st.expander("➕ Agregar Nuevo Producto"):
+    
+    # 2. FORMULARIO ÚNICO (Aquí empieza el formulario real)
+    with st.form("form_unico_producto", clear_on_submit=True):
+        nombre_nuevo = st.text_input("Nombre del producto")
+        pv_nuevo = st.number_input("Precio Venta", step=0.1)
+        pc_nuevo = st.number_input("Precio Compra", step=0.1)
+        stk_nuevo = st.number_input("Stock", step=1)
+        
+        # Lógica de categorías DENTRO del formulario único
+        rubro = st.session_state.user_data.get('rubro', 'Otro')
+        opciones_base = CATEGORIAS_POR_RUBRO.get(rubro, ["General"])
+        opciones_lista = opciones_base + ["+ Agregar nueva categoría"]
+        
+        seleccion_cat = st.selectbox("Selecciona categoría", opciones_lista, key="sel_cat")
+        
+        cat_final = seleccion_cat
+        if seleccion_cat == "+ Agregar nueva categoría":
+            cat_final = st.text_input("Escribe el nombre de tu nueva categoría:", key="input_manual")
+        
+        # Botón de guardar
+        if st.form_submit_button("Guardar Producto Nuevo"):
+            if nombre_nuevo and cat_final:
+                if agregar_producto(nombre_nuevo, pv_nuevo, pc_nuevo, stk_nuevo, cat_final):
+                    st.success("¡Producto agregado!")
+                    st.rerun()
             else:
-                cat_final = seleccion_cat
-            
-            # --- PASO 2: Formulario de producto usando la categoría definida arriba ---
-            with st.expander("➕ Agregar Nuevo Producto"):
-                with st.form("form_nuevo_prod", clear_on_submit=True):
-                    nombre_nuevo = st.text_input("Nombre del producto")
-                    pv_nuevo = st.number_input("Precio Venta", step=0.1)
-                    pc_nuevo = st.number_input("Precio Compra", step=0.1)
-                    stk_nuevo = st.number_input("Stock", step=1)
-                    
-                    if st.form_submit_button("Guardar Producto"):
-                        if nombre_nuevo and cat_final:
-                            if agregar_producto(nombre_nuevo, pv_nuevo, pc_nuevo, stk_nuevo, cat_final):
-                                st.success(f"Producto guardado en {cat_final}")
-                                st.rerun()
-                        else:
-                            st.error("Nombre y categoría son obligatorios")
+                st.error("Nombre y categoría son obligatorios")
 
     st.subheader("Control de Inventario")
     productos = obtener_productos()
