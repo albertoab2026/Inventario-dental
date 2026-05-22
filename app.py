@@ -3,6 +3,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 import pandas as pd
 import io
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -390,8 +391,12 @@ if not st.session_state.logged_in:
             
             if st.button("Activar prueba gratis", use_container_width=True):
                 if registrar_dueno(reg_dni, reg_nombre, reg_negocio, reg_email, reg_password, reg_rubro, reg_celular):
+                    time.sleep(2)
                     st.success("¡Registro exitoso! Ya puedes iniciar sesión.")
                     st.balloons()
+                    st.rerun()
+                else:
+        st.warning("Por favor, completa todos los campos.")    
 
     # SECCIÓN DE TARJETAS (FUERA DE COLUMNAS PARA QUE MANTENGAN SU ANCHO)
     st.markdown("<div style='margin-top: 60px;'></div>", unsafe_allow_html=True)
