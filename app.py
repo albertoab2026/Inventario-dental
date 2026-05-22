@@ -407,10 +407,17 @@ if not st.session_state.logged_in:
             if "registro_exitoso" in st.session_state and st.session_state.registro_exitoso:
                 st.success("¡Registro exitoso! Ya puedes iniciar sesión.")
                 st.balloons()
-                # Opcional: un botón para limpiar y volver a registrar
+
+                # Este botón ahora se encarga de limpiar el estado y recargar la página
                 if st.button("Volver al inicio"):
+                    # Borramos el indicador de éxito
+                    for key in ["reg_dni", "reg_nombre", "reg_negocio", "reg_email", "reg_celular", "reg_pass"]:
+                        if key in st.session_state:
+                            del st.session_state[key]
+                    # 2. Borramos el indicador de éxito
                     del st.session_state.registro_exitoso
-                    st.rerun()        
+
+                    st.rerun()
 
     # SECCIÓN DE TARJETAS (FUERA DE COLUMNAS PARA QUE MANTENGAN SU ANCHO)
     st.markdown("<div style='margin-top: 60px;'></div>", unsafe_allow_html=True)
