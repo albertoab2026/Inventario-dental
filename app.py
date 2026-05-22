@@ -29,11 +29,11 @@ if 'user_data' not in st.session_state:
 if 'carrito' not in st.session_state:
     st.session_state.carrito = []
 
-# ======= 1. TÍTULO Y SLOGAN CENTRADO =======
+# ======= 1. TÍTULO Y SLOGAN CENTRADO (ÚNICO) =======
 st.markdown("""
-<div style='text-align: center; margin-bottom: 40px;'>
-    <h1 style='font-size: 3rem; color: #60A5FA; margin-bottom: 5px;'>⚡ NEXUS</h1>
-    <p style='font-size: 1.2rem; color: #94A3B8;'>Sistema de Gestión para Negocios - Simple, Rápido y Eficiente</p>
+<div style='text-align: center; margin-bottom: 20px;'>
+    <h1 style='font-size: 3.5rem; color: #60A5FA; margin-bottom: 0px;'>⚡ NEXUS</h1>
+    <p style='font-size: 1.3rem; color: #94A3B8; margin-top: 0px;'>Sistema de Gestión para Negocios - Simple, Rápido y Eficiente</p>
 </div>
 """, unsafe_allow_html=True)
 
