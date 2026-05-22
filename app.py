@@ -481,28 +481,27 @@ if menu == "Productos":
             pc_nuevo = st.number_input("Precio Compra", step=0.1)
             stk_nuevo = st.number_input("Stock", step=1)
             
-            # --- Lógica de Categorías DENTRO del form ---
+            # --- Lógica simplificada para Categoría ---
             rubro = st.session_state.user_data.get('rubro', 'Otro')
             opciones_base = CATEGORIAS_POR_RUBRO.get(rubro, ["General"])
             opciones_lista = opciones_base + ["+ Agregar nueva categoría"]
             
-            seleccion_cat = st.selectbox("Categoría", opciones_lista)
+            seleccion_cat = st.selectbox("Selecciona categoría", opciones_lista)
             
-            # Inicializamos cat_final
-            cat_final = seleccion_cat
-            
+            # Siempre definimos cat_final, ya sea del selectbox o del input manual
             if seleccion_cat == "+ Agregar nueva categoría":
-                # Usamos una clave única para este input para que no se pierda
-                cat_final = st.text_input("Escribe el nombre de tu nueva categoría:", key="input_cat_manual")
-            
+                cat_final = st.text_input("Escribe el nombre de tu nueva categoría:")
+            else:
+                cat_final = seleccion_cat
+    
             # --- Botón de guardar ---
             if st.form_submit_button("Guardar Producto Nuevo"):
-                if nombre_nuevo and cat_final: # Verificamos que cat_final tenga valor
+                if nombre_nuevo and cat_final:
                     if agregar_producto(nombre_nuevo, pv_nuevo, pc_nuevo, stk_nuevo, cat_final):
                         st.success("¡Producto agregado!")
                         st.rerun()
                 else:
-                    st.error("Nombre y Categoría son obligatorios")
+                    st.error("Debes completar el nombre y la categoría")
 
     st.subheader("Control de Inventario")
     productos = obtener_productos()
