@@ -32,38 +32,24 @@ if 'carrito' not in st.session_state:
 # CSS Global Limpio
 st.markdown("""
 <style>
-/* CSS GLOBAL MAESTRO */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-    
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif !important; }
-    .stApp { background: #0F172A !important; color: #E2E8F0 !important; }
-    
-    /* Grid Blindado */
+    /* CSS GLOBAL MAESTRO - Aplicado una sola vez */
     .feature-grid {
         display: grid !important;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
         gap: 20px !important;
-        width: 100% !important;
         margin-top: 40px !important;
     }
-    
     .feature-card {
         background: #1E293B !important;
         padding: 20px !important;
         border-radius: 15px !important;
-        border: 1px solid #334155 !important;
         text-align: center !important;
+        border: 1px solid #334155 !important;
         color: white !important;
     }
-    
-    .header-box {
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        padding: 20px;
-        border-radius: 15px;
-        text-align: center;
-        margin-bottom: 20px;
-    }
+    .header-box { text-align: center; margin-bottom: 30px; }
 </style>
+""", unsafe_allow_html=True)
 
 # ======= 2. CONEXIÓN AWS =======
 AWS_ACCESS_KEY_ID = st.secrets["AWS_ACCESS_KEY_ID"]
