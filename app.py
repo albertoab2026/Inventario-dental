@@ -313,8 +313,6 @@ def eliminar_producto(producto_id):
         return False
     
 # ======= 4. INTERFAZ DE INICIO (ESTRUCTURA COMPLETA) =======
-st.markdown("<div class='header-box'><h1>⚡ NEXUS</h1><p>Sistema de Gestión para Negocios</p></div>", unsafe_allow_html=True)
-
 if not st.session_state.logged_in:
     # Contenedor centralizado para login/registro
     _, col_central, _ = st.columns([1, 2, 1])
