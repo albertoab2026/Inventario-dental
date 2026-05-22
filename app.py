@@ -32,15 +32,38 @@ if 'carrito' not in st.session_state:
 # CSS Global Limpio
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-.stApp { background: #0F172A; color: #E2E8F0; }
-.stButton>button { background: #6366F1; border: none; color: white; border-radius: 8px; font-weight: 500; }
-.stButton>button:hover { background: #4F46E5; }
-.stDataFrame, [data-testid="stContainer"] { background: #1E293B; border-radius: 8px; border: 1px solid #334155; }
-.stTextInput>div>div>input { background: #1E293B; border: 1px solid #334155; color: #E2E8F0; border-radius: 6px; }
+/* CSS GLOBAL MAESTRO */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+    
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif !important; }
+    .stApp { background: #0F172A !important; color: #E2E8F0 !important; }
+    
+    /* Grid Blindado */
+    .feature-grid {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+        gap: 20px !important;
+        width: 100% !important;
+        margin-top: 40px !important;
+    }
+    
+    .feature-card {
+        background: #1E293B !important;
+        padding: 20px !important;
+        border-radius: 15px !important;
+        border: 1px solid #334155 !important;
+        text-align: center !important;
+        color: white !important;
+    }
+    
+    .header-box {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
 </style>
-""", unsafe_allow_html=True)
 
 # ======= 2. CONEXIÓN AWS =======
 AWS_ACCESS_KEY_ID = st.secrets["AWS_ACCESS_KEY_ID"]
@@ -288,53 +311,6 @@ def eliminar_producto(producto_id):
     except Exception as e:
         st.error(f"Error al eliminar en la base de datos: {e}")
         return False
-
-# ======= 4. PANTALLA LOGIN =======
-def mostrar_login():
-    st.markdown("""
-    <style>
-    /* Asegura que el fondo cubra absolutamente toda la pantalla del celular */
-    .stApp { 
-        background: linear-gradient(135deg, #0F172A 0%, #020617 100%) !important; 
-        min-height: 100vh !important;
-    }
-    header, .stDeployButton { display: none !important; }
-    
-    .header-box {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-        padding: 24px; border-radius: 16px; text-align: center; margin-bottom: 25px;
-        box-shadow: 0 10px 25px rgba(37, 99, 235, 0.2);
-    }
-    .header-box h1 { color: white !important; font-size: 38px; font-weight: 700; margin: 0; }
-    .header-box p { color: rgba(255,255,255,0.9); font-size: 15px; margin: 6px 0 0 0; }
-    
-    .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
-    
-    /* CORRECCIÓN: Textos siempre blancos y legibles en las tarjetas */
-    .feature-card { 
-        padding: 16px 12px; border-radius: 12px; text-align: center; 
-        color: #FFFFFF !important; border: 1px solid rgba(255,255,255,0.05); 
-    }
-    .feature-card h3 { font-size: 15px; font-weight: 700; margin: 4px 0; color: #FFFFFF !important; }
-    .feature-card p { font-size: 12px; margin: 0; color: rgba(255,255,255,0.85) !important; }
-    
-    .card-1 { background: #1E3A8A; }
-    .card-2 { background: #7F1D1D; }
-    .card-3 { background: #064E3B; }
-    .card-4 { background: #78350F; }
-    
-    .btn-free {
-        background: linear-gradient(135deg, #D97706 0%, #B45309 100%); padding: 14px;
-        border-radius: 12px; text-align: center; color: white; font-weight: 700; font-size: 16px; margin: 15px 0;
-    }
-    
-    .clean-login {
-        background: #1E293B; padding: 25px; border-radius: 16px;
-        border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-    }
-    .clean-title { text-align: center; color: #F8FAFC; margin-bottom: 20px; font-weight: 700; font-size: 24px; }
-    </style>
-    """, unsafe_allow_html=True)
     
 # ======= 4. INTERFAZ DE INICIO (ESTRUCTURA COMPLETA) =======
 st.markdown("<div class='header-box'><h1>⚡ NEXUS</h1><p>Sistema de Gestión para Negocios</p></div>", unsafe_allow_html=True)
