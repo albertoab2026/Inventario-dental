@@ -335,49 +335,39 @@ def mostrar_login():
     .clean-title { text-align: center; color: #F8FAFC; margin-bottom: 20px; font-weight: 700; font-size: 24px; }
     </style>
     """, unsafe_allow_html=True)
-
     
 # ======= 4. INTERFAZ DE INICIO =======
 st.markdown("<div class='header-box'><h1>⚡ NEXUS</h1><p>Sistema de Gestión para Negocios</p></div>", unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        # Usamos un contenedor para aislar los tabs y que no afecten a las tarjetas
-        with st.container():
-            tab1, tab2 = st.tabs(["🔑 Iniciar Sesión", "✨ Registro Gratis"])
-            
-            with tab1:
-                usuario_input = st.text_input("Usuario o DNI", placeholder="Ej: 71234567", key="login_user")
-                password_input = st.text_input("Contraseña", type="password", placeholder="••••••••", key="login_pass")
-                if st.button("Ingresar al Sistema", use_container_width=True):
-                    user_validado = login(usuario_input, password_input)
-                    if user_validado:
-                        st.session_state.logged_in = True
-                        st.session_state.user_data = user_validado
-                        st.rerun()
-            
-            with tab2:
-                reg_dni = st.text_input("DNI del dueño", key="reg_dni")
-                reg_nombre = st.text_input("Nombre completo", key="reg_nombre")
-                reg_negocio = st.text_input("Nombre del negocio", key="reg_negocio")
-                reg_email = st.text_input("Email", key="reg_email")
-                reg_rubro = st.selectbox("Rubro", list(CATEGORIAS_POR_RUBRO.keys()), key="reg_rubro")
-                reg_password = st.text_input("Contraseña", type="password", key="reg_pass")
-                
-                if st.button("Activar cuenta gratis", use_container_width=True):
-                    if registrar_dueno(reg_dni, reg_nombre, reg_negocio, reg_email, reg_password, reg_rubro):
-                        st.success("¡Registro exitoso!")
-                        st.balloons()
+    # 1. Creamos un contenedor limpio para el Login/Registro
+    col_izq, col_central, col_der = st.columns([1, 2, 1])
+    with col_central:
+        tab1, tab2 = st.tabs(["🔑 Iniciar Sesión", "✨ Registro"])
+        with tab1:
+            usuario_input = st.text_input("Usuario o DNI", key="login_user")
+            password_input = st.text_input("Contraseña", type="password", key="login_pass")
+            if st.button("Ingresar", use_container_width=True):
+                user_validado = login(usuario_input, password_input)
+                if user_validado:
+                    st.session_state.logged_in = True
+                    st.session_state.user_data = user_validado
+                    st.rerun()
+                else:
+                    st.error("❌ Datos incorrectos")
+        with tab2:
+            reg_dni = st.text_input("DNI del dueño", key="reg_dni")
+            reg_nombre = st.text_input("Nombre completo", key="reg_nombre")
+            reg_password = st.text_input("Contraseña", type="password", key="reg_pass")
+            if st.button("Registrarme", use_container_width=True):
+                if registrar_dueno(reg_dni, reg_nombre, "Negocio", "email@mail.com", reg_password, "Otro"):
+                    st.success("¡Registro exitoso!")
 
-    # ESPACIO EXTRA PARA SEPARAR
-    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    # 2. SECCIÓN DE TARJETAS (Forzamos el estilo aquí)
+    st.markdown("<div style='margin-top: 50px;'>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center;'>¿Cansado de perder plata en tu cuaderno?</h3>", unsafe_allow_html=True)
     
-    # LAS TARJETAS VUELVEN AQUÍ FUERA, Y AL ESTAR FUERA DEL CONTENEDOR, 
-    # TOMAN EL CSS ORIGINAL
-    st.markdown("<h3 style='text-align:center; color:#94A3B8; font-size:24px;'>¿Cansado de perder plata en tu cuaderno?</h3>", unsafe_allow_html=True)
-    
+    # Aquí pegas TU HTML original de las tarjetas (que sé que funciona)
     st.markdown("""
     <div class='feature-grid'>
         <div class='feature-card card-1'><div>📦</div><h3>Control Total</h3><p>Sabes qué vendes y qué falta en tiempo real.</p></div>
@@ -386,8 +376,10 @@ if not st.session_state.logged_in:
         <div class='feature-card card-4'><div>⚡</div><h3>Súper Económico</h3><p>Solo S/30 al mes. Sin contratos complicados.</p></div>
     </div>
     """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True) # Cerramos el contenedor
     
     st.stop()
+    
 # ======= 6. APP PRINCIPAL =======
 user = st.session_state.user_data
 
