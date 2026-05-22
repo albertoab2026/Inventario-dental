@@ -360,8 +360,12 @@ st.markdown("<div class='header-container'><h1>⚡ NEXUS</h1><p>Tu negocio en co
 
 # Barra de regalo
 # --- BANNER INTELIGENTE ---
-if not st.session_state.get("logged_in", False):
-    st.warning("¡PRUEBA 7 DÍAS GRATIS! Regístrate ahora sin compromiso.")
+st.markdown("""
+        <div style="background-color: #FFF3CD; border: 2px solid #FFC107; padding: 20px; border-radius: 10px; text-align: center; color: #856404; font-size: 20px; font-weight: bold; margin-bottom: 20px;">
+            🎁 ¡PRUEBA 7 DÍAS GRATIS! <br> 
+            <span style="font-size: 16px; font-weight: normal;">Regístrate ahora sin compromiso y empieza hoy mismo.</span>
+        </div>
+    """, unsafe_allow_html=True)
 else:
     # Banner para USUARIOS LOGUEADOS (informativo y profesional)
     # Aquí puedes extraer los días restantes si los tienes en user_data
