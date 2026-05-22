@@ -133,25 +133,55 @@ def login(usuario_o_dni, password):
         st.error(f"Error en el login: {e}")
         return None
 
-def registrar_dueno(dni, nombre, nombre_negocio, email, password, rubro):
+def registrar_dueno(dni, nombre, nombre_negocio, email, password, rubro, celular):
     try:
+        # 1. Validar DNI en tabla_trial (esto ya lo tienes bien)
         if 'Item' in tabla_trial.get_item(Key={'tipo_id': f'DNI-{dni}'}):
             st.error("❌ Este DNI ya usó los 7 días gratis")
             return False
+
+        # 2. Validar EMAIL y CELULAR en tabla_usuarios
+        # Hacemos un scan de la tabla usuarios para buscar duplicados
+        response = tabla_usuarios.scan(
+            FilterExpression="email = :e OR celular = :c",
+            ExpressionAttributeValues={":e": email, ":c": celular}
+        )
+        
+        if response.get('Items'):
+            for item in response['Items']:
+                if item['email'] == email:
+                    st.error("❌ Este email ya está registrado.")
+                    return False
+                if item.get('celular') == celular:
+                    st.error("❌ Este celular ya tiene una cuenta asociada.")
+                    return False
+
+        # 3. Si llega aquí, todo está limpio, procedemos a guardar
         timestamp = str(int(datetime.now().timestamp()))[-5:]
         usuario_id = f"DUENO{timestamp}"
+        
         tabla_usuarios.put_item(Item={
-            'usuario_id': usuario_id, 'id_del_dueno': usuario_id,
-            'dni': dni, 'nombre': nombre, 'nombre_negocio': nombre_negocio, 'email': email,
-            'password_hash': hash_password(password), 'rol': 'dueno', 'rubro': rubro,
-            'plan': 'trial', 'activo': True,
+            'usuario_id': usuario_id,
+            'id_del_dueno': usuario_id,
+            'dni': dni,
+            'nombre': nombre,
+            'nombre_negocio': nombre_negocio,
+            'email': email,
+            'celular': celular, # Guardamos el celular
+            'password_hash': hash_password(password),
+            'rol': 'dueno',
+            'rubro': rubro,
+            'plan': 'trial',
+            'activo': True,
             'fecha_registro': datetime.now().isoformat(),
             'fecha_trial_fin': (datetime.now() + timedelta(days=7)).isoformat()
         })
+        
         tabla_trial.put_item(Item={'tipo_id': f'DNI-{dni}', 'fecha': datetime.now().isoformat()})
         return True
+
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Error en registro: {e}")
         return False
 
 def obtener_productos():
