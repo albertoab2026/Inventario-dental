@@ -544,7 +544,7 @@ if menu == "Productos":
                                
 # --- PÁGINA VENTAS (Diseño Estilo SaaS Comercial) ---
 elif menu == "Ventas":
-    st.title("🛒 Terminal de Ventas (POS Premium)")
+    st.title("🛒 Terminal de Ventas")
     
     productos = obtener_productos()
     tenant_actual = st.session_state.get('tenant_id', 'MI LOCAL')
