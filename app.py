@@ -389,7 +389,7 @@ if not st.session_state.logged_in:
             reg_password = st.text_input("Contraseña", type="password", key="reg_pass")
             
             if st.button("Activar prueba gratis", use_container_width=True):
-                if registrar_dueno(reg_dni, reg_nombre, reg_negocio, reg_email, reg_password, reg_rubro):
+                if registrar_dueno(reg_dni, reg_nombre, reg_negocio, reg_email, reg_password, reg_rubro, reg_celular):
                     st.success("¡Registro exitoso! Ya puedes iniciar sesión.")
                     st.balloons()
 
