@@ -395,8 +395,8 @@ if not st.session_state.logged_in:
                     st.success("¡Registro exitoso! Ya puedes iniciar sesión.")
                     st.balloons()
                     st.rerun()
-                else:
-        st.warning("Por favor, completa todos los campos.")    
+            else:
+                st.warning("Por favor, completa todos los campos.")    
 
     # SECCIÓN DE TARJETAS (FUERA DE COLUMNAS PARA QUE MANTENGAN SU ANCHO)
     st.markdown("<div style='margin-top: 60px;'></div>", unsafe_allow_html=True)
