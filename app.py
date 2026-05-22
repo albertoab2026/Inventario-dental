@@ -29,29 +29,39 @@ if 'user_data' not in st.session_state:
 if 'carrito' not in st.session_state:
     st.session_state.carrito = []
 
-# CSS Global Limpio
+# ======= 1. TÍTULO Y SLOGAN CENTRADO =======
+st.markdown("""
+<div style='text-align: center; margin-bottom: 40px;'>
+    <h1 style='font-size: 3rem; color: #60A5FA; margin-bottom: 5px;'>⚡ NEXUS</h1>
+    <p style='font-size: 1.2rem; color: #94A3B8;'>Sistema de Gestión para Negocios - Simple, Rápido y Eficiente</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ======= 2. CSS MAESTRO (PARA COLORES VIVOS Y GRID) =======
 st.markdown("""
 <style>
-    /* CSS GLOBAL MAESTRO */
+    .stApp { background-color: #0F172A !important; }
+    
     .feature-grid {
         display: grid !important;
-        grid-template-columns: repeat(2, 1fr) !important;
+        grid-template-columns: 1fr 1fr !important;
         gap: 20px !important;
-        margin-top: 30px !important;
-        width: 100% !important;
+        margin-top: 20px !important;
     }
+    
     .feature-card {
-        padding: 25px !important;
+        padding: 30px !important;
         border-radius: 15px !important;
         text-align: center !important;
         color: white !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
+        font-weight: 600 !important;
     }
-    .card-1 { background: #1e3a8a !important; }
-    .card-2 { background: #991b1b !important; }
-    .card-3 { background: #064e3b !important; }
-    .card-4 { background: #92400e !important; }
-    .header-box { text-align: center; margin-bottom: 30px; }
+    
+    /* Colores Vivos */
+    .card-1 { background: #2563eb !important; }
+    .card-2 { background: #dc2626 !important; }
+    .card-3 { background: #059669 !important; }
+    .card-4 { background: #d97706 !important; }
 </style>
 """, unsafe_allow_html=True)
 
