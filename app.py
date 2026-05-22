@@ -337,17 +337,17 @@ def mostrar_login():
     """, unsafe_allow_html=True)
 
     
-# ======= 4. INTERFAZ DE INICIO =======
+# ======= 4. INTERFAZ DE INICIO (ESTRUCTURA CORREGIDA) =======
 st.markdown("<div class='header-box'><h1>⚡ NEXUS</h1><p>Sistema de Gestión para Negocios</p></div>", unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
-    # Creamos las pestañas en el mismo lugar donde estaba tu login
-    col1, col2, col3 = st.columns([1, 1.8, 1])
+    # Centramos el formulario usando columnas
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
     with col2:
         tab1, tab2 = st.tabs(["🔑 Iniciar Sesión", "✨ Registro Gratis"])
         
         with tab1:
-            st.markdown("<div class='clean-login'>", unsafe_allow_html=True)
             usuario_input = st.text_input("Usuario o DNI", placeholder="Ej: 71234567", key="login_user")
             password_input = st.text_input("Contraseña", type="password", placeholder="••••••••", key="login_pass")
             if st.button("Ingresar al Sistema", use_container_width=True):
@@ -358,25 +358,23 @@ if not st.session_state.logged_in:
                     st.rerun()
                 else:
                     st.error("❌ Credenciales inválidas o cuenta inactiva")
-            st.markdown("</div>", unsafe_allow_html=True)
-
+        
         with tab2:
-            st.markdown("<div class='clean-login'>", unsafe_allow_html=True)
             reg_dni = st.text_input("DNI del dueño", key="reg_dni")
-            reg_nombre = st.text_input("Nombre", key="reg_nombre")
-            reg_negocio = st.text_input("Negocio", key="reg_negocio")
+            reg_nombre = st.text_input("Nombre completo", key="reg_nombre")
+            reg_negocio = st.text_input("Nombre del negocio", key="reg_negocio")
             reg_email = st.text_input("Email", key="reg_email")
             reg_rubro = st.selectbox("Rubro", list(CATEGORIAS_POR_RUBRO.keys()), key="reg_rubro")
             reg_password = st.text_input("Contraseña", type="password", key="reg_pass")
             
-            if st.button("Activar 7 días gratis", use_container_width=True):
+            if st.button("Activar cuenta gratis", use_container_width=True):
                 if registrar_dueno(reg_dni, reg_nombre, reg_negocio, reg_email, reg_password, reg_rubro):
                     st.success("¡Registro exitoso! Ya puedes iniciar sesión.")
                     st.balloons()
-            st.markdown("</div>", unsafe_allow_html=True)
 
-    # Tus tarjetas de información se quedan abajo
-    st.markdown("<h3 style='text-align:center; color:#94A3B8; font-size:18px; margin:30px 0 10px 0;'>¿Cansado de perder plata en tu cuaderno?</h3>", unsafe_allow_html=True)
+    # --- AQUÍ ESTÁ EL SECRETO: Las tarjetas fuera de los tabs ---
+    st.markdown("<h3 style='text-align:center; color:#94A3B8; font-size:18px; margin-top:50px;'>¿Cansado de perder plata en tu cuaderno?</h3>", unsafe_allow_html=True)
+    
     st.markdown("""
     <div class='feature-grid'>
         <div class='feature-card card-1'><div>📦</div><h3>Control Total</h3><p>Sabes qué vendes y qué falta en tiempo real.</p></div>
@@ -386,8 +384,7 @@ if not st.session_state.logged_in:
     </div>
     """, unsafe_allow_html=True)
     
-    st.stop() # Esto detiene la ejecución para que los NO logueados no vean el resto
-    st.stop() # Esto detiene la ejecución para que los NO logueados no vean el resto
+    st.stop()
 
 # ======= 6. APP PRINCIPAL =======
 user = st.session_state.user_data
