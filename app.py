@@ -29,51 +29,40 @@ if 'user_data' not in st.session_state:
 if 'carrito' not in st.session_state:
     st.session_state.carrito = []
 
-# ======= 3. ENCABEZADO DENTRO DE UN CUADRO =======
+# ======= 1. TÍTULO CON CONTRASTE ALTO =======
 st.markdown("""
 <style>
     .header-container {
-        background-color: #1E293B !important; /* Mismo color que tus tarjetas */
-        padding: 30px !important;
+        background: linear-gradient(135deg, #1E3A8A, #1E293B) !important; /* Degradado Azul vibrante */
+        padding: 40px !important;
         border-radius: 20px !important;
-        border: 1px solid #334155 !important;
+        border: 2px solid #60A5FA !important; /* Borde azul claro para resaltar */
         text-align: center !important;
         margin-bottom: 30px !important;
+    }
+    .regalo-bar {
+        background: #F59E0B !important; /* Amarillo vibrante */
+        color: #000 !important;
+        padding: 20px !important;
+        border-radius: 15px !important;
+        text-align: center !important;
+        margin-top: 40px !important;
+        font-weight: 800 !important;
+        box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
     }
 </style>
 
 <div class='header-container'>
-    <h1 style='font-size: 3.5rem; color: #60A5FA; margin: 0;'>⚡ NEXUS</h1>
-    <p style='font-size: 1.2rem; color: #94A3B8; margin-top: 10px;'>Sistema de Gestión para Negocios - Facil, Rápido y Eficiente</p>
+    <h1 style='font-size: 3.5rem; color: #FFFFFF; margin: 0;'>⚡ NEXUS</h1>
+    <p style='font-size: 1.4rem; color: #BFDBFE; margin-top: 10px;'>Tu negocio en control total. Empieza hoy mismo.</p>
 </div>
 """, unsafe_allow_html=True)
 
-# ======= 2. CSS MAESTRO (PARA COLORES VIVOS Y GRID) =======
+# ======= 2. BARRA DE REGALO (AL FINAL) =======
 st.markdown("""
-<style>
-    .stApp { background-color: #0F172A !important; }
-    
-    .feature-grid {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-        gap: 20px !important;
-        margin-top: 20px !important;
-    }
-    
-    .feature-card {
-        padding: 30px !important;
-        border-radius: 15px !important;
-        text-align: center !important;
-        color: white !important;
-        font-weight: 600 !important;
-    }
-    
-    /* Colores Vivos */
-    .card-1 { background: #2563eb !important; }
-    .card-2 { background: #dc2626 !important; }
-    .card-3 { background: #059669 !important; }
-    .card-4 { background: #d97706 !important; }
-</style>
+<div class='regalo-bar'>
+    🎁 ¡PRUEBA 7 DÍAS GRATIS! Regístrate ahora y digitaliza tu negocio sin compromiso.
+</div>
 """, unsafe_allow_html=True)
 
 # ======= 2. CONEXIÓN AWS =======
