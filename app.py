@@ -381,28 +381,39 @@ if not st.session_state.logged_in:
                     st.error("❌ Credenciales inválidas")
         
         with tab2:
-            reg_dni = st.text_input("DNI del dueño", key="reg_dni")
-            reg_nombre = st.text_input("Nombre completo", key="reg_nombre")
-            reg_negocio = st.text_input("Nombre del negocio", key="reg_negocio")
-            reg_email = st.text_input("Email", key="reg_email")
-            reg_celular = st.text_input("Número de celular", key="reg_celular")
-            reg_rubro = st.selectbox("Rubro", list(CATEGORIAS_POR_RUBRO.keys()), key="reg_rubro")
-            reg_password = st.text_input("Contraseña", type="password", key="reg_pass")
-            
-            # 1. Botón de registro
-            if st.button("Activar prueba gratis", use_container_width=True):
-                # Validamos que los campos tengan datos
-                if reg_dni and reg_nombre and reg_email and reg_password and reg_celular:
-                    # Llamamos a la función
-                    if registrar_dueno(reg_dni, reg_nombre, reg_negocio, reg_email, reg_password, reg_rubro, reg_celular):
-                        # ÉXITO: Guardamos en session_state para que la app lo recuerde
-                        st.session_state.registro_exitoso = True
-                        st.rerun() # Refrescamos para que el código tome el nuevo estado
+            # Comprobamos si el registro ya fue exitoso
+            if "registro_exitoso" in st.session_state and st.session_state.registro_exitoso:
+                st.success("¡Registro exitoso! Ya puedes iniciar sesión.")
+                st.balloons()
+                
+                # Botón para limpiar y volver a empezar
+                if st.button("Volver al inicio"):
+                    for key in ["reg_dni", "reg_nombre", "reg_negocio", "reg_email", "reg_celular", "reg_pass"]:
+                        if key in st.session_state:
+                            del st.session_state[key]
+                    del st.session_state.registro_exitoso
+                    st.rerun()
+                    
+            else:
+                # Si NO ha sido exitoso, mostramos el formulario
+                reg_dni = st.text_input("DNI del dueño", key="reg_dni")
+                reg_nombre = st.text_input("Nombre completo", key="reg_nombre")
+                reg_negocio = st.text_input("Nombre del negocio", key="reg_negocio")
+                reg_email = st.text_input("Email", key="reg_email")
+                reg_celular = st.text_input("Número de celular", key="reg_celular")
+                reg_rubro = st.selectbox("Rubro", list(CATEGORIAS_POR_RUBRO.keys()), key="reg_rubro")
+                reg_password = st.text_input("Contraseña", type="password", key="reg_pass")
+                
+                if st.button("Activar prueba gratis", use_container_width=True):
+                    if reg_dni and reg_nombre and reg_email and reg_password and reg_celular:
+                        if registrar_dueno(reg_dni, reg_nombre, reg_negocio, reg_email, reg_password, reg_rubro, reg_celular):
+                            st.session_state.registro_exitoso = True
+                            st.rerun() # Esto recarga y entra al 'if' de arriba
+                        else:
+                            # El error se muestra aquí, pero el formulario se mantiene
+                            st.error("Error al registrar: intenta con otros datos.")
                     else:
-                        # Falló la función (ej. DNI ya existía)
-                        st.error("Error al registrar: intenta con otros datos.")
-                else:
-                    st.warning("Por favor, completa todos los campos.") 
+                        st.warning("Por favor, completa todos los campos.")
             # 2. Control post-registro
             if "registro_exitoso" in st.session_state and st.session_state.registro_exitoso:
                 st.success("¡Registro exitoso! Ya puedes iniciar sesión.")
