@@ -45,16 +45,26 @@ if st.session_state.get('logged_in'):
 
     # --- Lógica de bloqueo ---
     if dias_restantes < 0:
-            # Creamos un contenedor centrado
-            st.markdown("""
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; text-align: center;">
-                    <h1 style="color: #f59e0b; font-size: 3em;">⏳</h1>
-                    <h1 style="color: #1e293b;">Tu acceso ha finalizado</h1>
-                    <p style="font-size: 1.2em; color: #64748b; margin-bottom: 30px;">
-                        Para seguir disfrutando de las herramientas de NEXUS, <br>por favor contacta con soporte para renovar tu suscripción.
-                    </p>
-                    <a href="https://wa.me/51914282688" style="background-color: #25d366; color: white; padding: 15px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                        📲 Escribir al WhatsApp de Soporte
+            # Mensaje automático para tu WhatsApp
+            mensaje_wa = "Hola NEXUS, quiero renovar mi suscripción."
+            link_wa = f"https://wa.me/51914282688?text={mensaje_wa.replace(' ', '%20')}"
+            
+            st.markdown(f"""
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: white;">
+                    <h1 style="font-size: 3em;">⏳</h1>
+                    <h1 style="color: #ffffff; font-size: 2.2em; margin: 10px 0;">Tu acceso ha finalizado</h1>
+                    
+                    <div style="background-color: #1e293b; padding: 20px; border-radius: 15px; border: 1px solid #475569; margin: 20px 0; max-width: 400px;">
+                        <h3 style="color: #60a5fa;">💳 Datos para la Renovación</h3>
+                        <p style="margin: 5px 0;"><b>Yape / Plin:</b> 914282688</p>
+                        <p style="margin: 5px 0;"><b>Titular:</b> Alberto Ballarta</p>
+                        <p style="font-size: 0.9em; color: #94a3b8; margin-top: 10px;">
+                            <i>Envía tu comprobante y DNI al WhatsApp tras realizar el pago.</i>
+                        </p>
+                    </div>
+
+                    <a href="{link_wa}" style="background-color: #25d366; color: white; padding: 15px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                        📲 Enviar comprobante al WhatsApp
                     </a>
                 </div>
             """, unsafe_allow_html=True)
