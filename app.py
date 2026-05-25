@@ -356,12 +356,9 @@ def eliminar_producto(producto_id):
     
 # ======= 4. INTERFAZ DE INICIO (ESTRUCTURA COMPLETA) =======
 # Título
-# 1. Pones esta línea para debugear
-st.write(st.session_state.user_data)
-
 st.markdown(f"""
     <div class='header-container'>
-        <h1>👋 Bienvenido, {st.session_state.user_data.get('nombre_local', 'Tu Negocio')}</h1>
+        <h1>👋 Bienvenido, {st.session_state.user_data.get('nombre_negocio', 'Tu Negocio')}</h1>
         <p>Sistema de Gestión NEXUS - Tu negocio bajo control.</p>
     </div>
 """, unsafe_allow_html=True)
