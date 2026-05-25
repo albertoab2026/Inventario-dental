@@ -356,7 +356,12 @@ def eliminar_producto(producto_id):
     
 # ======= 4. INTERFAZ DE INICIO (ESTRUCTURA COMPLETA) =======
 # Título
-st.markdown("<div class='header-container'><h1>⚡ NEXUS</h1><p>Tu negocio en control total. Empieza hoy mismo.</p></div>", unsafe_allow_html=True)
+st.markdown(f"""
+    <div class='header-container'>
+        <h1>👋 Bienvenido, {st.session_state.user_data.get('nombre_local', 'Tu Negocio')}</h1>
+        <p>Sistema de Gestión NEXUS - Tu negocio bajo control.</p>
+    </div>
+""", unsafe_allow_html=True)
 
 # Barra de regalo
 # --- BANNER INTELIGENTE ---
