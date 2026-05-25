@@ -39,37 +39,61 @@ if st.session_state.get('logged_in'):
     fecha_fin = datetime.strptime(fecha_fin_str[:10], '%Y-%m-%d')
     dias_restantes = (fecha_fin - datetime.now()).days + 1
     
-    # --- AVISO PARA TRIAL ---
+    # --- BLOQUE DE VENCIMIENTO PARA TRIAL ---
     if plan == 'trial':
         if dias_restantes < 0:
-            st.error("❌ **Tu acceso ha finalizado.** Contacta a soporte.")
-            st.stop()
-        elif dias_restantes == 0:
             st.markdown("""
-                <div style="background-color: #fee2e2; padding: 15px; border-radius: 10px; border-left: 5px solid #ef4444; text-align: center;">
-                    <h3 style="color: #991b1b; margin: 0;">🚨 ¡ÚLTIMO DÍA DE PRUEBA!</h3>
-                    <p style="color: #b91c1c; margin: 5px 0 0 0;">Tu periodo de prueba vence hoy. Contacta a soporte para renovar.</p>
+                <div style="background-color: #f1f5f9; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #334155;">
+                    <h1 style="color: #1e293b;">⏳ Tu periodo de prueba ha finalizado</h1>
+                    <p style="font-size: 1.2em; color: #475569;">¡Esperamos que NEXUS te haya ayudado! Para seguir usando el sistema, elige uno de nuestros planes.</p>
+                    <br>
+                    <div style="background-color: white; padding: 20px; border-radius: 10px; border: 1px solid #cbd5e1;">
+                        <h3 style="color: #1e40af;">🚀 ¡Activa tu cuenta hoy!</h3>
+                        <p>Contáctame por WhatsApp para consultar nuestros planes desde <b>S/ 40.00</b>:</p>
+                        <a href="https://wa.me/51914282688" style="background-color: #25d366; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">📲 Contactar Soporte</a>
+                    </div>
+                    <br>
+                    <div style="text-align: left; font-size: 0.9em; color: #64748b;">
+                        <p><b>Instrucciones para activar:</b></p>
+                        <ul>
+                            <li>Realiza tu pago vía <b>Yape o Plin</b> al número: <b>914282688</b>.</li>
+                            <li>A nombre de: <b>Alberto Ballarta</b>.</li>
+                            <li>Envíame la captura del pago y tu DNI/RUC al WhatsApp.</li>
+                        </ul>
+                    </div>
+                    <hr>
+                    <p style="text-align: center;"><i>Atentamente,<br><b>Soporte Técnico NEXUS</b></i></p>
                 </div>
             """, unsafe_allow_html=True)
-            st.write("")
-        elif 1 <= dias_restantes <= 7:
-            st.warning(f"⚠️ **Aviso:** Tu periodo de prueba vence en **{dias_restantes} días**.")
+            st.stop()
 
     # --- AVISO PARA PREMIUM ---
     elif plan == 'premium':
+        # --- BLOQUE DE VENCIMIENTO PREMIUM ---
         if dias_restantes < 0:
-            st.error("❌ **Tu suscripción Premium ha expirado.** Contacta a soporte para renovar.")
-            st.stop()
-        elif dias_restantes == 0:
             st.markdown("""
-                <div style="background-color: #fef3c7; padding: 15px; border-radius: 10px; border-left: 5px solid #d97706; text-align: center;">
-                    <h3 style="color: #92400e; margin: 0;">⚠️ ¡TU PREMIUM VENCE HOY!</h3>
-                    <p style="color: #b45309; margin: 5px 0 0 0;">Tu suscripción finaliza hoy. Gestiona tu renovación para no perder acceso.</p>
+                <div style="background-color: #fef3c7; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #d97706;">
+                    <h1 style="color: #92400e;">⏳ Tu suscripción Premium ha finalizado</h1>
+                    <p style="font-size: 1.2em; color: #b45309;">Para continuar sin interrupciones, por favor renueva tu suscripción.</p>
+                    <br>
+                    <div style="background-color: white; padding: 20px; border-radius: 10px; border: 1px solid #cbd5e1;">
+                        <h3 style="color: #1e40af;">🚀 Renueva tu Premium</h3>
+                        <p>Contáctame por WhatsApp para gestionar tu renovación:</p>
+                        <a href="https://wa.me/51914282688" style="background-color: #25d366; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">📲 Contactar Soporte</a>
+                    </div>
+                    <br>
+                    <p><b>Instrucciones:</b> Yape/Plin al 914282688 (Alberto Ballarta). Envía tu comprobante y DNI.</p>
+                    <hr>
+                    <p><i>Atentamente,<br><b>Soporte Técnico NEXUS</b></i></p>
                 </div>
             """, unsafe_allow_html=True)
-            st.write("")
+            st.stop()
+        
+        # --- RESTO DE TUS AVISOS PREMIUM (dias_restantes == 0, etc.) ---
+        elif dias_restantes == 0:
+            st.warning("⚠️ **Tu suscripción Premium finaliza hoy.**")
         elif 1 <= dias_restantes <= 15:
-            st.info(f"ℹ️ **Recordatorio:** Tu suscripción Premium renueva en **{dias_restantes} días**.")
+            st.info(f"ℹ️ Tu suscripción Premium renueva en **{dias_restantes} días**.")
             
 # ======= 1. CSS MAESTRO (TODO EN UNO) =======
 st.markdown("""
