@@ -60,7 +60,7 @@ if st.session_state.get('logged_in'):
             
             <div style="background-color: #1e293b; padding: 20px; border-radius: 15px; border: 1px solid #475569; margin: 20px 0; max-width: 400px;">
                 <h3 style="color: #60a5fa; margin-top: 0;">💳 Datos para la Renovación</h3>
-                <p style="margin: 5px 0;"><b>Yape / Plin:</b> 914282688</p>
+                <p style="margin: 5px 0;"><b>Yape / Plin:</b> +51914282688</p>
                 <p style="margin: 5px 0;"><b>Titular:</b> Alberto Ballarta</p>
                 <p style="font-size: 0.9em; color: #94a3b8; margin-top: 10px;">
                     <i>Envía tu comprobante y DNI al WhatsApp tras realizar el pago.</i>
