@@ -514,16 +514,33 @@ if menu == "Productos":
                         st.error("Nombre y categoría son obligatorios")
                     
     st.subheader("Control de Inventario")
+    # 1. Obtener datos
     productos = obtener_productos()
-    
+
     if productos:
         df_inv = pd.DataFrame(productos)
-        busqueda_p = st.text_input("🔍 Buscar por nombre:", key="buscador_unico")
+        
+        # --- FILTROS MÚLTIPLES ---
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            busqueda_p = st.text_input("🔍 Buscar por nombre:", key="buscador_unico")
+        
+        with col2:
+            # Creamos la lista de categorías únicas disponibles
+            categorias_unicas = sorted(df_inv['categoria'].unique().tolist())
+            filtro_cat = st.selectbox("📂 Filtrar por Categoría:", ["Todas"] + categorias_unicas)
+            
+        # --- LÓGICA DE FILTRADO ---
+        df_mostrar = df_inv.copy()
         
         if busqueda_p:
-            df_mostrar = df_inv[df_inv['nombre'].str.contains(busqueda_p, case=False, na=False)]
-        else:
-            df_mostrar = df_inv
+            df_mostrar = df_mostrar[df_mostrar['nombre'].str.contains(busqueda_p, case=False, na=False)]
+        
+        if filtro_cat != "Todas":
+            df_mostrar = df_mostrar[df_mostrar['categoria'] == filtro_cat]
+    else:
+        df_mostrar = pd.DataFrame()
 
         # LA TABLA EDITABLE
         columnas_a_mostrar = ['producto_id', 'nombre', 'precio_compra', 'precio_venta', 'stock', 'categoria']
