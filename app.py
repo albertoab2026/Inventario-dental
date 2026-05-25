@@ -356,6 +356,9 @@ def eliminar_producto(producto_id):
     
 # ======= 4. INTERFAZ DE INICIO (ESTRUCTURA COMPLETA) =======
 # Título
+# 1. Pones esta línea para debugear
+st.write(st.session_state.user_data)
+
 st.markdown(f"""
     <div class='header-container'>
         <h1>👋 Bienvenido, {st.session_state.user_data.get('nombre_local', 'Tu Negocio')}</h1>
