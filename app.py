@@ -45,14 +45,20 @@ if st.session_state.get('logged_in'):
 
     # --- Lógica de bloqueo ---
     if dias_restantes < 0:
-        st.markdown("""
-            <div style="background-color: #f1f5f9; padding: 20px; border-radius: 10px; border: 2px solid #334155; text-align: center;">
-                <h1>⏳ Tu acceso ha finalizado</h1>
-                <p>Contáctanos para renovar tu suscripción.</p>
-                <a href="https://wa.me/51914282688" style="background-color: #25d366; color: white; padding: 10px; text-decoration: none; border-radius: 5px;">📲 WhatsApp Soporte</a>
-            </div>
-        """, unsafe_allow_html=True)
-        st.stop() # Esto detiene todo el script solo si está vencido
+            # Creamos un contenedor centrado
+            st.markdown("""
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; text-align: center;">
+                    <h1 style="color: #f59e0b; font-size: 3em;">⏳</h1>
+                    <h1 style="color: #1e293b;">Tu acceso ha finalizado</h1>
+                    <p style="font-size: 1.2em; color: #64748b; margin-bottom: 30px;">
+                        Para seguir disfrutando de las herramientas de NEXUS, <br>por favor contacta con soporte para renovar tu suscripción.
+                    </p>
+                    <a href="https://wa.me/51914282688" style="background-color: #25d366; color: white; padding: 15px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        📲 Escribir al WhatsApp de Soporte
+                    </a>
+                </div>
+            """, unsafe_allow_html=True)
+            st.stop()
     
     # --- Avisos preventivos ---
     elif dias_restantes <= 7:
