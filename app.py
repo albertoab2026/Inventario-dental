@@ -34,7 +34,7 @@ if 'carrito' not in st.session_state:
 # Esto se ejecutará en cada carga de página
 fecha_fin_str = st.session_state.user_data.get('fecha_trial_fin', '2026-05-29')
 fecha_fin = datetime.strptime(fecha_fin_str[:10], '%Y-%m-%d')
-dias_restantes = (fecha_fin - datetime.now()).days
+dias_restantes = (fecha_fin - datetime.now()).days + 1
 plan = st.session_state.user_data.get('plan', 'trial')
 
 if plan == 'trial':
