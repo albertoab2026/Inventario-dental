@@ -31,23 +31,24 @@ if 'carrito' not in st.session_state:
     st.session_state.carrito = []
 
 # ======= 1.5 VERIFICACIÓN DE ESTADO DE CUENTA =======
-# Esto se ejecutará en cada carga de página
-fecha_fin_str = st.session_state.user_data.get('fecha_trial_fin', '2026-05-29')
-fecha_fin = datetime.strptime(fecha_fin_str[:10], '%Y-%m-%d')
-dias_restantes = (fecha_fin - datetime.now()).days + 1
-plan = st.session_state.user_data.get('plan', 'trial')
+# Solo ejecutamos esto SI el usuario YA inició sesión
+if st.session_state.get('logged_in'):
+    fecha_fin_str = st.session_state.user_data.get('fecha_trial_fin', '2026-05-29')
+    fecha_fin = datetime.strptime(fecha_fin_str[:10], '%Y-%m-%d')
+    # Usamos + 1 para que el conteo sea más preciso hacia el usuario
+    dias_restantes = (fecha_fin - datetime.now()).days + 1 
+    plan = st.session_state.user_data.get('plan', 'trial')
 
-if plan == 'trial':
-    if 0 <= dias_restantes <= 7:
-        st.warning(f"⚠️ **Aviso:** Tu periodo de prueba vence en {dias_restantes} días. ¡Contacta a soporte para renovar!")
-    elif dias_restantes < 0:
-        st.error("❌ **Tu acceso ha finalizado.** Contacta con soporte para activar tu cuenta.")
-        st.stop() # Esto detiene la app para usuarios vencidos
+    if plan == 'trial':
+        if 0 <= dias_restantes <= 7:
+            st.warning(f"⚠️ **Aviso:** Tu periodo de prueba vence en {dias_restantes} días. ¡Contacta a soporte para renovar!")
+        elif dias_restantes < 0:
+            st.error("❌ **Tu acceso ha finalizado.** Contacta con soporte para activar tu cuenta.")
+            st.stop() 
 
-elif plan == 'premium':
-    # Mensaje positivo para usuarios Premium
-    if 0 <= dias_restantes <= 15:
-        st.info(f"ℹ️ Tu suscripción Premium renueva en {dias_restantes} días.")
+    elif plan == 'premium':
+        if 0 <= dias_restantes <= 15:
+            st.info(f"ℹ️ Tu suscripción Premium renueva en {dias_restantes} días.")
 
 # ======= 1. CSS MAESTRO (TODO EN UNO) =======
 st.markdown("""
