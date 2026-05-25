@@ -30,7 +30,8 @@ if 'user_data' not in st.session_state:
 if 'carrito' not in st.session_state:
     st.session_state.carrito = []
 
-# ======= 1.5 VERIFICACIÓN DE ESTADO DE CUENTA (VERSIÓN FINAL) =======
+# ======= 1.5 VERIFICACIÓN DE ESTADO DE CUENTA =======
+# Esta línea asegura que el código solo se ejecute cuando el usuario ya entró al sistema
 if st.session_state.get('logged_in'):
     user_data = st.session_state.get('user_data', {})
     fecha_fin_str = user_data.get('fecha_trial_fin', '2026-05-29')
@@ -39,7 +40,7 @@ if st.session_state.get('logged_in'):
     fecha_fin = datetime.strptime(fecha_fin_str[:10], '%Y-%m-%d')
     dias_restantes = (fecha_fin - datetime.now()).days + 1
     
-    # --- AVISO PARA TRIAL ---
+    # --- Lógica para Plan Trial ---
     if plan == 'trial':
         if dias_restantes < 0:
             st.markdown("""
@@ -66,7 +67,7 @@ if st.session_state.get('logged_in'):
             """, unsafe_allow_html=True)
             st.stop()
         elif dias_restantes == 0:
-            # ... tu código día 0 ...
+            st.warning("⚠️ **¡ÚLTIMO DÍA DE PRUEBA!** Tu periodo vence hoy. Contacta a soporte para renovar.")
         elif 1 <= dias_restantes <= 7:
             st.warning(f"⚠️ **Aviso:** Tu periodo de prueba vence en **{dias_restantes} días**.")
 
