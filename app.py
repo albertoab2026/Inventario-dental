@@ -484,20 +484,27 @@ with st.expander("➕ Agregar Nuevo Producto"):
         pc_nuevo = st.number_input("Precio Compra", step=0.1)
         stk_nuevo = st.number_input("Stock", step=1)
         
-        # Lógica de categorías DENTRO del formulario único
+        # 1. Obtenemos opciones
         rubro = st.session_state.user_data.get('rubro', 'Otro')
         opciones_base = CATEGORIAS_POR_RUBRO.get(rubro, ["General"])
         opciones_lista = opciones_base + ["+ Agregar nueva categoría"]
         
+        # 2. Selector
         seleccion_cat = st.selectbox("Selecciona categoría", opciones_lista, key="sel_cat")
         
-        cat_final = seleccion_cat
+        # 3. Lógica persistente para la categoría manual
         if seleccion_cat == "+ Agregar nueva categoría":
-            cat_final = st.text_input("Escribe el nombre de tu nueva categoría:", key="input_manual")
+            cat_manual = st.text_input("Escribe el nombre de tu nueva categoría:")
+            cat_final = cat_manual # Lo que escribas aquí
+        else:
+            cat_final = seleccion_cat # Lo que elijas del menú
         
-        # Botón de guardar
+        # 4. Botón
         if st.form_submit_button("Guardar Producto Nuevo"):
-            if nombre_nuevo and cat_final:
+            # Si eligió agregar pero no escribió nada, bloqueamos
+            if seleccion_cat == "+ Agregar nueva categoría" and not cat_final:
+                st.error("Por favor, escribe el nombre de la nueva categoría.")
+            elif nombre_nuevo:
                 if agregar_producto(nombre_nuevo, pv_nuevo, pc_nuevo, stk_nuevo, cat_final):
                     st.success("¡Producto agregado!")
                     st.rerun()
