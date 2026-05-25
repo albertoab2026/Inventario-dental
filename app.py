@@ -30,27 +30,39 @@ if 'user_data' not in st.session_state:
 if 'carrito' not in st.session_state:
     st.session_state.carrito = []
 
-# ======= VERIFICACIÓN DE ESTADO DE CUENTA (VERSIÓN PROFESIONAL) =======
+# ======= 1.5 VERIFICACIÓN DE ESTADO DE CUENTA =======
+# Esta lógica solo se ejecuta si el usuario YA inició sesión
+if st.session_state.get('logged_in'):
+    # Obtenemos los datos de forma segura
+    user_data = st.session_state.get('user_data', {})
+    fecha_fin_str = user_data.get('fecha_trial_fin', '2026-05-29')
+    plan = user_data.get('plan', 'trial')
+    
+    # Calculamos días restantes
+    fecha_fin = datetime.strptime(fecha_fin_str[:10], '%Y-%m-%d')
+    dias_restantes = (fecha_fin - datetime.now()).days + 1
+    
+    # Mostramos avisos según el plan y días
     if plan == 'trial':
         if dias_restantes < 0:
-            st.error("❌ **Tu acceso ha finalizado.** Contacta con soporte para reactivar tu cuenta.")
+            st.error("❌ **Tu acceso ha finalizado.** Contacta con soporte.")
             st.stop()
         elif dias_restantes == 0:
             st.markdown("""
                 <div style="background-color: #fee2e2; padding: 15px; border-radius: 10px; border-left: 5px solid #ef4444; text-align: center;">
                     <h3 style="color: #991b1b; margin: 0;">🚨 ¡ÚLTIMO DÍA DE PRUEBA!</h3>
                     <p style="color: #b91c1c; margin: 5px 0 0 0;">
-                        Tu periodo de prueba vence hoy. Contacta a soporte para renovar y no perder acceso a tu gestión.
+                        Tu periodo de prueba vence hoy. Contacta a soporte para renovar.
                     </p>
                 </div>
             """, unsafe_allow_html=True)
             st.write("")
         elif 1 <= dias_restantes <= 7:
-            st.warning(f"⚠️ **Aviso:** Tu periodo de prueba vence en **{dias_restantes} días**. ¡Contacta a soporte para renovar!")
+            st.warning(f"⚠️ **Aviso:** Tu periodo de prueba vence en **{dias_restantes} días**.")
 
     elif plan == 'premium':
         if dias_restantes == 0:
-            st.warning("⚠️ **Tu suscripción Premium finaliza hoy.** Por favor, contacta a soporte para tu renovación.")
+            st.warning("⚠️ **Tu suscripción Premium finaliza hoy.** Contacta a soporte.")
         elif 1 <= dias_restantes <= 15:
             st.info(f"ℹ️ Tu suscripción Premium renueva en **{dias_restantes} días**.")
 
