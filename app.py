@@ -45,11 +45,9 @@ if st.session_state.get('logged_in'):
 
     # --- Lógica de bloqueo ---
     if dias_restantes < 0:
-        # Creamos el mensaje para el enlace
         mensaje_wa = "Hola NEXUS, quiero renovar mi suscripción."
         link_wa = f"https://wa.me/51914282688?text={mensaje_wa.replace(' ', '%20')}"
         
-        # EL TRUCO: El triple quote debe abrirse justo después del paréntesis
         st.markdown(f"""<div style="display: flex; flex-direction: column; align-items: center; text-align: center; color: white;">
     <h1 style="font-size: 3em;">⏳</h1>
     <h1 style="color: #ffffff; font-size: 2em;">Tu acceso ha finalizado</h1>
