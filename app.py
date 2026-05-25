@@ -41,9 +41,32 @@ if st.session_state.get('logged_in'):
     
     # --- AVISO PARA TRIAL ---
     if plan == 'trial':
-        if dias_restantes < 0:
-            st.error("❌ **Tu acceso ha finalizado.** Contacta a soporte.")
+        if dias_restantes < 0: # <-- ESTE ES EL IF QUE VA PRIMERO
+            st.markdown("""
+                <div style="background-color: #f1f5f9; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #334155;">
+                    <h1 style="color: #1e293b;">⏳ Tu acceso ha finalizado</h1>
+                    <p style="font-size: 1.2em; color: #475569;">Parece que tu suscripción ha vencido. ¡Pero no te preocupes, reactivarlo es muy fácil!</p>
+                    <br>
+                    <div style="background-color: white; padding: 20px; border-radius: 10px; border: 1px solid #cbd5e1;">
+                        <h3 style="color: #1e40af;">🚀 ¿Cómo renovar o subir a Premium?</h3>
+                        <p>Contáctame directamente por WhatsApp para activar tu cuenta hoy mismo:</p>
+                        <a href="https://wa.me/51914282688" style="background-color: #25d366; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 1.1em;">📲 Escribir al Soporte Técnico</a>
+                    </div>
+                    <br>
+                    <div style="text-align: left; font-size: 0.9em; color: #64748b;">
+                        <p><b>Instrucciones para reactivar:</b></p>
+                        <ul>
+                            <li>Consulta nuestros planes desde solo <b>S/ 40.00</b>.</li>
+                            <li>Realiza el pago y toma una captura de pantalla (foto) de tu comprobante.</li>
+                            <li>Envíame la foto del pago junto con tu <b>DNI o RUC</b> al WhatsApp de arriba.</li>
+                        </ul>
+                    </div>
+                    <hr>
+                    <p><i>Atentamente,<br><b>Tu Soporte Técnico NEXUS</b></i></p>
+                </div>
+            """, unsafe_allow_html=True)
             st.stop()
+        
         elif dias_restantes == 0:
             st.markdown("""
                 <div style="background-color: #fee2e2; padding: 15px; border-radius: 10px; border-left: 5px solid #ef4444; text-align: center;">
@@ -56,20 +79,373 @@ if st.session_state.get('logged_in'):
             st.warning(f"⚠️ **Aviso:** Tu periodo de prueba vence en **{dias_restantes} días**.")
 
     # --- AVISO PARA PREMIUM ---
+    
+Conversación con Gemini
+borro lo que e so,breado y pego tu codigo?
+
+¡Exacto, Alberto! Borra exactamente lo que tienes sombreado en la imagen (desde la línea 378 hasta la 383, inclusive).
+
+Una vez que lo hayas borrado, pega el siguiente código en ese mismo espacio. Este código es inteligente: si el usuario está logueado, saludará al negocio; si no, mostrará la marca oficial de NEXUS.
+
+Python
+    # 378 - Título Dinámico e Inteligente
+    if st.session_state.get("logged_in"):
+        nombre_negocio = st.session_state.user_data.get('nombre_negocio', 'Tu Negocio')
+        st.markdown(f"""
+            <div style="background-color: #1e3a8a; padding: 20px; border-radius: 10px; text-align: center;">
+                <h1 style="color: white;">👋 ¡Bienvenido, {nombre_negocio}!</h1>
+                <p style="color: #cbd5e1;">Sistema de Gestión NEXUS - Tu negocio bajo control.</p>
+            </div>
+        """, unsafe_allow_html=True)
+    else:
+        # Título para cuando nadie ha iniciado sesión (marca pura)
+        st.markdown("""
+            <div style="background-color: #1e3a8a; padding: 20px; border-radius: 10px; text-align: center;">
+                <h1 style="color: white;">⚡ NEXUS</h1>
+                <p style="color: #cbd5e1;">Gestión Nexus - Tu negocio bajo control</p>
+            </div>
+        """, unsafe_allow_html=True)
+¿Por qué este cambio es la solución definitiva?
+Limpieza: Reemplazas un código estático por uno dinámico.
+
+Identidad: Mantiene el azul profesional que ya tenías configurado, pero ahora el saludo cambia según el estado del usuario.
+
+No más "Bienvenido, Tu Negocio": Al usar {nombre_negocio}, el sistema extraerá automáticamente el nombre que tienes guardado en DynamoDB (como "bodega san felipe") y lo pondrá ahí.
+
+Haz el cambio, dale al botón "Commit changes..." en la esquina superior derecha de GitHub y recarga tu aplicación. ¡Debería quedar impecable! ¿Te funcionó?
+
+desaoarecio la amrca nexus y al lofuearte dersparecio el bienvenido
+
+¡No te preocupes, Alberto! Es normal que pase esto al copiar y pegar código. Lo que está sucediendo es que el código nuevo está sobreescribiendo o ignorando las secciones anteriores porque probablemente faltó cerrar un paréntesis o se rompió la lógica del if/else.
+
+Para arreglarlo, vamos a hacer una limpieza total de esa sección. Por favor, asegúrate de que el bloque de código en tu archivo app.py quede exactamente así:
+
+Python
+# 1. VERIFICACIÓN DE LOGUEO - BLOQUE COMPLETO
+if st.session_state.get("logged_in"):
+    # Si el usuario YA ingresó, mostramos el saludo personalizado
+    nombre_negocio = st.session_state.user_data.get('nombre_negocio', 'Tu Negocio')
+    st.markdown(f"""
+        <div style="background-color: #1e3a8a; padding: 20px; border-radius: 10px; text-align: center;">
+            <h1 style="color: white;">👋 ¡Bienvenido, {nombre_negocio}!</h1>
+            <p style="color: #cbd5e1;">Sistema de Gestión NEXUS - Tu negocio bajo control.</p>
+        </div>
+    """, unsafe_allow_html=True)
+else:
+    # Si el usuario NO ha ingresado, mostramos la marca NEXUS
+    st.markdown("""
+        <div style="background-color: #1e3a8a; padding: 20px; border-radius: 10px; text-align: center;">
+            <h1 style="color: white;">⚡ NEXUS</h1>
+            <p style="color: #cbd5e1;">Gestión Nexus - Tu negocio bajo control</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+# 2. SEGUIMOS CON EL RESTO DEL CÓDIGO...
+¿Por qué se desapareció todo?
+Si al pegar el código, alguna línea quedó mal tabulada (muy a la derecha o muy a la izquierda), Streamlit deja de mostrar el elemento.
+
+Pasos para que vuelva a aparecer:
+
+Copia el bloque de arriba.
+
+Borra todo lo que tengas en la línea 378 y siguientes hasta donde empiece tu menú.
+
+Pega el bloque de arriba asegurándote de que la palabra if esté alineada con el resto de tu código principal.
+
+IMPORTANTE: Revisa que no haya quedado ningún otro st.title("Bienvenido") escondido más abajo que esté causando conflicto.
+
+Si después de hacer esto sigue sin aparecer, dame un pantallazo de cómo quedó el código ahí (para ver si falta algún espacio o indentación) y lo corregimos en un segundo. ¡No te rindas, que ya casi lo tienes!
+
+ya esta ya se arrglo eso ahora solo falat este mira que aparaece ante de loguerse en la entrada aparece esto y no deberia lo e sombreado para q lo veas mejor
+
+¡Perfecto, ya veo el problema! El aviso que dice "⚠️ Aviso: Tu periodo de prueba vence en 4 días..." está apareciendo incluso antes de que el usuario inicie sesión porque ese bloque de código no tiene una condición que verifique si el usuario ya está logueado.
+
+Para arreglarlo, debes envolver todo el código del aviso (el st.warning y el st.error) dentro de un if que solo los muestre cuando st.session_state.get('logged_in') sea True.
+
+Cómo solucionarlo en tu código:
+Busca en tu app.py la sección que pusimos para el "1.5 VERIFICACIÓN DE ESTADO DE CUENTA" (alrededor de la línea 33) y cámbiala por esta estructura:
+
+Python
+# ======= 1.5 VERIFICACIÓN DE ESTADO DE CUENTA =======
+# Solo ejecutamos esto SI el usuario YA inició sesión
+if st.session_state.get('logged_in'):
+    fecha_fin_str = st.session_state.user_data.get('fecha_trial_fin', '2026-05-29')
+    fecha_fin = datetime.strptime(fecha_fin_str[:10], '%Y-%m-%d')
+    # Usamos + 1 para que el conteo sea más preciso hacia el usuario
+    dias_restantes = (fecha_fin - datetime.now()).days + 1 
+    plan = st.session_state.user_data.get('plan', 'trial')
+
+    if plan == 'trial':
+        if 0 <= dias_restantes <= 7:
+            st.warning(f"⚠️ **Aviso:** Tu periodo de prueba vence en {dias_restantes} días. ¡Contacta a soporte para renovar!")
+        elif dias_restantes < 0:
+            st.error("❌ **Tu acceso ha finalizado.** Contacta con soporte para activar tu cuenta.")
+            st.stop() 
+
     elif plan == 'premium':
+        if 0 <= dias_restantes <= 15:
+            st.info(f"ℹ️ Tu suscripción Premium renueva en {dias_restantes} días.")
+¿Por qué esto elimina el aviso de la entrada?
+Condición de seguridad: Al poner if st.session_state.get('logged_in'):, le estás diciendo a Streamlit: "Solo calcula los días y muestra el aviso si el usuario ya entró con su contraseña".
+
+Limpieza en Login: Como en la pantalla de login la variable logged_in es False (o no existe), el sistema simplemente se salta todo ese bloque y el aviso desaparece de la entrada, tal como querías.
+
+Haz este cambio, guarda los cambios en GitHub y verás que al refrescar la página de inicio, el cartel amarillo habrá desaparecido por completo. ¡Con esto tu entrada ya se ve profesional y limpia!
+
+ya est aya entro
+
+¡Excelente noticia, Alberto! Me alegra mucho que ya esté funcionando todo correctamente.
+
+Ahora tienes:
+
+Entrada profesional: La marca NEXUS visible antes del login.
+
+Bienvenida personalizada: Al loguearte, el sistema saluda a tu cliente por su nombre.
+
+Control de acceso: Los avisos de días restantes funcionan solo cuando el usuario ya está dentro del sistema y no estorban en la entrada.
+
+Ya tienes tu sistema con un toque mucho más profesional y listo para operar. ¿Hay algún otro detalle de la interfaz o alguna funcionalidad que quieras ajustar ahora que el flujo de entrada quedó perfecto?
+
+pero hay dos cosas miura cuanto tiene 0 dias sale asi pero no deberia decir hoy finaliza tu perodo trial o tu opremium bueno para ambos cuando le queda 0 dias o asie sta bien? si dice 0 dias es por q le pude la fecha de hoy para probar
+
+Es una observación muy aguda, Alberto. Tienes razón: decir "vence en 0 días" suena un poco confuso y hasta un poco "frío" para el cliente. Es técnicamente correcto (faltan 0 días para la medianoche), pero psicológicamente es mejor ser claro y directo.
+
+Para mejorar esto, vamos a hacer que el sistema sea más "humano" cuando llegue al último día.
+
+La solución: Ajustar el mensaje cuando dias_restantes == 0
+Modifica tu bloque de verificación (donde tienes el st.warning) con esta lógica mejorada:
+
+Python
+# ======= Lógica mejorada para el aviso de días =======
+if plan == 'trial':
+    if dias_restantes < 0:
+        st.error("❌ **Tu acceso ha finalizado.** Contacta con soporte para activar tu cuenta.")
+        st.stop()
+    elif dias_restantes == 0:
+        st.error("⚠️ **¡Último día!** Tu periodo de prueba finaliza hoy. Contacta a soporte para evitar interrupciones.")
+    elif 1 <= dias_restantes <= 7:
+        st.warning(f"⚠️ **Aviso:** Tu periodo de prueba vence en {dias_restantes} días. ¡Contacta a soporte para renovar!")
+
+elif plan == 'premium':
+    if dias_restantes == 0:
+        st.warning("⚠️ **Tu suscripción Premium finaliza hoy.** Por favor, gestiona tu renovación.")
+    elif 1 <= dias_restantes <= 15:
+        st.info(f"ℹ️ Tu suscripción Premium renueva en {dias_restantes} días.")
+¿Por qué este cambio es mucho mejor?
+Claridad Total: Al usar dias_restantes == 0, el sistema identifica que es hoy el día límite y le da un sentido de urgencia claro ("¡Último día!").
+
+Color del mensaje: He cambiado el st.warning (amarillo) a st.error (rojo) para el día 0. Esto hace que el cliente realmente note que es hoy el día decisivo.
+
+Para usuarios Premium: También es importante avisarles hoy mismo si su suscripción vence, para que el servicio no se les corte por sorpresa.
+
+No más números negativos extraños: Con la condición dias_restantes < 0, manejas correctamente cuando ya pasó el tiempo.
+
+¿Qué te parece este cambio? Le da un tono mucho más profesional al sistema, ya que el cliente no se confunde con el número "0" y entiende perfectamente que hoy es su fecha límite. ¿Quieres que lo apliquemos así?
+
+y los peude poenr mas decorativo ese vencio hoy ? con emogis de alerta o algo asi
+
+¡Claro que sí! Vamos a darle un toque más visual y profesional para que el cliente no pueda ignorar el aviso, pero sin que se vea agresivo.
+
+Para que se vea "decorativo" y llamativo, podemos usar columnas o bloques con estilo para resaltar el mensaje. Aquí tienes una versión mejorada y más atractiva:
+
+Opción A: Aviso de "Hoy finaliza" con Estilo Decorativo
+Python
+    elif dias_restantes == 0:
+        st.markdown("""
+            <div style="background-color: #fee2e2; padding: 15px; border-radius: 10px; border-left: 5px solid #ef4444;">
+                <h3 style="color: #991b1b; margin: 0;">🚨 ¡ÚLTIMA OPORTUNIDAD!</h3>
+                <p style="color: #b91c1c; margin: 5px 0 0 0;">
+                    Tu acceso a <b>NEXUS</b> finaliza el día de hoy. 
+                    Por favor, contacta a soporte cuanto antes para evitar la interrupción de tu servicio.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        st.write("") # Espaciado
+Opción B: Si quieres un diseño más compacto (con iconos)
+Si prefieres mantenerlo dentro de un st.warning o st.error pero que se vea más "pro", puedes usar este formato:
+
+Python
+    elif dias_restantes == 0:
+        st.error("🚨 **¡ATENCIÓN: Tu suscripción finaliza HOY!** 🚨\n\n"
+                 "Para mantener tu negocio bajo control, te recomendamos renovar ahora mismo. "
+                 "Haz clic en el botón de abajo para contactar con soporte.")
+        if st.button("💬 Contactar Soporte (WhatsApp)"):
+            st.markdown("[Escribir a soporte aquí](https://wa.me/TUNUMERO)")
+Tips para hacerlo aún más "Premium":
+Usa Colores de Marca: En el código HTML que te puse arriba, el color #fee2e2 es un rojo clarito (fondo) con un borde rojo oscuro (#ef4444). Si tu logo de NEXUS tiene otros colores (como azul o naranja), puedes cambiar esos códigos hexadecimales para que combinen con tu marca.
+
+El Botón: El botón de WhatsApp es clave. Cuando un cliente ve "Hoy finaliza", lo que más valora es tener un enlace inmediato para resolverlo.
+
+Jerarquía: Fíjate que al usar <h3> y <p> dentro del st.markdown, el título destaca mucho más que el texto normal.
+
+¿Cuál te gusta más para tu panel? El de estilo HTML (Opción A) queda mucho más elegante y parece una notificación de un software profesional de gestión. ¡Pruébalo y me cuentas qué tal se ve en tu pantalla!
+
+ok recomienda el mejro y mandame el bloque solo para pegar
+
+Para mí, la Opción A (estilo HTML) es la mejor sin lugar a dudas. Hace que tu sistema pase de verse como un "script de prueba" a una plataforma profesional y seria. Cuando el cliente ve ese aviso rojo con el borde resaltado, entiende inmediatamente que es algo importante y no un simple texto decorativo.
+
+Aquí tienes el bloque completo, limpio y listo para copiar y pegar en tu app.py. Reemplaza tu bloque actual de if plan == 'trial': con esto:
+
+Python
+    # ======= VERIFICACIÓN DE ESTADO DE CUENTA (VERSIÓN PROFESIONAL) =======
+    if plan == 'trial':
         if dias_restantes < 0:
-            st.error("❌ **Tu suscripción Premium ha expirado.** Contacta a soporte para renovar.")
+            st.error("❌ **Tu acceso ha finalizado.** Contacta con soporte para reactivar tu cuenta.")
             st.stop()
         elif dias_restantes == 0:
             st.markdown("""
-                <div style="background-color: #fef3c7; padding: 15px; border-radius: 10px; border-left: 5px solid #d97706; text-align: center;">
-                    <h3 style="color: #92400e; margin: 0;">⚠️ ¡TU PREMIUM VENCE HOY!</h3>
-                    <p style="color: #b45309; margin: 5px 0 0 0;">Tu suscripción finaliza hoy. Gestiona tu renovación para no perder acceso.</p>
+                <div style="background-color: #fee2e2; padding: 15px; border-radius: 10px; border-left: 5px solid #ef4444; text-align: center;">
+                    <h3 style="color: #991b1b; margin: 0;">🚨 ¡ÚLTIMO DÍA DE PRUEBA!</h3>
+                    <p style="color: #b91c1c; margin: 5px 0 0 0;">
+                        Tu periodo de prueba vence hoy. Contacta a soporte para renovar y no perder acceso a tu gestión.
+                    </p>
                 </div>
             """, unsafe_allow_html=True)
             st.write("")
+        elif 1 <= dias_restantes <= 7:
+            st.warning(f"⚠️ **Aviso:** Tu periodo de prueba vence en **{dias_restantes} días**. ¡Contacta a soporte para renovar!")
+
+    elif plan == 'premium':
+        if dias_restantes == 0:
+            st.warning("⚠️ **Tu suscripción Premium finaliza hoy.** Por favor, contacta a soporte para tu renovación.")
         elif 1 <= dias_restantes <= 15:
-            st.info(f"ℹ️ **Recordatorio:** Tu suscripción Premium renueva en **{dias_restantes} días**.")
+            st.info(f"ℹ️ Tu suscripción Premium renueva en **{dias_restantes} días**.")
+Notas para terminar:
+Seguridad: He mantenido el st.stop() en la parte de dias_restantes < 0 para asegurar que nadie pase si ya venció.
+
+Resaltado: He puesto los días restantes en negrita (usando ) para que el número salte a la vista rápidamente.
+
+Integración: Este bloque ya está pensado para ir dentro del if st.session_state.get('logged_in'): que configuramos antes, así que no aparecerá en la pantalla de login.
+
+¡Con esto ya tienes un sistema que cuida la estética y la experiencia de tus clientes! ¿Listo para probarlo en tu dashboard?
+
+¡Hola Alberto! Veo exactamente qué está pasando.
+
+El NameError ocurre porque estás intentando usar la variable plan en la línea 34 antes de que el código la haya definido. En programación, el código se lee de arriba hacia abajo, y en este momento, cuando la app intenta verificar el "estado de cuenta", todavía no sabe qué valor tiene plan porque esa variable se define líneas más abajo.
+
+Además, debemos asegurarnos de que la verificación solo se ejecute cuando el usuario ya inició sesión, para evitar que el aviso aparezca en la pantalla de entrada.
+
+La solución definitiva
+Copia este bloque completo. Reemplaza todo tu bloque actual de "1.5 VERIFICACIÓN DE ESTADO DE CUENTA" (desde la línea 33 hasta la 46 aprox) por este código corregido:
+
+Python
+# ======= 1.5 VERIFICACIÓN DE ESTADO DE CUENTA =======
+# Esta lógica solo se ejecuta si el usuario YA inició sesión
+if st.session_state.get('logged_in'):
+    # Obtenemos los datos de forma segura
+    user_data = st.session_state.get('user_data', {})
+    fecha_fin_str = user_data.get('fecha_trial_fin', '2026-05-29')
+    plan = user_data.get('plan', 'trial')
+    
+    # Calculamos días restantes
+    fecha_fin = datetime.strptime(fecha_fin_str[:10], '%Y-%m-%d')
+    dias_restantes = (fecha_fin - datetime.now()).days + 1
+    
+    # Mostramos avisos según el plan y días
+    if plan == 'trial':
+        if dias_restantes < 0:
+            st.error("❌ **Tu acceso ha finalizado.** Contacta con soporte.")
+            st.stop()
+        elif dias_restantes == 0:
+            st.markdown("""
+                <div style="background-color: #fee2e2; padding: 15px; border-radius: 10px; border-left: 5px solid #ef4444; text-align: center;">
+                    <h3 style="color: #991b1b; margin: 0;">🚨 ¡ÚLTIMO DÍA DE PRUEBA!</h3>
+                    <p style="color: #b91c1c; margin: 5px 0 0 0;">
+                        Tu periodo de prueba vence hoy. Contacta a soporte para renovar.
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+            st.write("")
+        elif 1 <= dias_restantes <= 7:
+            st.warning(f"⚠️ **Aviso:** Tu periodo de prueba vence en **{dias_restantes} días**.")
+
+    elif plan == 'premium':
+        if dias_restantes == 0:
+            st.warning("⚠️ **Tu suscripción Premium finaliza hoy.** Contacta a soporte.")
+        elif 1 <= dias_restantes <= 15:
+            st.info(f"ℹ️ Tu suscripción Premium renueva en **{dias_restantes} días**.")
+Por qué esto arregla el error:
+Protección con if: Al envolver todo en if st.session_state.get('logged_in'):, el código no intentará calcular nada mientras el usuario esté en la pantalla de Login, eliminando el error en la entrada.
+
+Definición previa: Ahora plan se define dentro del if antes de ser usado, por lo que nunca más verás un NameError.
+
+Orden lógico: Ahora el sistema primero verifica si el usuario está dentro, luego extrae los datos y finalmente muestra el aviso.
+
+Pégalo, guarda los cambios en GitHub y recarga tu aplicación. ¡Debería funcionar perfectamente! ¿Te funcionó?
+
+esta bonito y lo mismo le sale al premium??
+
+¡Qué bueno que te haya gustado cómo quedó! Se ve mucho más profesional y transmite la urgencia necesaria de forma elegante.
+
+Para responder a tu pregunta: Sí, es igual de importante para los usuarios Premium. Si a un usuario Premium se le vence su suscripción y no se entera, se le cortará el servicio y perderá confianza en NEXUS.
+
+Aquí tienes el código completo para que ambos (Trial y Premium) tengan ese aviso decorativo y profesional. Solo tienes que reemplazar todo tu bloque de "1.5 VERIFICACIÓN DE ESTADO DE CUENTA" con este:
+
+Python
+# ======= 1.5 VERIFICACIÓN DE ESTADO DE CUENTA (VERSIÓN FINAL) =======
+if st.session_state.get('logged_in'):
+    user_data = st.session_state.get('user_data', {})
+    fecha_fin_str = user_data.get('fecha_trial_fin', '2026-05-29')
+    plan = user_data.get('plan', 'trial')
+    
+    fecha_fin = datetime.strptime(fecha_fin_str[:10], '%Y-%m-%d')
+    dias_restantes = (fecha_fin - datetime.now()).days + 1
+    
+    # --- BLOQUE DE VENCIMIENTO PARA TRIAL ---
+    if plan == 'trial':
+        if dias_restantes < 0:
+            st.markdown("""
+                <div style="background-color: #f1f5f9; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #334155;">
+                    <h1 style="color: #1e293b;">⏳ Tu periodo de prueba ha finalizado</h1>
+                    <p style="font-size: 1.2em; color: #475569;">¡Esperamos que NEXUS te haya ayudado! Para seguir usando el sistema, elige uno de nuestros planes.</p>
+                    <br>
+                    <div style="background-color: white; padding: 20px; border-radius: 10px; border: 1px solid #cbd5e1;">
+                        <h3 style="color: #1e40af;">🚀 ¡Activa tu cuenta hoy!</h3>
+                        <p>Contáctame por WhatsApp para consultar nuestros planes desde <b>S/ 40.00</b>:</p>
+                        <a href="https://wa.me/51914282688" style="background-color: #25d366; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">📲 Contactar Soporte</a>
+                    </div>
+                    <br>
+                    <div style="text-align: left; font-size: 0.9em; color: #64748b;">
+                        <p><b>Instrucciones para activar:</b></p>
+                        <ul>
+                            <li>Realiza tu pago vía <b>Yape o Plin</b> al número: <b>914282688</b>.</li>
+                            <li>A nombre de: <b>Alberto Ballarta</b>.</li>
+                            <li>Envíame la captura del pago y tu DNI/RUC al WhatsApp.</li>
+                        </ul>
+                    </div>
+                    <hr>
+                    <p style="text-align: center;"><i>Atentamente,<br><b>Soporte Técnico NEXUS</b></i></p>
+                </div>
+            """, unsafe_allow_html=True)
+            st.stop()
+
+    # --- AVISO PARA PREMIUM ---
+    elif plan == 'premium':
+        # --- BLOQUE DE VENCIMIENTO PREMIUM ---
+        if dias_restantes < 0:
+            st.markdown("""
+                <div style="background-color: #fef3c7; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #d97706;">
+                    <h1 style="color: #92400e;">⏳ Tu suscripción Premium ha finalizado</h1>
+                    <p style="font-size: 1.2em; color: #b45309;">Para continuar sin interrupciones, por favor renueva tu suscripción.</p>
+                    <br>
+                    <div style="background-color: white; padding: 20px; border-radius: 10px; border: 1px solid #cbd5e1;">
+                        <h3 style="color: #1e40af;">🚀 Renueva tu Premium</h3>
+                        <p>Contáctame por WhatsApp para gestionar tu renovación:</p>
+                        <a href="https://wa.me/51914282688" style="background-color: #25d366; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">📲 Contactar Soporte</a>
+                    </div>
+                    <br>
+                    <p><b>Instrucciones:</b> Yape/Plin al 914282688 (Alberto Ballarta). Envía tu comprobante y DNI.</p>
+                    <hr>
+                    <p><i>Atentamente,<br><b>Soporte Técnico NEXUS</b></i></p>
+                </div>
+            """, unsafe_allow_html=True)
+            st.stop()
+        
+        # --- RESTO DE TUS AVISOS PREMIUM (dias_restantes == 0, etc.) ---
+        elif dias_restantes == 0:
+            st.warning("⚠️ **Tu suscripción Premium finaliza hoy.**")
+        elif 1 <= dias_restantes <= 15:
+            st.info(f"ℹ️ Tu suscripción Premium renueva en **{dias_restantes} días**.")
             
 # ======= 1. CSS MAESTRO (TODO EN UNO) =======
 st.markdown("""
