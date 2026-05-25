@@ -374,23 +374,24 @@ def eliminar_producto(producto_id):
         return False
     
 # ======= 4. INTERFAZ DE INICIO (ESTRUCTURA COMPLETA) =======
-    # Título Dinámico e Inteligente
-    if st.session_state.get("logged_in"):
-        nombre_negocio = st.session_state.user_data.get('nombre_negocio', 'Tu Negocio')
-        st.markdown(f"""
-            <div style="background-color: #1e3a8a; padding: 20px; border-radius: 10px; text-align: center;">
-                <h1 style="color: white;">👋 ¡Bienvenido, {nombre_negocio}!</h1>
-                <p style="color: #cbd5e1;">Sistema de Gestión NEXUS - Tu negocio bajo control.</p>
-            </div>
-        """, unsafe_allow_html=True)
-    else:
-        # Título para cuando nadie ha iniciado sesión (marca pura)
-        st.markdown("""
-            <div style="background-color: #1e3a8a; padding: 20px; border-radius: 10px; text-align: center;">
-                <h1 style="color: white;">⚡ NEXUS</h1>
-                <p style="color: #cbd5e1;">Gestión Nexus - Tu negocio bajo control</p>
-            </div>
-        """, unsafe_allow_html=True)
+# 1. VERIFICACIÓN DE LOGUEO - BLOQUE COMPLETO
+if st.session_state.get("logged_in"):
+    # Si el usuario YA ingresó, mostramos el saludo personalizado
+    nombre_negocio = st.session_state.user_data.get('nombre_negocio', 'Tu Negocio')
+    st.markdown(f"""
+        <div style="background-color: #1e3a8a; padding: 20px; border-radius: 10px; text-align: center;">
+            <h1 style="color: white;">👋 ¡Bienvenido, {nombre_negocio}!</h1>
+            <p style="color: #cbd5e1;">Sistema de Gestión NEXUS - Tu negocio bajo control.</p>
+        </div>
+    """, unsafe_allow_html=True)
+else:
+    # Si el usuario NO ha ingresado, mostramos la marca NEXUS
+    st.markdown("""
+        <div style="background-color: #1e3a8a; padding: 20px; border-radius: 10px; text-align: center;">
+            <h1 style="color: white;">⚡ NEXUS</h1>
+            <p style="color: #cbd5e1;">Gestión Nexus - Tu negocio bajo control</p>
+        </div>
+    """, unsafe_allow_html=True)
         
 # --- BANNER INTELIGENTE ---
 if not st.session_state.get("logged_in", False):
