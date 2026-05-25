@@ -31,40 +31,35 @@ if 'carrito' not in st.session_state:
     st.session_state.carrito = []
 
 # ======= 1.5 VERIFICACIÓN DE ESTADO DE CUENTA =======
-# Esta es la única forma de que no salga el error en el Login
+# Esta es la única puerta de entrada. Si no está logueado, se salta todo esto.
 if st.session_state.get('logged_in'):
     user_data = st.session_state.get('user_data', {})
     fecha_fin_str = user_data.get('fecha_trial_fin', '2026-05-29')
     plan = user_data.get('plan', 'trial')
     
-    fecha_fin = datetime.strptime(fecha_fin_str[:10], '%Y-%m-%d')
-    dias_restantes = (fecha_fin - datetime.now()).days + 1
+    try:
+        fecha_fin = datetime.strptime(fecha_fin_str[:10], '%Y-%m-%d')
+        dias_restantes = (fecha_fin - datetime.now()).days + 1
+    except:
+        dias_restantes = 0 # Valor seguro por si hay error de formato
+
+    # --- Lógica de bloqueo ---
+    if dias_restantes < 0:
+        st.markdown("""
+            <div style="background-color: #f1f5f9; padding: 20px; border-radius: 10px; border: 2px solid #334155; text-align: center;">
+                <h1>⏳ Tu acceso ha finalizado</h1>
+                <p>Contáctanos para renovar tu suscripción.</p>
+                <a href="https://wa.me/51914282688" style="background-color: #25d366; color: white; padding: 10px; text-decoration: none; border-radius: 5px;">📲 WhatsApp Soporte</a>
+            </div>
+        """, unsafe_allow_html=True)
+        st.stop() # Esto detiene todo el script solo si está vencido
     
-    # --- Lógica Trial ---
-    if plan == 'trial':
-        if dias_restantes < 0:
-            st.markdown("""
-                <div style="background-color: #f1f5f9; padding: 20px; border-radius: 10px; border: 2px solid #334155; text-align: center;">
-                    <h1>⏳ Tu acceso ha finalizado</h1>
-                    <p>Contacta a soporte para renovar.</p>
-                    <a href="https://wa.me/51914282688" style="background-color: #25d366; color: white; padding: 10px; text-decoration: none; border-radius: 5px;">📲 WhatsApp Soporte</a>
-                </div>
-            """, unsafe_allow_html=True)
-            st.stop()
-        elif dias_restantes == 0:
-            st.warning("⚠️ ¡Tu prueba vence hoy!")
-        else:
-            st.write(f"ℹ️ Tu prueba vence en {dias_restantes} días.")
-            
-    # --- Lógica Premium ---
-    elif plan == 'premium':
-        if dias_restantes < 0:
-            st.error("❌ Suscripción Premium expirada. Contacta a soporte.")
-            st.stop()
-        elif dias_restantes == 0:
-            st.warning("⚠️ Tu Premium vence hoy.")
-        else:
-            st.info(f"ℹ️ Tu Premium renueva en {dias_restantes} días.")
+    # --- Avisos preventivos ---
+    elif dias_restantes <= 7:
+        if plan == 'trial':
+            st.warning(f"⚠️ Tu periodo de prueba vence en {dias_restantes} días.")
+        elif plan == 'premium':
+            st.info(f"ℹ️ Tu suscripción Premium renueva en {dias_restantes} días.")
             
 # ======= 1. CSS MAESTRO (TODO EN UNO) =======
 st.markdown("""
