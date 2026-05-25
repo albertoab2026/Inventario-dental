@@ -480,14 +480,7 @@ if menu == "Productos":
     
     # 1. FORMULARIO SEGURO
     with st.expander("➕ Agregar Nuevo Producto"):
-        
-        # 2. FORMULARIO ÚNICO (Aquí empieza el formulario real)
-        with st.form("form_unico_producto", clear_on_submit=True):
-            nombre_nuevo = st.text_input("Nombre del producto")
-            pv_nuevo = st.number_input("Precio Venta", step=0.1)
-            pc_nuevo = st.number_input("Precio Compra", step=0.1)
-            stk_nuevo = st.number_input("Stock", step=1)
-            
+                    
             # 1. Definimos las opciones
             rubro = st.session_state.user_data.get('rubro', 'Otro')
             opciones_base = CATEGORIAS_POR_RUBRO.get(rubro, ["General"])
