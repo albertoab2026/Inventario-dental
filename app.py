@@ -31,7 +31,6 @@ if 'carrito' not in st.session_state:
     st.session_state.carrito = []
 
 # ======= 1.5 VERIFICACIÓN DE ESTADO DE CUENTA =======
-# Esta línea asegura que el código solo se ejecute cuando el usuario ya entró al sistema
 if st.session_state.get('logged_in'):
     user_data = st.session_state.get('user_data', {})
     fecha_fin_str = user_data.get('fecha_trial_fin', '2026-05-29')
@@ -53,33 +52,23 @@ if st.session_state.get('logged_in'):
                         <p>Contáctame por WhatsApp para consultar nuestros planes desde <b>S/ 40.00</b>:</p>
                         <a href="https://wa.me/51914282688" style="background-color: #25d366; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">📲 Contactar Soporte</a>
                     </div>
-                    <br>
-                    <div style="text-align: left; font-size: 0.9em; color: #64748b;">
-                        <p><b>Instrucciones para activar:</b></p>
-                        <ul>
-                            <li>Yape/Plin al: <b>914282688</b> (Alberto Ballarta).</li>
-                            <li>Envíame la captura del pago y tu DNI/RUC al WhatsApp.</li>
-                        </ul>
-                    </div>
-                    <hr>
-                    <p style="text-align: center;"><i>Atentamente,<br><b>Soporte Técnico NEXUS</b></i></p>
                 </div>
             """, unsafe_allow_html=True)
             st.stop()
         elif dias_restantes == 0:
-            st.warning("⚠️ **¡ÚLTIMO DÍA DE PRUEBA!** Tu periodo vence hoy. Contacta a soporte para renovar.")
+            st.warning("⚠️ ¡Tu prueba vence hoy! Contacta a soporte para renovar.")
         elif 1 <= dias_restantes <= 7:
-            st.warning(f"⚠️ **Aviso:** Tu periodo de prueba vence en **{dias_restantes} días**.")
+            st.warning(f"⚠️ Tu prueba vence en **{dias_restantes} días**.")
 
-    # --- AVISO PARA PREMIUM ---
+    # --- Lógica para Plan Premium ---
     elif plan == 'premium':
         if dias_restantes < 0:
-            # ... pon aquí el mismo bloque de markdown del Trial pero ajustado a Premium ...
+            st.error("❌ Tu suscripción Premium ha expirado. Por favor, contacta a soporte para renovar.")
             st.stop()
         elif dias_restantes == 0:
-            # ... tu código día 0 ...
+            st.warning("⚠️ Tu suscripción Premium vence hoy. Contacta a soporte.")
         elif 1 <= dias_restantes <= 15:
-            st.info(f"ℹ️ **Recordatorio:** Tu suscripción Premium renueva en **{dias_restantes} días**.")
+            st.info(f"ℹ️ Tu suscripción Premium renueva en **{dias_restantes} días**.")
             
 # ======= 1. CSS MAESTRO (TODO EN UNO) =======
 st.markdown("""
