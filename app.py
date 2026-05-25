@@ -146,14 +146,11 @@ def login(usuario_o_dni, password):
         # 3. Validaciones
         if user and user.get('password_hash') == hash_password(password):
             
-            # --- Validación de Suscripción (Trial vs Premium) ---
-            # Si NO es premium, verificamos que no hayan pasado los 7 días
+            # --- Modificación: YA NO BLOQUEAMOS AQUÍ, solo dejamos pasar ---
+            # Solo verificamos si está activo, el bloqueo visual lo hará el aviso de la sección 1.5
             if user.get('plan') != 'premium':
-                fecha_fin = datetime.fromisoformat(user.get('fecha_trial_fin'))
-                # Comparamos la fecha actual con la fecha de fin
-                if datetime.now() > fecha_fin:
-                    st.error("❌ Tu periodo de prueba de 7 días ha finalizado. Contacta a soporte.")
-                    return None
+                # Solo guardamos la fecha para que la sección 1.5 la use
+                pass
             
             # --- Validación de cuenta activa ---
             if user.get('activo', True):
