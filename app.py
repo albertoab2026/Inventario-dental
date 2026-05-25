@@ -479,7 +479,6 @@ if menu == "Productos":
                 st.rerun() # Esto es necesario para refrescar la tabla después de subir el archivo
     
     # 1. FORMULARIO SEGURO
-    # 1. EXPANDER (Solo el título que despliega el formulario)
     with st.expander("➕ Agregar Nuevo Producto"):
         
         # 2. FORMULARIO ÚNICO (Aquí empieza el formulario real)
@@ -489,42 +488,32 @@ if menu == "Productos":
             pc_nuevo = st.number_input("Precio Compra", step=0.1)
             stk_nuevo = st.number_input("Stock", step=1)
             
-            # Lógica de categorías mejorada
+            # 1. Selector de categorías
             rubro = st.session_state.user_data.get('rubro', 'Otro')
             opciones_base = CATEGORIAS_POR_RUBRO.get(rubro, ["General"])
             opciones_lista = opciones_base + ["+ Agregar nueva categoría"]
             
-            # 1. Selector
             seleccion_cat = st.selectbox("Selecciona categoría", opciones_lista, key="sel_cat")
             
-            # 2. Variable persistente para la categoría manual
-            if "cat_manual_temp" not in st.session_state:
-                st.session_state.cat_manual_temp = ""
-                
+            # 2. Lógica para categoría manual (usando un campo de texto independiente)
             cat_final = seleccion_cat
-            
             if seleccion_cat == "+ Agregar nueva categoría":
-                # Usamos on_change para guardar lo que escribes en session_state
-                cat_final = st.text_input(
-                    "Escribe el nombre de tu nueva categoría:", 
-                    value=st.session_state.cat_manual_temp,
-                    key="input_manual"
-                )
-                st.session_state.cat_manual_temp = cat_final
-    
+                # Usamos un key único para este campo de texto
+                cat_manual = st.text_input("Escribe el nombre de tu nueva categoría:", key="input_manual_unico")
+                if cat_manual:
+                    cat_final = cat_manual
+            
             # 3. Botón de guardar
             if st.form_submit_button("Guardar Producto Nuevo"):
-                # Usamos el valor final
-                valor_a_guardar = cat_final if seleccion_cat == "+ Agregar nueva categoría" else seleccion_cat
-                
-                if nombre_nuevo and valor_a_guardar:
-                    if agregar_producto(nombre_nuevo, pv_nuevo, pc_nuevo, stk_nuevo, valor_a_guardar):
+                if nombre_nuevo and cat_final:
+                    if agregar_producto(nombre_nuevo, pv_nuevo, pc_nuevo, stk_nuevo, cat_final):
                         st.success("¡Producto agregado!")
-                        st.session_state.cat_manual_temp = "" # Limpiamos al guardar
+                        # Limpiamos el campo manual tras guardar
+                        st.session_state["input_manual_unico"] = ""
                         st.rerun()
                 else:
                     st.error("Nombre y categoría son obligatorios")
-
+                    
     st.subheader("Control de Inventario")
     productos = obtener_productos()
     
