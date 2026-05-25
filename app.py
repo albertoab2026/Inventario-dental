@@ -473,52 +473,52 @@ if menu == "Productos":
                 procesar_carga_excel(df_excel)
                 st.rerun() # Esto es necesario para refrescar la tabla después de subir el archivo
     
-# 1. FORMULARIO SEGURO
+    # 1. FORMULARIO SEGURO
     # 1. EXPANDER (Solo el título que despliega el formulario)
-with st.expander("➕ Agregar Nuevo Producto"):
+    with st.expander("➕ Agregar Nuevo Producto"):
+        
+        # 2. FORMULARIO ÚNICO (Aquí empieza el formulario real)
+        with st.form("form_unico_producto", clear_on_submit=True):
+            nombre_nuevo = st.text_input("Nombre del producto")
+            pv_nuevo = st.number_input("Precio Venta", step=0.1)
+            pc_nuevo = st.number_input("Precio Compra", step=0.1)
+            stk_nuevo = st.number_input("Stock", step=1)
+            
+            # Lógica de categorías mejorada
+            rubro = st.session_state.user_data.get('rubro', 'Otro')
+            opciones_base = CATEGORIAS_POR_RUBRO.get(rubro, ["General"])
+            opciones_lista = opciones_base + ["+ Agregar nueva categoría"]
+            
+            # 1. Selector
+            seleccion_cat = st.selectbox("Selecciona categoría", opciones_lista, key="sel_cat")
+            
+            # 2. Variable persistente para la categoría manual
+            if "cat_manual_temp" not in st.session_state:
+                st.session_state.cat_manual_temp = ""
+                
+            cat_final = seleccion_cat
+            
+            if seleccion_cat == "+ Agregar nueva categoría":
+                # Usamos on_change para guardar lo que escribes en session_state
+                cat_final = st.text_input(
+                    "Escribe el nombre de tu nueva categoría:", 
+                    value=st.session_state.cat_manual_temp,
+                    key="input_manual"
+                )
+                st.session_state.cat_manual_temp = cat_final
     
-    # 2. FORMULARIO ÚNICO (Aquí empieza el formulario real)
-    with st.form("form_unico_producto", clear_on_submit=True):
-        nombre_nuevo = st.text_input("Nombre del producto")
-        pv_nuevo = st.number_input("Precio Venta", step=0.1)
-        pc_nuevo = st.number_input("Precio Compra", step=0.1)
-        stk_nuevo = st.number_input("Stock", step=1)
-        
-        # Lógica de categorías mejorada
-        rubro = st.session_state.user_data.get('rubro', 'Otro')
-        opciones_base = CATEGORIAS_POR_RUBRO.get(rubro, ["General"])
-        opciones_lista = opciones_base + ["+ Agregar nueva categoría"]
-        
-        # 1. Selector
-        seleccion_cat = st.selectbox("Selecciona categoría", opciones_lista, key="sel_cat")
-        
-        # 2. Variable persistente para la categoría manual
-        if "cat_manual_temp" not in st.session_state:
-            st.session_state.cat_manual_temp = ""
-            
-        cat_final = seleccion_cat
-        
-        if seleccion_cat == "+ Agregar nueva categoría":
-            # Usamos on_change para guardar lo que escribes en session_state
-            cat_final = st.text_input(
-                "Escribe el nombre de tu nueva categoría:", 
-                value=st.session_state.cat_manual_temp,
-                key="input_manual"
-            )
-            st.session_state.cat_manual_temp = cat_final
-
-        # 3. Botón de guardar
-        if st.form_submit_button("Guardar Producto Nuevo"):
-            # Usamos el valor final
-            valor_a_guardar = cat_final if seleccion_cat == "+ Agregar nueva categoría" else seleccion_cat
-            
-            if nombre_nuevo and valor_a_guardar:
-                if agregar_producto(nombre_nuevo, pv_nuevo, pc_nuevo, stk_nuevo, valor_a_guardar):
-                    st.success("¡Producto agregado!")
-                    st.session_state.cat_manual_temp = "" # Limpiamos al guardar
-                    st.rerun()
-            else:
-                st.error("Nombre y categoría son obligatorios")
+            # 3. Botón de guardar
+            if st.form_submit_button("Guardar Producto Nuevo"):
+                # Usamos el valor final
+                valor_a_guardar = cat_final if seleccion_cat == "+ Agregar nueva categoría" else seleccion_cat
+                
+                if nombre_nuevo and valor_a_guardar:
+                    if agregar_producto(nombre_nuevo, pv_nuevo, pc_nuevo, stk_nuevo, valor_a_guardar):
+                        st.success("¡Producto agregado!")
+                        st.session_state.cat_manual_temp = "" # Limpiamos al guardar
+                        st.rerun()
+                else:
+                    st.error("Nombre y categoría son obligatorios")
 
     st.subheader("Control de Inventario")
     productos = obtener_productos()
