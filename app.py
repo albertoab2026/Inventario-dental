@@ -9,6 +9,37 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 from decimal import Decimal
 
+def mostrar_ajustes():
+    st.header("⚙️ Ajustes de Cuenta")
+    
+    tab_seguridad, tab_pagos = st.tabs(["🔒 Seguridad", "💳 Planes y Pagos"])
+    
+    with tab_seguridad:
+        st.subheader("Cambiar Contraseña")
+        with st.form("form_cambio_clave"):
+            st.text_input("Contraseña Actual", type="password")
+            st.text_input("Nueva Contraseña", type="password")
+            st.text_input("Confirmar Nueva Contraseña", type="password")
+            st.form_submit_button("Actualizar Clave")
+    
+    with tab_pagos:
+        st.subheader("Renovación de Planes")
+        col1, col2 = st.columns(2)
+        col1.info("### 🟢 Básico\nS/ 40 mensuales")
+        col2.warning("### 🔵 Premium\nS/ 50 mensuales")
+        st.markdown("---")
+        st.write("Realiza el depósito vía **Yape/Plin** al: **914282688**")
+        st.write("Titular: **Alberto Ballarta**")
+        
+        # Obtenemos el DNI del usuario logueado desde session_state
+        dni_actual = st.session_state.user_data.get('dni', '')
+        dni_input = st.text_input("Ingresa tu DNI:", value=dni_actual)
+        
+        mensaje = f"Hola Alberto, soy el cliente con DNI {dni_input} y deseo renovar mi plan."
+        link_wa = f"https://wa.me/51914282688?text={mensaje.replace(' ', '%20')}"
+        
+        st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color: #25d366; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">📲 Enviar comprobante al WhatsApp</a>', unsafe_allow_html=True)
+
 # ======= 1. CONFIG INICIAL =======
 st.set_page_config(page_title="NEXUS", page_icon="⚡", layout="wide")
 
@@ -966,10 +997,6 @@ elif menu == "Reportes":
         # --- NUEVA LÓGICA DE COMPARATIVA ---
         fecha_semana_pasada = fecha_busqueda - timedelta(days=7)
         df_pasada = df[df['Fecha_Corta'] == fecha_semana_pasada].copy()
-
-        # --- NUEVA LÓGICA DE COMPARATIVA ---
-        fecha_semana_pasada = fecha_busqueda - timedelta(days=7)
-        df_pasada = df[df['Fecha_Corta'] == fecha_semana_pasada].copy()
         
         # --- INICIALIZACIÓN (Para que no falle los días sin ventas) ---
         efectivo = 0.0
@@ -1109,4 +1136,5 @@ elif menu == "Reportes":
             st.warning("No hay ventas para generar el reporte.")
 
 elif menu == "⚙️ Ajustes":
-    mostrar_ajustes()            
+    mostrar_ajustes()     
+    
