@@ -510,7 +510,7 @@ with st.sidebar:
     st.markdown(f"### 🏢 {user.get('nombre_negocio', 'NEXUS')}")
     st.markdown(f"**Plan:** {user.get('plan', 'trial').upper()}")
     st.markdown("---")
-    menu = st.sidebar.selectbox("Menú", ["Productos", "Ventas", "Reportes"])
+    menu = st.sidebar.selectbox("Menú", ["Productos", "Ventas", "Reportes", "⚙️ Ajustes"])
     st.markdown("---")
     if st.button("🚪 Cerrar Sesión", use_container_width=True):
         st.session_state.logged_in = False
@@ -1107,3 +1107,6 @@ elif menu == "Reportes":
             )
         else:
             st.warning("No hay ventas para generar el reporte.")
+
+elif menu == "⚙️ Ajustes":
+    mostrar_ajustes()            
