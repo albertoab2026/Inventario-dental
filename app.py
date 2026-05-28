@@ -29,7 +29,7 @@ def mostrar_ajustes():
         col2.warning("### 🔵 Premium\nS/ 50 mensuales")
         st.markdown("---")
         st.write("Realiza el depósito vía **Yape/Plin** al: **914282688**")
-        st.write("Titular: **Alberto Ballarta**")
+        st.write("Tecnico: **Alberto Ballarta**")
         
         # Obtenemos el DNI del usuario logueado desde session_state
         dni_actual = st.session_state.user_data.get('dni', '')
