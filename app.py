@@ -9,8 +9,6 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 from decimal import Decimal
 
-elif menu == "⚙️ Ajustes":
-    mostrar_ajustes()
 def actualizar_clave_usuario(usuario_id, nueva_clave):
     dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
     table = dynamodb.Table('NEXUS_USUARIOS')
