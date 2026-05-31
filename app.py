@@ -1136,5 +1136,49 @@ elif menu == "Reportes":
             st.warning("No hay ventas para generar el reporte.")
 
 elif menu == "⚙️ Ajustes":
-    mostrar_ajustes()     
+    mostrar_ajustes()  
+
+def actualizar_clave_usuario(usuario_id, nueva_clave):
+    dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+    table = dynamodb.Table('NEXUS_USUARIOS')
+    try:
+        table.update_item(
+            Key={'usuario_id': usuario_id},
+            # CAMBIAMOS 'clave' por 'password_hash' aquí abajo:
+            UpdateExpression="set password_hash = :c",
+            ExpressionAttributeValues={':c': nueva_clave}
+        )
+        return True
+    except Exception as e:
+        st.error(f"Error al conectar con la base de datos: {e}")
+        return False
+
+# 2. LA FUNCIÓN QUE DIBUJA Y RECIBE LOS CLICS (Aquí es donde debes poner la lógica del botón)
+def mostrar_ajustes():
+    st.title("⚙️ Ajustes de Cuenta")
+    tab1, tab2 = st.tabs(["🔒 Seguridad", "💳 Planes y Pagos"])
+    
+    with tab1:
+        st.subheader("Cambiar Contraseña")
+        with st.form("form_clave"):
+            actual = st.text_input("Contraseña Actual", type="password")
+            nueva = st.text_input("Nueva Contraseña", type="password")
+            conf = st.text_input("Confirmar Nueva Contraseña", type="password")
+            btn_update = st.form_submit_button("Actualizar Clave")
+        
+        # ESTO DEBE ESTAR AQUÍ, DENTRO DE mostrar_ajustes, NO DENTRO DE LA FUNCIÓN DE ARRIBA
+        if btn_update:
+            if nueva == conf and nueva != "":
+                # Asegúrate de que este ID coincida con los que tienes en la tabla (ADMIN, etc.)
+                usuario_actual = st.session_state.get('usuario_id')
+                if actualizar_clave_usuario(usuario_actual, nueva):
+                    st.success("✅ ¡Tu clave ha sido cambiada correctamente!")
+                else:
+                    st.error("❌ No se pudo guardar en la base de datos.")
+            else:
+                st.error("❌ Las claves no coinciden o están vacías.")
+    
+    with tab2:
+        # Aquí va tu lógica de planes que ya te funciona
+        st.write("Configuración de planes y pagos...")
     
