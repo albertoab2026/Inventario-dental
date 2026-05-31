@@ -1168,17 +1168,19 @@ def mostrar_ajustes():
         
         # ESTO DEBE ESTAR AQUÍ, DENTRO DE mostrar_ajustes, NO DENTRO DE LA FUNCIÓN DE ARRIBA
         if btn_update:
+            usuario_actual = st.session_state.get('usuario_id')
+            
+            # DEBUG: Esto nos dirá si el programa sabe quién eres
+            st.write(f"DEBUG: El ID de usuario detectado es: {usuario_actual}")
+            
             if nueva == conf and nueva != "":
-                # Asegúrate de que este ID coincida con los que tienes en la tabla (ADMIN, etc.)
-                usuario_actual = st.session_state.get('usuario_id')
-                if actualizar_clave_usuario(usuario_actual, nueva):
-                    st.success("✅ ¡Tu clave ha sido cambiada correctamente!")
+                if usuario_actual: # Solo intentar si el ID existe
+                    if actualizar_clave_usuario(usuario_actual, nueva):
+                        st.success("✅ ¡Tu clave ha sido cambiada correctamente!")
+                    else:
+                        st.error("❌ Fallo en la base de datos.")
                 else:
-                    st.error("❌ No se pudo guardar en la base de datos.")
+                    st.error("❌ Error: No se encontró el ID de usuario en la sesión. ¿Iniciaste sesión correctamente?")
             else:
                 st.error("❌ Las claves no coinciden o están vacías.")
-    
-    with tab2:
-        # Aquí va tu lógica de planes que ya te funciona
-        st.write("Configuración de planes y pagos...")
     
