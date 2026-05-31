@@ -1166,21 +1166,20 @@ def mostrar_ajustes():
             conf = st.text_input("Confirmar Nueva Contraseña", type="password")
             btn_update = st.form_submit_button("Actualizar Clave")
         
-        # ESTO DEBE ESTAR AQUÍ, DENTRO DE mostrar_ajustes, NO DENTRO DE LA FUNCIÓN DE ARRIBA
+        # Esta parte debe estar alineada con el 'with st.form'
         if btn_update:
-            usuario_actual = st.session_state.get('usuario_id')
-            
-            # DEBUG: Esto nos dirá si el programa sabe quién eres
-            st.write(f"DEBUG: El ID de usuario detectado es: {usuario_actual}")
-            
+            st.write("DEBUG: Botón presionado") # <-- Si esto no aparece, el botón no funciona
             if nueva == conf and nueva != "":
-                if usuario_actual: # Solo intentar si el ID existe
+                usuario_actual = st.session_state.get('usuario_id')
+                if usuario_actual:
                     if actualizar_clave_usuario(usuario_actual, nueva):
                         st.success("✅ ¡Tu clave ha sido cambiada correctamente!")
                     else:
-                        st.error("❌ Fallo en la base de datos.")
+                        st.error("❌ Error al guardar en la base de datos.")
                 else:
-                    st.error("❌ Error: No se encontró el ID de usuario en la sesión. ¿Iniciaste sesión correctamente?")
+                    st.error("❌ Error: No se encontró el usuario en la sesión.")
             else:
                 st.error("❌ Las claves no coinciden o están vacías.")
-    
+
+    with tab2:
+        st.write("Configuración de planes y pagos...")
