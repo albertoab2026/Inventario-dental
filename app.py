@@ -704,15 +704,27 @@ if menu == "Ventas":
                 w_cliente_celular = st.text_input("Celular:", key="w_cli_cel")
 
                 if st.button("⚡ Finalizar y Registrar Venta", type="primary", use_container_width=True):
+                    total_bruto = sum(float(item['precio_venta']) * int(item['cantidad']) for item in st.session_state.carrito)
+                    
+                    # 1. Calcular proporción de descuento
+                    # Si el descuento es 0, el factor es 1 (no cambia precio)
+                    # Si hay descuento, calculamos cuánto pagar por cada sol original
+                    factor = (total_bruto - descuento) / total_bruto if total_bruto > 0 else 1
+                    
                     ok = True
-                    items_guardar = [item.copy() for item in st.session_state.carrito]
-
+                    items_guardar = []
+                    
                     for item in st.session_state.carrito:
+                        # 2. Calcular precio unitario final con el descuento aplicado
+                        precio_original = float(item['precio_venta'])
+                        precio_final = round(precio_original * factor, 2)
+                        
                         try:
+                            # 3. Registrar usando el precio_final ajustado
                             res = registrar_venta(
                                 producto_id=item['producto_id'],
                                 cantidad=int(item['cantidad']),
-                                precio_venta=float(item['precio_venta']),
+                                precio_venta=precio_final, # <--- AQUÍ ESTÁ EL CAMBIO
                                 precio_compra=float(item['precio_compra']),
                                 pago=metodo_pago,
                                 cliente=w_cliente_nombre.strip() if w_cliente_nombre.strip() else "Consumidor Final",
